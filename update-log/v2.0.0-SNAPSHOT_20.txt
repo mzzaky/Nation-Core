@@ -70,3 +70,33 @@ Pembaruan tata letak (layout) Republic Main Menu dan restrukturisasi GUI Republi
   → Pembaruan layout menjadi 3 slot (Defense, Treasury, Health) pada baris kedua (Slot 11, 13, 15).
   → Deskripsi dinamis untuk masing-masing posisi kabinet.
   → Sinkronisasi biaya (cost) dan durasi keputusan dengan data dari CabinetManager.
+
+[REPUBLIC GOVERNMENT GUI LAYOUT OVERHAUL]
+- RepublicGovernmentGUI.java:
+  → Perombakan total tata letak (layout) menggunakan CommunistGovernmentGUI sebagai referensi struktural,
+    namun tetap sebagai varian khas Republic.
+  → Pembaruan TITLE menjadi "§9§lREPUBLIC GOVERNMENT" agar konsisten dengan tema biru Republic.
+  → Filler border dipertahankan menggunakan LIGHT_BLUE_STAINED_GLASS_PANE dengan pola slot:
+    {0,1,2,3,5,6,7,8, 9,17, 18,26, 27,35, 36,44, 45,46,47,51,52,53}.
+  → Penataan ulang seluruh ikon ke dalam grid 3x3 yang seimbang dan simetris:
+      • Slot 4 : Nation Profile (GLOW_ITEM_FRAME) — header overview (tag, members, term, approval).
+      • Slot 20: Executive Orders (WRITABLE_BOOK).
+      • Slot 22: President Head (PLAYER_HEAD) — centerpiece dengan info term & approval rating.
+      • Slot 24: Cabinet Management (LECTERN).
+      • Slot 29: Election Info (PAPER) — fase & jumlah kandidat.
+      • Slot 31: State Treasury (GOLD_BLOCK).
+      • Slot 33: Salary Claim (EMERALD).
+      • Slot 38: President History (BOOK).
+      • Slot 40: Presidential Games (NETHER_STAR).
+      • Slot 42: Broadcast Message (BELL) — dengan indikator cooldown 8 jam.
+      • Slot 48: Main Menu (COMPASS).
+      • Slot 49: Active Effects (BEACON/GLASS) — status aktif Orders & Decisions.
+      • Slot 50: Close (BARRIER).
+  → Standardisasi deskripsi lore dengan separator "§8▬▬▬..." menyerupai gaya Communist GUI.
+  → Seluruh teks tampilan ditulis dalam Bahasa Inggris (display name & lore).
+  → Refaktor metode helper: buildNationProfile, buildPresidentHead, buildBroadcastButton,
+    dan buildActiveEffects untuk memisahkan tanggung jawab pembentukan ItemStack.
+  → Filler kini dibangun via GovernmentGUIUtils.createItem (menghapus helper pane() lokal).
+  → Kompatibilitas penuh dengan RepublicGUIHandler#handleGovernmentGUI dipertahankan
+    karena routing klik tetap berbasis Material type (WRITABLE_BOOK, LECTERN, GOLD_BLOCK,
+    PAPER, BOOK, COMPASS, EMERALD, NETHER_STAR, BELL, BARRIER).

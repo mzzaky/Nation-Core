@@ -10,7 +10,6 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
@@ -23,13 +22,15 @@ import id.nationcore.utils.MessageUtils;
 public class RepublicGovernmentGUI {
 
     private final NationCore plugin;
-    public static final String TITLE = "§6§lGOVERNMENT";
+    public static final String TITLE = "§9§lREPUBLIC GOVERNMENT";
 
-    // ── Filler slots ────────────────────────────────────────────────────────
     private static final int[] FILLER_SLOTS = {
             0, 1, 2, 3, 5, 6, 7, 8,
-            9, 17, 18, 26, 27, 35, 36, 44,
-            45, 46, 47, 48, 49, 50, 51, 52, 53
+            9, 17,
+            18, 26,
+            27, 35,
+            36, 44,
+            45, 46, 47, 51, 52, 53
     };
 
     private static final Material PRIMARY_FILLER = Material.LIGHT_BLUE_STAINED_GLASS_PANE;
@@ -39,20 +40,9 @@ public class RepublicGovernmentGUI {
     }
 
     @SuppressWarnings("deprecation")
-    private ItemStack pane(Material material) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§r");
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    @SuppressWarnings("deprecation")
     public void open(Player player, Nation nation) {
         Government gov = nation != null ? nation.getRepublicGovernment() : plugin.getDataManager().getGovernment();
-        
+
         UUID leaderUUID = null;
         int term = 0;
         long termEndTime = 0;
@@ -76,13 +66,175 @@ public class RepublicGovernmentGUI {
 
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
 
-        // ── Place fillers ────────────────────────────────────────────────
-        ItemStack filler = pane(PRIMARY_FILLER);
-        for (int s : FILLER_SLOTS) {
-            inv.setItem(s, filler);
+        ItemStack filler = GovernmentGUIUtils.createItem(PRIMARY_FILLER, " ");
+        for (int slot : FILLER_SLOTS) {
+            inv.setItem(slot, filler);
         }
 
-        // ── Row 0 ────────────────────────────────────────
+        // ── Header: Nation / Government profile ────────────────────────
+        inv.setItem(4, buildNationProfile(nation, gov, term, termEndTime));
+
+        // ── Row 2: Core management (Orders / President / Cabinet) ──────
+        inv.setItem(20, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lExecutive Orders",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Issue and review active",
+                "§7presidential executive orders.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open."));
+
+        if (leaderUUID != null) {
+            inv.setItem(22, buildPresidentHead(leaderUUID, term, termEndTime, nation, gov));
+        } else {
+            inv.setItem(22, GovernmentGUIUtils.createItem(Material.PLAYER_HEAD, "§c§lNo President",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7The presidential seat is vacant.",
+                    "§7An election may be in progress.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        }
+
+        inv.setItem(24, GovernmentGUIUtils.createItem(Material.LECTERN, "§e§lCabinet Management",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Inspect cabinet members and",
+                "§7active ministerial decisions.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open."));
+
+        // ── Row 3: Finance & politics (Election / Treasury / Salary) ───
+        Election election = nation != null ? nation.getElection() : plugin.getDataManager().getElection();
+        if (election != null) {
+            inv.setItem(29, GovernmentGUIUtils.createItem(Material.PAPER, "§e§lElection Info",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Phase     : §f" + election.getPhase().getDisplayName(),
+                    "§7Candidates: §f" + election.getCandidates().size(),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to open the voting GUI."));
+        } else {
+            inv.setItem(29, GovernmentGUIUtils.createItem(Material.PAPER, "§e§lElection Info",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7No active election cycle.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        }
+
+        inv.setItem(31, GovernmentGUIUtils.createItem(Material.GOLD_BLOCK, "§e§lState Treasury",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Manage state finances",
+                "§7and review transactions.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open."));
+
+        inv.setItem(33, GovernmentGUIUtils.createItem(Material.EMERALD, "§e§lSalary Claim",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Daily salary payouts for",
+                "§7President and Cabinet members.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open."));
+
+        // ── Row 4: Heritage & engagement (History / Games / Broadcast) ─
+        inv.setItem(38, GovernmentGUIUtils.createItem(Material.BOOK, "§e§lPresident History",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Browse previous presidents",
+                "§7and their term records.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open."));
+
+        inv.setItem(40, GovernmentGUIUtils.createItem(Material.NETHER_STAR, "§e§lPresidential Games",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Launch a new arena event.",
+                "§c⚠ Only the President can start",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to start."));
+
+        inv.setItem(42, buildBroadcastButton(lastBroadcastTime));
+
+        // ── Row 5: Footer actions (Main Menu / Status / Close) ─────────
+        inv.setItem(48, GovernmentGUIUtils.createItem(Material.COMPASS, "§e§lMain Menu",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Return to the Republic main menu.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+
+        inv.setItem(49, buildActiveEffects(nation));
+
+        inv.setItem(50, GovernmentGUIUtils.createItem(Material.BARRIER, "§c§lClose",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Close this menu.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+
+        player.openInventory(inv);
+    }
+
+    private ItemStack buildNationProfile(Nation nation, Government gov, int term, long termEndTime) {
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7Government : §fRepublic");
+        if (nation != null) {
+            lore.add("§7Tag        : §f[" + nation.getTag() + "]");
+            lore.add("§7Members    : §f" + nation.getMemberCount());
+        }
+        if (gov != null) {
+            lore.add("§7Term       : §f#" + term);
+            long remaining = termEndTime - System.currentTimeMillis();
+            lore.add("§7Time Left  : §f" + MessageUtils.formatTime(Math.max(0, remaining)));
+            lore.add("§7Approval   : §e" + String.format("%.1f", gov.getApprovalRating()) + "/5.0");
+        }
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§8Overview of the republic.");
+
+        String name = nation != null ? nation.getName() : "Republic";
+        return GovernmentGUIUtils.createItem(Material.GLOW_ITEM_FRAME,
+                "§9§l" + name,
+                lore.toArray(new String[0]));
+    }
+
+    @SuppressWarnings("deprecation")
+    private ItemStack buildPresidentHead(UUID uuid, int term, long termEndTime, Nation nation, Government gov) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+        meta.setOwningPlayer(offlinePlayer);
+        meta.setDisplayName("§9§lPRESIDENT: §f" + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        if (nation != null) {
+            lore.add("§7Nation     : §f" + nation.getName());
+        }
+        lore.add("§7Term       : §f#" + term);
+        long remaining = termEndTime - System.currentTimeMillis();
+        lore.add("§7Time Left  : §f" + MessageUtils.formatTime(Math.max(0, remaining)));
+        if (gov != null) {
+            lore.add("§7Approval   : §e" + String.format("%.1f", gov.getApprovalRating()) + "/5.0");
+        }
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§8Current head of state.");
+
+        meta.setLore(lore);
+        head.setItemMeta(meta);
+        return head;
+    }
+
+    private ItemStack buildBroadcastButton(long lastBroadcastTime) {
+        long cooldown = 8L * 60 * 60 * 1000;
+        long nextAvailable = lastBroadcastTime + cooldown;
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7Send a global broadcast");
+        lore.add("§7message to all players.");
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        if (System.currentTimeMillis() >= nextAvailable) {
+            lore.add("§c⚠ Only the President can use");
+            lore.add("§eClick to type the message.");
+        } else {
+            long remaining = nextAvailable - System.currentTimeMillis();
+            lore.add("§cCooldown: §f" + MessageUtils.formatTime(remaining));
+        }
+
+        return GovernmentGUIUtils.createItem(Material.BELL, "§e§lBroadcast Message",
+                lore.toArray(new String[0]));
+    }
+
+    private ItemStack buildActiveEffects(Nation nation) {
         var activeOrders = nation != null
                 ? plugin.getExecutiveOrderManager().getActiveOrders(nation)
                 : plugin.getExecutiveOrderManager().getActiveOrders();
@@ -91,116 +243,12 @@ public class RepublicGovernmentGUI {
                 : plugin.getDataManager().getActiveDecisions();
         int totalActive = activeOrders.size() + activeDecisions.size();
 
-        inv.setItem(4, GovernmentGUIUtils.createItem(
-                totalActive > 0 ? Material.BEACON : Material.GLASS,
+        Material icon = totalActive > 0 ? Material.BEACON : Material.GLASS;
+        return GovernmentGUIUtils.createItem(icon,
                 "§a§lActive Effects: §f" + totalActive,
-                "§7Orders: §f" + activeOrders.size(),
-                "§7Decisions: §f" + activeDecisions.size()));
-
-        // ── Row 1 ────────────────────────────────────────
-        inv.setItem(10, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§c§lExecutive Orders",
-                "§7View and manage",
-                "§7executive orders",
-                "",
-                "§aClick to view"));
-
-        inv.setItem(11, GovernmentGUIUtils.createItem(Material.LECTERN, "§e§lCabinet",
-                "§7View cabinet members",
-                "§7and active decisions",
-                "",
-                "§aClick to view"));
-
-        if (leaderUUID != null) {
-            inv.setItem(13, createLeaderHead(leaderUUID, term, termEndTime, nation, gov));
-        } else {
-            inv.setItem(13, GovernmentGUIUtils.createItem(Material.BARRIER, "§c§lNo President",
-                    "§7Election in progress",
-                    "",
-                    "§eClick for election info"));
-        }
-
-        Election election = nation != null ? nation.getElection() : plugin.getDataManager().getElection();
-        if (election != null) {
-            inv.setItem(15, GovernmentGUIUtils.createItem(Material.PAPER, "§b§lElection Info",
-                    "§7Phase: §f" + election.getPhase().getDisplayName(),
-                    "§7Candidates: §f" + election.getCandidates().size(),
-                    "",
-                    "§aClick for voting GUI"));
-        }
-
-        inv.setItem(16, GovernmentGUIUtils.createItem(Material.GOLD_BLOCK, "§6§lTreasury",
-                "§7State finances",
-                "",
-                "§aClick to view"));
-
-        // ── Row 3 ────────────────────────────────────────
-        inv.setItem(28, GovernmentGUIUtils.createItem(Material.EMERALD, "§a§lSalary Claim",
-                "§7President & Cabinet",
-                "§7Daily Salary Claim",
-                "",
-                "§eClick to open"));
-
-        inv.setItem(30, GovernmentGUIUtils.createItem(Material.BOOK, "§5§lPresident History",
-                "§7View previous",
-                "§7presidents",
-                "",
-                "§aClick to view"));
-
-        inv.setItem(32, GovernmentGUIUtils.createItem(Material.NETHER_STAR, "§c§lPresidential Games",
-                "§7Start a new arena game!",
-                "",
-                "§cOnly President can start",
-                "§aClick to start"));
-
-        long cooldown = 8L * 60 * 60 * 1000;
-        long nextAvailable = lastBroadcastTime + cooldown;
-        List<String> broadcastLore = new ArrayList<>();
-        broadcastLore.add("§7Send a global broadcast");
-        broadcastLore.add("§7message to all players!");
-        broadcastLore.add("");
-        if (System.currentTimeMillis() >= nextAvailable) {
-            broadcastLore.add("§cOnly President can use");
-            broadcastLore.add("§aClick to type message");
-        } else {
-            long remaining = nextAvailable - System.currentTimeMillis();
-            broadcastLore.add("§cCooldown: " + MessageUtils.formatTime(remaining));
-        }
-        inv.setItem(34, GovernmentGUIUtils.createItem(Material.BELL, "§b§lBroadcast Message",
-                broadcastLore.toArray(new String[0])));
-
-        // ── Row 4 ────────────────────────────────────────
-        inv.setItem(39, GovernmentGUIUtils.createItem(Material.COMPASS, "§b§lMain Menu", "§7Return to Main Menu"));
-        inv.setItem(41, GovernmentGUIUtils.createItem(Material.BARRIER, "§c§lClose", "§7Click to close"));
-
-        player.openInventory(inv);
-    }
-
-    @SuppressWarnings("deprecation")
-    private ItemStack createLeaderHead(UUID uuid, int term, long termEndTime, Nation nation, Government gov) {
-        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) head.getItemMeta();
-
-        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-        meta.setOwningPlayer(offlinePlayer);
-        meta.setDisplayName("§6§lPRESIDENT: " + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
-
-        List<String> lore = new ArrayList<>();
-        if (nation != null) {
-            lore.add("§7Nation: §6" + nation.getName());
-        }
-        lore.add("§7Term #" + term);
-        lore.add("§7Time left in term:");
-        long remaining = termEndTime - System.currentTimeMillis();
-        lore.add("§f" + MessageUtils.formatTime(Math.max(0, remaining)));
-        
-        if (gov != null) {
-            lore.add("");
-            lore.add("§7Approval Rating:");
-            lore.add("§e" + String.format("%.1f", gov.getApprovalRating()) + "/5.0");
-        }
-
-        meta.setLore(lore);
-        head.setItemMeta(meta);
-        return head;
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Orders    : §f" + activeOrders.size(),
+                "§7Decisions : §f" + activeDecisions.size(),
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
     }
 }
