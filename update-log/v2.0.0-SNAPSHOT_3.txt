@@ -1,0 +1,57 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#3
+====================================================
+Implementasi per-nation context untuk tiga state-machine paling kompleks: 
+Election, Cabinet Decision, dan Recall Petition.
+
+[ELECTIONMANAGER - PER-NATION]
+- Phase machine per-nation: REGISTRATION → CAMPAIGN → VOTING → INAUGURATION.
+- Mekanisme Auto-start:
+  → Otomatis mulai 5 hari sebelum term berakhir, atau segera jika tidak ada presiden.
+- API Context-Aware (Nation):
+  → startElection / endElection / forceNextPhase / getPhaseRemainingTime.
+  → isElectionActive / startEmergencyElection.
+  → registerCandidate / endorseCandidate / castVote / setCampaignMessage.
+- Aggregator Scheduler:
+  → checkAllPhaseTransitions() & broadcastAllCampaignMessages() mendukung legacy global + semua nation REPUBLIC.
+- Validasi & Reward:
+  → Partisipasi terbatas pada member nation tersebut.
+  → concludeVoting(nation) melakukan inaugurasi otomatis.
+  → Reward vote diberikan khusus kepada member nation yang berpartisipasi.
+
+[GOVERNMENTMANAGER (PHASE 2B)]
+- setPresident(Nation, uuid, name, isNewTerm):
+  → Inaugurasi penuh: cleanup mantan presiden, reset cabinet/approval/buff.
+  → Pemberian term-start fund langsung ke kas nation.
+- checkPresidentActivity(Nation):
+  → Auto-removal presiden idle (> inactive-days) dan trigger emergency election per-nation.
+
+[CABINETMANAGER - PER-NATION]
+- Sistem Decision per-nation:
+  → Data disimpan di nation.activeDecisions; biaya diambil dari nation.treasury.
+- Pembatasan Global:
+  → Cooldown per-pemain tetap global (cross-nation) untuk mencegah abuse pindah nation.
+- API Context-Aware (Nation):
+  → canExecuteDecision, executeDecision, issueDecision (Player, Nation, type).
+  → getAllActiveDecisions, getActiveDecisionsByPosition.
+
+[RECALLMANAGER - PER-NATION]
+- Petisi per-nation disimpan di nation.recallPetition (field currentPetition lama tetap untuk legacy).
+- API Context-Aware (Nation):
+  → canStartPetition, startPetition, signPetition, withdrawSignature.
+  → castRecallVote (yes/no), checkPetitionStatus.
+  → Syarat tanda tangan: % dinamis dari jumlah member nation (getRequiredSignatures).
+- Cooldown Recall:
+  → lastFailedRecallByNation (Map<String, Long>) dengan cooldown 15 hari per-nation.
+
+[SCHEDULER UPDATE (NATIONCORE.JAVA)]
+- Sinkronisasi Scheduler:
+  → Setiap menit: checkAllPhaseTransitions (Election) & checkAllPetitionStatus (Recall).
+  → Setiap 5 menit: broadcastAllCampaignMessages (Campaign Phase).
+  → Setiap jam: checkPresidentActivity untuk semua nation (President Activity).
+
+[UPDATE NATIONCOMMAND HANDLERS]
+- Perluasan Command /nc dengan context nation pemain:
+  → /nc vote <name>, /nc register [slogan...], /nc endorse <name> (Election).
+  → /nc recall start/sign/vote/status (Recall Petition).
+  → /nc cabinet decision <TYPE> (Cabinet Decision).

@@ -1,0 +1,59 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#7
+====================================================
+Penyelesaian Phase 4B: Sistem fungsional ideologi Komunis telah lengkap dengan 
+mekanisme pemilihan internal (election cycle), sistem perpajakan progresif, 
+distribusi pangan gratis (free food), dan Executive Order Nasionalisasi.
+Artifact: target/Nation-Core-Plugin-1.5.0.jar
+
+[REVISI STRUKTUR & FIX - POLITBURO]
+- Refaktor Posisi Politbiro:
+  → Revisi posisi: PROPAGANDA, DEFENSE, TREASURY, HEALTH.
+- Integrasi Buff & Prefix (Updated):
+  → Buff Mapping:
+      • PROPAGANDA → CULTURE
+      • DEFENSE → DEFENSE
+      • TREASURY → TREASURY
+      • HEALTH → INFRASTRUCTURE
+  → Chat Prefix Baru: 📢 Propaganda, 🛡 Pertahanan, 💰 Keuangan, 💉 Kesehatan.
+- Larangan Recall: Ideologi Komunis menonaktifkan fitur petisi pemakzulan (/nc recall). 
+  Pergantian pemimpin hanya dilakukan melalui mekanisme internal Partai.
+
+[ELECTION SYSTEM - WEEKLY INTERNAL VOTE]
+- Mekanisme Pemilihan Sekjen:
+  → Cycle Mingguan: Pemilihan otomatis setiap 7 hari real-life.
+  → Voting Internal: Hanya anggota Partai yang dapat memberikan suara (/nc party vote).
+  → Validasi Suara: Kandidat harus merupakan anggota Partai. Suara dari pemain yang 
+    keluar dari Partai otomatis dianulir.
+  → Suksesi Otomatis: Tally suara dilakukan secara berkala; pemenang otomatis 
+    diangkat sebagai Sekjen baru. Petahana yang terpilih kembali tetap menjabat 
+    tanpa mereset struktur Politbiro.
+
+[SISTEM EKONOMI & SUBSIDI]
+- Communist Tax (Pajak Kolektif):
+  → Penarikan otomatis 50 balance per anggota setiap 140 menit (setara 7 hari Minecraft).
+  → Hasil pajak dialokasikan langsung ke kas nation untuk pendanaan program negara.
+- Free Food Distribution (Subsidi Pangan):
+  → Distribusi harian 16 Bread kepada seluruh anggota yang online.
+  → Biaya operasional 1000 per pemain didebit dari kas nation.
+- Executive Order: Nasionalisasi:
+  → Mekanisme Seizure: Penyitaan 10% saldo dari Top 5 anggota terkaya.
+  → Redistribusi: 5% dari total sitaan dibagikan rata ke seluruh anggota Partai, 
+    sisanya (95%) masuk ke kas negara.
+  → Cooldown: Durasi 7 hari antar penggunaan EO.
+
+[COMMAND & INTEGRATION]
+- Command Baru:
+  → /nc party vote <player>: Memberikan suara dalam pemilihan internal.
+  → /nc party tally: Melihat statistik suara sementara dan sisa waktu cycle.
+  → /nc order nasionalisasi: Menjalankan perintah penyitaan aset (Sekjen-only).
+- Scheduler System: Implementasi loop per menit untuk pemantauan otomatis 
+  Election, Tax Phase, dan Food Distribution.
+
+[KONFIGURASI BARU - NATION.COMMUNIST]
+- election-cycle-days: 7
+- tax-phase-minutes: 140
+- tax-amount: 50
+- free-food-interval-hours: 24
+- free-food-cost-per-player: 1000
+- free-food-bread: 16

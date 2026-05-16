@@ -1,0 +1,45 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#9
+====================================================
+Modernisasi Sistem GUI: Rebuild total Main Menu dengan arsitektur Nation-Specific, 
+penghapusan ketergantungan YAML (Code-driven), dan integrasi penuh dengan Hub.
+Artifact: target/Nation-Core-Plugin-1.5.0.jar
+
+[HASIL AUDIT & DEPREKASI]
+- MainMenuGUI lama (legacy) dihapus karena:
+  → Selalu mengambil data dari legacy global government.
+  → Tidak membedakan antara Republik dan Komunis.
+  → Title statis dan kurangnya validasi kepemilikan nation.
+  → Hub button "My Nation" hanya info chat, tidak terhubung menu.
+
+[ARCHITECTURAL CHANGES - CODE DRIVEN]
+- GUI kini sepenuhnya hardcoded di Java untuk performa dan fleksibilitas.
+- Penghapusan loader YAML (loadGUIConfigs, getGUIConfig) di NationCore.java.
+- reloadGUI() dipertahankan sebagai stub no-op untuk backward compatibility.
+- File dihapus:
+  → MainMenuGUI.java (67 KB, 1.500+ baris)
+  → custom_gui/main_gui.yml, history_gui.yml, cabinet_gui.yml
+  → Folder custom_gui/ (dikosongkan)
+
+[NEW CORE COMPONENTS]
+- NationMenuBase.java: Fondasi shared (helper ItemStack, formatter waktu/uang).
+- MainMenuRouter.java: Dispatcher pusat yang routing berdasarkan nation.getType().
+- RepublicMainMenu.java: Dashboard demokrasi (biru/putih) fokus Presiden/Kabinet/Pemilu.
+- CommunistMainMenu.java: Dashboard partai tunggal (merah) fokus Sekjen/Politbiro/Subsidi.
+
+[GUI LAYOUT & FEATURES (54 SLOTS)]
+- Desain fresh 6 baris (Row 0-5):
+  → Row 0: Border + Banner Nation sesuai jenis.
+  → Row 1: Player • Pemimpin • Approval/Partai • Treasury.
+  → Row 2: Separator (kaca).
+  → Row 3: 4 Fitur Utama (berbeda per jenis pemerintahan).
+  → Row 4: 4 Utility (berbeda per jenis pemerintahan).
+  → Row 5: Hub • Capital • Close.
+
+[SYSTEM INTEGRATION & VALIDATION]
+- Integrasi Hub ↔ Main Menu:
+  → Tombol "My Nation" di HubGUI sekarang menggunakan banner sesuai jenis nation.
+  → Navigasi dua arah melalui tombol 🧭 Nation Hub di footer slot 46.
+- Validasi Keamanan:
+  → MainMenuRouter.openFor() memvalidasi kepemilikan nation.
+  → Pemain tanpa nation akan mendapatkan pesan error + bunyi bass + buka Hub.

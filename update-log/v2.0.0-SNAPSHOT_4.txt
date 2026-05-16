@@ -1,0 +1,40 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#4
+====================================================
+Implementasi integrasi Listener, Chat Prefix, dan GUI Utama yang mendukung 
+sistem multi-nation dengan fallback ke global legacy.
+
+[BUFFMANAGER & PLAYER JOIN]
+- Sinkronisasi Buff:
+  → refreshAllBuffs() kini mengiterasi global Government DAN semua Nation REPUBLIC via refreshGovernmentBuffs(gov).
+- Player Join Handling:
+  → handlePlayerJoin(player) mendeteksi nation pemain terlebih dahulu (presiden/kabinet) sebelum fallback ke global.
+  → Notifikasi baru: "🎖 Buffs presiden <Nama Nation> aktif!"
+
+[CHAT & PREFIX NATION-AWARE]
+- Implementasi Prefix Dinamis berdasarkan posisi di nation:
+  → [👑 LeaderTitle NamaNation]: Gelar pemimpin sesuai tipe pemerintahan (Presiden/Sekjen).
+  → [🛡 Minister Position NamaNation]: Gelar anggota kabinet berdasarkan posisi.
+- Mekanisme: Menggunakan nation.getType().getLeaderTitle() + nama nation dengan fallback ke prefix global lama.
+
+[LISTENER & NOTIFIKASI LOGIN]
+- Pesan Join (onPlayerJoin) kini bersifat nation-aware:
+  → Menampilkan informasi Nation (Nama & Jenis) dan Leader (Presiden).
+  → Pengumuman status penting: Pemilu aktif atau Petisi Recall yang sedang berjalan di nation tersebut.
+- Fallback: Pemain tanpa nation tetap menerima pesan join global standar.
+
+[GOVERNMENT GUI & COMMAND]
+- GovernmentGUI:
+  → openGovernmentMenu otomatis me-resolve government berdasarkan nation pemain.
+  → Counter Active Orders & Decisions menggunakan list spesifik nation.
+  → Tampilan President Head: "§6§l<LEADER_TITLE>: <Nama>" dengan lore "Nation: <Nama Nation>".
+- Campaign Command:
+  → /nc campaign me-resolve election dari nation pemain dan melakukan broadcast dengan label nation kandidat.
+
+[LEGACY FALLBACK & BACKWARD COMPATIBILITY]
+- GUI Legacy (Cabinet, Voting, Recall, dll.):
+  → Masih menggunakan Government global untuk pemain tanpa nation; pemain dengan nation akan diarahkan ke data global (refactor menyusul pada patch berikutnya).
+- State In-Memory:
+  → Efek seperti military draft, tax holiday, dan shop discount tetap bersifat server-wide secara desain.
+- Backward Compatibility:
+  → Single-global state di DataManager dipertahankan sebagai fallback untuk data lama dan pemain tanpa nation demi menjaga integritas data.

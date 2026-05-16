@@ -1,0 +1,61 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#15
+====================================================
+Implementasi Sistem Nation Research: Proyek penelitian khusus pemimpin bangsa
+dengan efek permanen yang berlaku untuk seluruh anggota bangsa. Sistem ini
+mencakup tiga kategori utama, sistem tiering, dan konfigurasi penuh melalui YAML.
+
+[CORE RESEARCH SYSTEM]
+- Implementasi NationResearchData.java:
+  → Penyimpanan status level penelitian, proyek aktif, dan audit counter per-bangsa.
+  → Integrasi lazy-loading ke dalam objek Nation.java (auto-persist via nations.json).
+- Implementasi ResearchManager.java:
+  → Logika manajemen proyek (Start, Cancel, Tick, Apply).
+  → Sistem pendanaan otomatis melalui TreasuryManager (debit kas bangsa).
+  → Fitur pengembalian dana (refund) jika proyek dibatalkan.
+- Implementasi Scheduler (NationCore.java):
+  → Task periodik setiap 30 detik untuk memproses progres dan penyelesaian penelitian.
+
+[GUI & INTERACTION]
+- Implementasi ResearchGUI.java:
+  → Menu tiga lapis: Main Menu → Category Menu → Research Detail.
+  → Visualisasi progres menggunakan progress bar dinamis dan indikator level (pips).
+  → Kontrol akses dinamis: Tombol "Start" akan terkunci secara visual bagi non-pemimpin.
+- Pembaruan GUIListener.java:
+  → Penanganan navigasi antar menu penelitian menggunakan dekode context judul.
+  → Integrasi slot RESEARCH pada Communist Main Menu.
+- Pembaruan CommunistMainMenu.java:
+  → Transformasi slot penelitian dari status "Coming Soon" menjadi deskripsi fitur aktif.
+
+[RESEARCH MECHANICS & EFFECTS]
+- Implementasi ResearchListener.java untuk menangani berbagai efek:
+  → Agriculture Program I: Peluang bonus drop saat panen tanaman.
+  → Husbandry Boost I: Peluang bonus drop saat penyembelihan ternak.
+  → Mining Luck I: Peluang bonus drop saat menambang bijih/ore.
+  → Magic Education I: Peningkatan perolehan XP dari semua sumber.
+  → Health Expansion I: Penambahan Max HP permanen (AttributeModifier).
+  → Hunting Skill I: Peningkatan damage terhadap Monster.
+  → Attack Exercise I: Peningkatan damage terhadap pemain lawan.
+  → Defensive Tactic I: Pengurangan damage dari pemain lawan (Max 90%).
+  → Archery Training I: Peningkatan damage proyektil (Bow/Crossbow).
+
+[CONFIGURATION & SECURITY]
+- Penambahan research.yml:
+  → Kontrol penuh atas biaya, waktu penelitian, scaling per level, dan nilai efek.
+  → Opsi master-enable dan persentase refund kas.
+- Keamanan & Aturan Data:
+  → Leader-Gated: Hanya pemimpin atau admin yang dapat memulai/membatalkan penelitian.
+  → Single-Slot Rule: Membatasi satu proyek aktif per bangsa untuk menjaga keseimbangan.
+  → Treasury-Funded: Seluruh transaksi tercatat secara transparan di log kas bangsa.
+
+[COMMUNIST GOVERNMENT GUI UPDATE]
+- Implementasi layout baru pada CommunistGovernmentGUI.java:
+  → Transformasi menu menjadi 54 slot (6 baris) dengan desain premium.
+  → Penambahan slot manajemen khusus: Cabinet, Nation Member, Party Member, Border, Event, dan Diplomacy.
+  → Implementasi slot statis "Stat Negara" dengan informasi detail bangsa (GLOW_ITEM_FRAME).
+  → Penambahan slot aksi baru: Rename Nation (WRITABLE_BOOK), Leave Nation (COMPASS), dan Disband Nation (TNT_MINECART).
+  → Pengaturan filler menggunakan Red Stained Glass Pane untuk estetika yang lebih bersih.
+- Perbaikan GUIListener.java:
+  → Pemisahan handler navigasi antara Republic dan Communist Government GUI.
+  → Perbaikan tombol "Back" (Slot 43 - SPECTRAL_ARROW) yang sebelumnya tidak berfungsi.
+  → Penanganan interaksi material baru (Pottery Sherds & Writable Book) pada menu pemerintah.

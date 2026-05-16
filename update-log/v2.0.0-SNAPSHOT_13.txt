@@ -1,0 +1,48 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#13
+====================================================
+Perombakan Total Communist Main Menu: Redesain layout, pembaruan estetika item, 
+penambahan placeholder fitur mendatang, dan implementasi kontrol akses berbasis role.
+
+[REDESIGN COMMUNIST MAIN MENU]
+- Pembaruan Layout CommunistMainMenu.java:
+  → Transformasi ke layout 6-baris (54 slot) yang lebih terstruktur.
+  → Implementasi sistem filler menggunakan RED_STAINED_GLASS_PANE pada slot spesifik (0-3, 5-9, dst).
+- Pembaruan Estetika & Material Item:
+  → Nation Profile (Slot 4): GLOW_ITEM_FRAME.
+  → Party Policy (Slot 10): PALE_OAK_HANGING_SIGN.
+  → Cabinet Members (Slot 11): CHAINMAIL_HELMET.
+  → Secretary General (Slot 13): NETHER_STAR.
+  → Party Members (Slot 15): GOLDEN_HELMET.
+  → Party Treasury (Slot 16): BAMBOO_HANGING_SIGN.
+  → Nation Hub (Slot 43): SPECTRAL_ARROW.
+- Internasionalisasi:
+  → Seluruh nama tombol dan lore item diubah ke Bahasa Inggris dengan gaya penulisan profesional.
+  → Penggunaan separator visual (▬▬▬) untuk meningkatkan keterbacaan lore.
+
+[FUTURE FEATURES OVERHAUL]
+- Penambahan Placeholder "Coming Soon":
+  → Notifications (Slot 28): Bell.
+  → Secretary General Election (Slot 30): Name Tag.
+  → National Aid (Slot 32): Experience Bottle.
+  → Grand Event (Slot 33): Gold Block.
+  → Communist Guide (Slot 37): Knowledge Book.
+  → Capital City (Slot 39): Lodestone.
+  → National Research (Slot 40): Enchanting Table.
+  → National Law (Slot 41): Spawner.
+
+[ACCESS CONTROL & LOGIC INTEGRATION]
+- Pembaruan GUIListener.java (Communist Handler):
+  → PARTY_POLICY (slot 10): Terbatas untuk Sekjen, Kabinet, dan Anggota Partai.
+  → SEKJEN (slot 13): Membuka Government Menu, terbatas untuk Sekjen dan Kabinet saja.
+  → TREASURY (slot 16): Membuka Communist Treasury, terbatas untuk Sekjen dan Kabinet saja.
+  → TAX (slot 31): Membuka Tax GUI untuk seluruh warga.
+  → HUB (slot 43): Membuka Nation Hub untuk seluruh warga.
+- Perbaikan Slot Mapping:
+  → Sinkronisasi slot antara CommunistMainMenu.java dan GUIListener.java menggunakan getSlot() lookup.
+  → Penyesuaian slot pajak (31), bantuan (32), dan ajang besar (33) untuk menghindari duplikasi.
+
+[TECHNICAL REFINEMENT]
+- Pembersihan Code:
+  → Penghapusan logic menu komunis lama (seperti Free Food distribution manual) yang kini diintegrasikan ke sub-menu spesifik.
+  → Optimalisasi build player skull dan lore wrapping pada menu utama.

@@ -1,0 +1,53 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#1
+====================================================
+
+[MODEL & ENUM BARU]
+- Penambahan GovernmentType.java (Enum REPUBLIC, COMMUNIST).
+  → Memuat metadata UI: nama, warna, material icon, deskripsi, highlights, titles.
+  → Parser fromString() toleran case-sensitive.
+- Penambahan Nation.java (Entitas inti per-nation).
+  → Atribut: ID (UUID), name, tag, type, foundedAt.
+  → Kepemimpinan: leaderUUID, leaderName.
+  → Keanggotaan: Map NationMember (LEADER, OFFICER, CITIZEN).
+  → Ibukota: CapitalLocation (world, coords, radius).
+  → Kas: Treasury mandiri (terpisah dari global).
+- Inner class NationMember & CapitalLocation (Gson-compatible).
+
+[MANAGER & PERSISTENCE]
+- Penambahan NationManager.java:
+  → Sentral CRUD: create, join, leave, disband, lookup.
+  → Validasi nama nation (3-24 karakter, unik).
+  → State in-memory dengan persistence via DataManager.
+- Update DataManager.java:
+  → File baru: data/nations.json (array of Nation, Gson serialized).
+  → Implementasi loadNations() dan saveNations().
+- Update PlayerData.java:
+  → Field baru: nationId, nationRole, nationJoinedAt.
+
+[GUI & USER FLOW]
+- Penambahan HubGUI.java (54-slot):
+  → Daftar nation dengan icon per tipe pemerintahan.
+  → Klik kiri = join, klik kanan = detail.
+  → Tombol dinamis: "Buat Nation Baru" atau "Menu Nation Saya".
+- Penambahan CreateNationGUI.java (27-slot):
+  → Pemilihan tipe pemerintahan dengan info highlights.
+  → Alur input nama nation via chat (prompt via pendingCreation).
+- Update ChatListener.java & GUIListener.java:
+  → Integrasi handler klik Hub/CreateNation.
+  → Penangkapan input nama nation via chat dengan opsi 'cancel'/'batal'.
+
+[COMMAND & PERMISSION]
+- Penambahan command /nc (alias: dc, nation, gov):
+  → /nc hub: buka HubGUI.
+  → /nc create: buka CreateNationGUI.
+  → /nc nation [nama]: info nation.
+  → /nc leave/disband: keluar atau bubarkan nation.
+  → /nc confirm: konfirmasi pending action.
+- Permission baru:
+  → nation.create, nation.join.
+
+[KONFIGURASI]
+- Penambahan section 'nation' di config.yml:
+  → Biaya pendirian (cost), syarat playtime, modal awal kas.
+  → Radius default ibukota dan proteksi.

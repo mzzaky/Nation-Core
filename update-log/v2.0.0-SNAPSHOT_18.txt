@@ -1,0 +1,168 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#18
+====================================================
+Update menu MonarchyMainMenu.java berdasarkan spesifikasi.
+
+[MONARCHY MAIN MENU UPDATE]
+- MonarchyMainMenu.java:
+  → Penambahan filler YELLOW_STAINED_GLASS_PANE pada slot 48, 50.
+  → Slot 32: Dihapus "Tax Overview" placeholder, Royal Tax dipindah ke slot 32.
+  → Slot 41: Ditambah item baru "Monarch Law" dengan material SPAWNER,
+    teks "Coming Soon" (fitur pada update selanjutnya).
+  → Slot 34: Material Grand Event diubah dari CHEST menjadi RAW_GOLD.
+  → Slot constants diperbarui: SLOT_TAX_PLACEHOLDER dihapus,
+    SLOT_MONARCH_LAW ditambahkan.
+  → getSlot() mapping diupdate untuk "TAX" dan "MONARCH_LAW".
+
+====================================================
+  CALIPHATE — NEW GOVERNMENT TYPE
+====================================================
+Implementasi jenis pemerintahan baru: CALIPHATE (Khilafah).
+Caliph memimpin selamanya tanpa kabinet/menteri; Shura Council (3) dan State
+Scholars (5) hanya badan penasihat tanpa wewenang order; satu-satunya alat
+governance Caliph adalah executive order standar (cooldown tetap berlaku —
+Caliph TIDAK bebas cooldown layaknya King).
+
+[NEW GOVERNMENT TYPE — CALIPHATE]
+- GovernmentType.java:
+  → Penambahan enum CALIPHATE (icon TURTLE_HELMET, warna dark green).
+  → getLeaderTitle() = "Caliph", getCitizenTitle() = "Citizen".
+  → fromString() menerima alias "caliphate", "khilafah", "kalifah", "caliph".
+- ExecutiveOrder.java:
+  → NationType ditambah varian CALIPHATE ("Caliphate" / "Caliph").
+  → createForNation() routing untuk CALIPHATE → CaliphateExecutiveOrder.
+- Nation.java:
+  → Field baru caliphateGovernment + getter/setter.
+  → initCaliphateGovernment() otomatis dipanggil saat type == CALIPHATE:
+    founder ditahbiskan sebagai Caliph pertama.
+
+[NEW DATA MODELS]
+- CaliphateGovernment.java:
+  → Caliph (UUID/name, ascensionTime, lastCaliphActivity).
+  → Shura Council (Set<UUID>, maks 3) — display & advisory only.
+  → State Scholars (Set<UUID>, maks 5) — display & advisory only.
+  → Tracking pajak: lastTaxPhase, lastZakatDistribution,
+    lastSubsidyDistribution, totalSubsidyPayouts.
+  → Phase counters: taxReliefPhasesLeft, taxLevyPhasesLeft.
+  → TIDAK memiliki kabinet/posisi menteri — sengaja tidak ada enum
+    PolitburoPosition/HighCouncilPosition yang sejajar.
+- CaliphateExecutiveOrder.java:
+  → ExecutiveOrder varian Caliphate, ditandatangani oleh Caliph.
+  → Cooldown standar tetap berlaku (tidak ada pengecualian seperti King).
+
+[NEW MANAGER — CaliphateManager.java]
+- Caliph lifecycle:
+  → setCaliph() (admin-only): tidak ada election, tidak ada recall.
+- Shura Council & State Scholars management:
+  → appointShura/removeShura — hanya Caliph yang dapat menunjuk
+    (maks 3 anggota).
+  → appointScholar/removeScholar — hanya Caliph yang dapat menunjuk
+    (maks 5 anggota).
+- Jizya Tax & Zakat (paralel dengan Communist tax-phase / free-food):
+  → checkAllTaxPhases(): Jizya tax dengan dukungan Zakat Relief
+    (suspend tax) dan Special Levy (tax 200%) untuk fleksibilitas.
+  → checkAllZakatDistributions(): distribusi roti dari Bayt al-Mal
+    untuk seluruh anggota online.
+- TIDAK ada minister-level decisions, sehingga tidak ada
+  applyDecisionEffect / isDecisionStateActive — sesuai spesifikasi
+  "tidak memiliki mekanisme order menteri/kabinet".
+
+[NEW GUIs — CALIPHATE BRANDING]
+- CaliphateMainMenu.java (sesuai spesifikasi user):
+  → 6-row layout (filler LIME_STAINED_GLASS_PANE pada slot
+    0,1,2,3,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53):
+    * Slot 4  : PROFILE NATION (glow_item_frame).
+    * Slot 10 : SHURA COUNCIL (emerald) — display only.
+    * Slot 13 : CALIPH (turtle_helmet) — opens Caliphate Government.
+    * Slot 16 : STATE SCHOLARS (ender_pearl) — display only.
+    * Slot 28 : CALIPH ANNOUNCEMENT (bell) — coming soon.
+    * Slot 30 : HALL OF FAME (writable_book) — coming soon.
+    * Slot 31 : TREASURY (lime_bundle) — opens Bayt al-Mal.
+    * Slot 32 : ZAKAT (chest) — coming soon.
+    * Slot 34 : GRAND EVENT (chest) — coming soon.
+    * Slot 37 : GUIDE BOOK (knowledge_book) — coming soon.
+    * Slot 39 : CAPITAL CITY (lodestone) — coming soon.
+    * Slot 40 : RESEARCH (enchanting_table) — opens research.
+    * Slot 41 : SHARIA LAW (spawner) — coming soon.
+    * Slot 43 : HUB (spectral_arrow) — back to Nation Hub.
+- CaliphateGovernmentGUI.java:
+  → Caliphate Court access-controlled (Caliph / Shura / Scholars / admin).
+  → Tombol Rename (48), Leave (49), Disband (50) dengan confirm flow yang
+    sama dengan Monarchy/Communist variant.
+- CaliphateTreasuryMenu.java:
+  → Bayt al-Mal layout — balance, total income, total expenses,
+    Bayt al-Mal subsidy, Jizya tax phase, Zakat distribution.
+  → Transaction logs hanya untuk Caliph / Shura / Scholars / admin.
+- CaliphateExecutiveOrdersMenu.java:
+  → Single-tab layout — hanya executive orders Caliph (tidak ada
+    minister/decision tabs karena Caliphate tidak memiliki kabinet).
+  → Cooldown timer tetap ditampilkan (Caliph terikat cooldown standar).
+
+[ROUTING & WIRING]
+- NationCore.java:
+  → Inisialisasi CaliphateManager + scheduler tax/zakat per menit.
+  → getCaliphateManager() exposed untuk listener & GUI.
+- MainMenuRouter.java:
+  → Switch case CALIPHATE membuka CaliphateMainMenu.
+- CreateNationGUI.java:
+  → Slot 10 (Republic), 12 (Communist), 14 (Monarchy), 16 (Caliphate) —
+    slot menu creation diperluas agar opsi Caliphate dapat dipilih
+    saat pendirian.
+- GUIListener.java:
+  → Title-based routing untuk CaliphateMainMenu, CaliphateGovernmentGUI,
+    CaliphateExecutiveOrdersMenu, CaliphateTreasuryMenu (+ logs).
+  → handleCaliphateMainMenu(), handleCaliphateGovernmentGUI(),
+    handleCaliphateOrdersGUI(), handleCaliphateTreasuryGUI(),
+    handleCaliphateTreasuryLogsGUI().
+  → openGovernmentGUI/openOrdersGUI/openTreasuryGUI mendukung CALIPHATE.
+  → Drag handler & refresh-current-GUI ditambahkan untuk title Caliphate.
+  → handleCreateNationGUI() menerima slot SLOT_CALIPHATE.
+- ExecutiveOrderManager.java:
+  → issueOrderForNation() menerima Caliph sebagai issuer eligible.
+  → NationType switch sekarang mencakup case CALIPHATE.
+  → Caliph TIDAK dibebaskan dari cooldown executive order (cooldown
+    global tetap berlaku — pembebasan hanya untuk MONARCHY/King).
+- ChatListener.java:
+  → getCaliphatePrefix(): ☪ Caliph [Caliphate], 📜 Shura, ✦ Scholar.
+- NationManager.java:
+  → kickMember() membersihkan keanggotaan Shura Council & State Scholars
+    secara otomatis untuk nation CALIPHATE.
+
+[NO-CABINET MECHANIC]
+- Caliphate sengaja tidak memiliki kabinet/menteri:
+  → Tidak ada enum HighCouncilPosition / PolitburoPosition equivalent.
+  → Tidak ada DecisionType — Shura & Scholars hanya display roster.
+  → Tidak ada decision cooldown / decision execution path.
+  → Hanya executive order Caliph yang aktif (sama pola dengan Republic
+    & Communist; cooldown global tetap berlaku).
+
+[LIFELONG CALIPH]
+- Caliph = pemimpin seumur hidup:
+  → Tidak ada ElectionManager / RecallManager untuk CALIPHATE.
+  → Tidak ada checkAllPartyElections — Caliph hanya turun via admin
+    setCaliph() atau disband.
+
+[LOCALIZATION]
+- Seluruh teks (GUI, broadcast, log) ditulis dalam Bahasa Inggris penuh.
+- Istilah disesuaikan konsep Caliphate:
+  Caliph, Shura Council, State Scholars, Bayt al-Mal, Jizya, Zakat,
+  Zakat Relief, Special Levy, Sharia Law.
+
+Selesai. Build siap diuji (mvn clean package — BUILD SUCCESS).
+
+[BUG FIX]
+- PlayerListener.java:
+  → Diperbaiki NullPointerException pada PlayerJoinEvent karena
+     getPlayerData() mengembalikan null untuk pemain baru.
+  → Menggunakan getOrCreatePlayerData() di onPlayerJoin() & onPlayerQuit()
+     untuk memastikan PlayerData selalu dibuat bila belum ada.
+
+[STARTING TREASURY FIX]
+- config.yml:
+  → Mengubah `starting-treasury: 0` menjadi `starting-treasury-percent: 50`.
+  → Nilai kini berupa persentase (0-100) dari biaya pembuatan nation.
+- NationManager.java (createNation):
+  → Membaca `nation.creation.starting-treasury-percent` dari config.
+  → Menghitung modal awal: (cost × persentase / 100).
+  → Contoh: cost 1.000.000 + persentase 50 = treasury awal 500.000.
+  → Mekanisme berlaku untuk semua jenis pemerintahan: Republic, Communist, Monarchy, Caliphate.

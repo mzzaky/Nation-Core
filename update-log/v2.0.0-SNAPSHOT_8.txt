@@ -1,0 +1,60 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#8
+====================================================
+Penyelesaian Phase 4C: Implementasi sistem pengambilan keputusan strategis 
+(Politburo Decisions) dengan 20 aksi fungsional, sistem penggajian birokrasi, 
+dan restriksi transparansi keuangan pada ideologi Komunis.
+Artifact: target/Nation-Core-Plugin-1.5.0.jar
+
+[POLITBIRO DECISIONS - 20 STRATEGIC ACTIONS]
+- PROPAGANDA (Mobilisasi Massa & Opini):
+  → Global/National Broadcast: Siaran sistem ke seluruh server/negara.
+  → Leader Glorification: Buff Strength & Resistance untuk anggota Partai.
+  → Media Censorship: Penyensoran pesan global target pemain tertentu.
+  → Mobilization: Teleportasi massal anggota online ke lokasi Menteri.
+
+- DEFENSE (Keamanan Negara):
+  → Military Draft: Distribusi otomatis perlengkapan tempur (Iron set & Bow).
+  → Defense/Offense Protocol: Buff Resistance atau Strength kolektif.
+  → Military Emergency: Deteksi (Glow) dan debuff bagi penyusup di teritori.
+
+- TREASURY (Manajemen Fiskal):
+  → Distribution Program: Pembebasan pajak (Tax Free) untuk 3 fase ke depan.
+  → Economic Stimulus & Education: 10.000 ke semua anggota
+  → Education Program: +10 level XP ke anggota online
+  → Tax Intensification: Peningkatan pajak 2x lipat untuk 3 fase ke depan.
+  → Market Event: Bonus profit dari setiap transaksi perdagangan Villager.
+
+- HEALTH (Kesejahteraan & Karantina):
+  → Quarantine Protocol: Penutupan akses teritori bagi non-anggota.
+  → Field Medicine: Regeneration II 5 menit (CD nation 2 jam)
+  → Vaccination: Kebal poison/wither damage 1 jam
+  → Emergency Rations: Suplai makanan darurat 
+  → Plague: penyebaran wabah (debuff) bagi musuh yang masuk teritori.
+
+[SYSTEM INTEGRATION & LISTENERS]
+- Integrasi Mekanisme Keputusan:
+  → ChatListener: Implementasi sensor media otomatis berbasis keputusan.
+  → CapitalListener: Trigger protokol karantina dan efek wabah (Plague).
+  → DamageListener: Logika imunitas efek status negatif (Vaccination).
+  → CommunistListener: Intersepsi transaksi Villager untuk bonus Market Event.
+- Modifikasi Pajak: Sistem pengecekan pajak kini menghormati status aktif 
+  Distribution Program dan Tax Intensification.
+
+[EKONOMI & BIROKRASI]
+- Salary System (Gaji Menteri):
+  → Pembayaran otomatis 10.000 per minggu bagi setiap anggota Politbiro.
+  → Dana ditarik langsung dari kas negara melalui penjadwalan otomatis (scheduler).
+- Restriksi Log Treasury:
+  → Khusus nation Komunis, detail log transaksi hanya dapat diakses oleh 
+    Sekjen, Politbiro, anggota Partai, atau Admin.
+  → Rakyat biasa (non-partai) hanya diperbolehkan melihat saldo total (balance).
+
+[COMMAND & CONFIG]
+- Command Baru:
+  → /nc politburo decision: Menampilkan daftar 20 keputusan beserta biaya, 
+    deskripsi, dan status cooldown.
+  → /nc politburo decision <TYPE>: Eksekusi keputusan (Cooldown 48 jam).
+- Konfigurasi Baru:
+  → minister-weekly-salary: 10000
+  → market-event-bonus: 25

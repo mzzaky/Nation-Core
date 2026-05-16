@@ -1,0 +1,116 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#17
+==================================================== 
+Implementasi jenis pemerintahan baru: MONARCHY (Kerajaan Absolut).
+King memimpin selamanya dengan kekuasaan mutlak; High Council
+(Chancellor, Marshal, Saint, Herald) menjalankan 20 royal decisions;
+executive order dapat diterbitkan tanpa cooldown.
+
+[NEW GOVERNMENT TYPE — MONARCHY]
+- GovernmentType.java:
+  → Penambahan enum MONARCHY (icon GOLDEN_HORSE_ARMOR, warna kuning).
+  → getLeaderTitle() = "King", getCitizenTitle() = "Royal Subject".
+  → fromString() menerima alias "monarchy", "monarki", "kingdom", "kerajaan".
+- ExecutiveOrder.java:
+  → NationType ditambah varian MONARCHY ("Kingdom" / "King").
+  → createForNation() routing untuk MONARCHY → MonarchyExecutiveOrder.
+- Nation.java:
+  → Field baru monarchyGovernment + getter/setter.
+  → initMonarchyGovernment() otomatis dipanggil saat type == MONARCHY:
+    founder ditahbiskan sebagai King pertama.
+
+[NEW DATA MODELS]
+- MonarchyGovernment.java:
+  → King (UUID/name, coronationTime, lastKingActivity).
+  → HighCouncilPosition: HERALD, MARSHAL, CHANCELLOR, SAINT.
+  → HighCouncilMember dengan tracking gaji mingguan.
+  → Royal Soldiers (subset anggota nation).
+  → State efek 20 decisions (paralel dengan CommunistGovernment):
+    defense/offense protocol, quarantine, plague, market event, vaccination,
+    sensor media, glorification, military emergency, distribution &
+    intensification phases.
+- MonarchyDecisionType.java:
+  → 20 royal decisions (5 per posisi) yang sepenuhnya paralel dengan
+    CommunistDecisionType — dengan rephrasing flavor kerajaan.
+  → asCommunistEquivalent() untuk reuse handler efek bila diperlukan.
+- MonarchyExecutiveOrder.java:
+  → ExecutiveOrder varian Monarki, ditandatangani oleh King.
+
+[NEW MANAGER — MonarchyManager.java]
+- Royal lifecycle:
+  → setKing() (admin-only): tidak ada election, tidak ada recall.
+  → appointCouncil() / removeCouncil(): hanya King yang dapat menunjuk.
+- Royal Decisions:
+  → executeDecision() — King melewati pemeriksaan posisi & cooldown
+    (kekuasaan mutlak); council member terikat seat & cooldown standar.
+  → applyDecisionEffect() menjalankan efek 20 royal decisions.
+  → isDecisionStateActive() untuk pewarnaan kartu di GUI.
+- Royal Tax & Subsidy:
+  → checkAllTaxPhases(): pajak royal (parallel Communist tax phase).
+  → checkAllAlmsDistributions(): royal alms (parallel free food).
+  → checkCouncilSalaries(): royal stipend mingguan untuk High Council.
+- ExecutiveOrderManager.java:
+  → issueOrderForNation() menerima King sebagai issuer eligible.
+  → Cooldown global di-skip total untuk MONARCHY (royal prerogative).
+  → isOrderOnCooldown() untuk MONARCHY selalu mengembalikan false.
+
+[NEW GUIs — ROYAL COURT BRANDING]
+- MonarchyMainMenu.java:
+  → 6-row layout sesuai spesifikasi (filler YELLOW_STAINED_GLASS_PANE):
+    PROFILE NATION (4), HIGH COUNCIL (10), KING (13), ROYAL SOLDIER (16),
+    ROYAL ANNOUNCEMENT (28), HALL OF FAME (30), ROYAL TREASURY (31),
+    TAX placeholder (32), GRAND EVENT (34), GUIDE BOOK (37),
+    CAPITAL CITY (39), RESEARCH (40), TAX (41), HUB (43).
+- MonarchyGovernmentGUI.java:
+  → Royal Court access-controlled (King / High Council / admin).
+  → Tombol Rename (48), Leave (49), Disband (50) dengan confirm flow yang
+    sama dengan Communist variant.
+- MonarchyTreasuryMenu.java:
+  → Royal Treasury layout — balance, income, expenses, royal subsidy,
+    royal tax phase, royal alms.
+  → Transaction logs hanya untuk King / High Council / admin.
+- MonarchyExecutiveOrdersMenu.java:
+  → 5 tab (Herald, Chancellor, King, Marshal, Saint).
+  → Tab King menampilkan executive orders standar (Royal prerogative —
+    tidak ada cooldown timer).
+  → Tab council menampilkan 5 royal decisions per seat.
+
+[ROUTING & WIRING]
+- NationCore.java:
+  → Inisialisasi MonarchyManager + scheduler tax/alms/stipend.
+  → getMonarchyManager() exposed untuk listener & GUI.
+- MainMenuRouter.java:
+  → Switch case MONARCHY membuka MonarchyMainMenu.
+- CreateNationGUI.java:
+  → Slot 11 (Republic), 13 (Communist), 15 (Monarchy) — slot menu
+    creation diperluas agar opsi Monarchy dapat dipilih saat pendirian.
+- GUIListener.java:
+  → Title-based routing untuk MonarchyMainMenu, MonarchyGovernmentGUI,
+    MonarchyExecutiveOrdersMenu, MonarchyTreasuryMenu (+ logs).
+  → handleMonarchyMainMenu(), handleMonarchyGovernmentGUI(),
+    handleMonarchyOrdersGUI(), handleMonarchyTreasuryGUI(),
+    handleMonarchyTreasuryLogsGUI().
+  → openGovernmentGUI/openOrdersGUI/openTreasuryGUI mendukung MONARCHY.
+  → Drag handler & refresh-current-GUI ditambahkan untuk title Monarchy.
+- ChatListener.java:
+  → getMonarchyPrefix(): 👑 King [Kingdom], ⚔ Marshal, 💰 Chancellor,
+    ✚ Saint, 📜 Herald.
+  → Royal Press Censorship (sensor media versi Monarchy) ditangani
+    paralel dengan censorship Komunis.
+
+[ABSOLUTE POWER MECHANICS]
+- King = pemimpin seumur hidup:
+  → Tidak ada ElectionManager / RecallManager untuk MONARCHY.
+  → Tidak ada checkAllPartyElections — King hanya turun via admin / disband.
+- King menggunakan executive order tanpa cooldown:
+  → ExecutiveOrderManager melewati cooldown timer khusus untuk MONARCHY.
+  → MonarchyExecutiveOrdersMenu menampilkan label "Royal prerogative:
+    no cooldown applies."
+- King dapat menjalankan SEMUA royal decisions:
+  → MonarchyManager.executeDecision() melewati pemeriksaan position &
+    cooldown apabila issuer adalah King.
+
+[LOCALIZATION]
+- Seluruh teks (GUI, broadcast, log) ditulis dalam Bahasa Inggris penuh.
+
+Selesai. Build siap diuji (mvn clean package — BUILD SUCCESS).

@@ -1,0 +1,38 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#20
+====================================================
+Pembaruan tata letak (layout) Republic Main Menu dan restrukturisasi GUI Republic.
+
+[REPUBLIC MAIN MENU LAYOUT UPDATE]
+- RepublicMainMenu.java:
+  → Perubahan total tata letak item dan penggunaan material baru sesuai spesifikasi desain Republic v2.
+  → Implementasi sistem filler menggunakan LIGHT_BLUE_STAINED_GLASS_PANE pada slot pinggir dan header.
+  → Slot 4: Profil Negara (GLOW_ITEM_FRAME).
+  → Slot 10: Menteri Kabinet (WARPED_HANGING_SIGN).
+  → Slot 11: Executive Orders (ENCHANTED_BOOK).
+  → Slot 13: President (BEACON).
+  → Slot 15: Treasury (WRITABLE_BOOK).
+  → Slot 16: Senator (CRIMSON_HANGING_SIGN - Coming Soon).
+  → Slot 28: Announcement (BELL - Coming Soon).
+  → Slot 30: Impeachment/Recall (ENDER_PEARL).
+  → Slot 31: Pajak Negara (LIGHT_BLUE_BUNDLE).
+  → Slot 32: President Election (LIGHT_BLUE_BUNDLE - Coming Soon).
+  → Slot 34: Presidential Game (GOLD_BLOCK).
+  → Slot 37: Guide (KNOWLEDGE_BOOK).
+  → Slot 39: Capital City (LODESTONE - Coming Soon).
+  → Slot 40: Research Center (ENCHANTING_TABLE).
+  → Slot 41: President History (BOOKSHELF).
+  → Slot 43: Hub (SPECTRAL_ARROW).
+  → Pembersihan slot kosong (AIR) untuk memberikan tampilan yang lebih bersih dan modern.
+  → Refaktor metode buildIcon untuk mendukung item-item baru dengan deskripsi dalam bahasa Inggris.
+
+[GUI RESTRUCTURING & REFACTORING]
+- id.nationcore.gui.republic (subpackage):
+  → RepublicPresidentHistoryGUI.java: Hasil refaktor dan pemindahan dari PresidentHistoryGUI.java.
+  → RepublicRecallGUI.java: Hasil refaktor dan pemindahan dari RecallGUI.java.
+  → Pembaruan package declaration dan class name agar konsisten dengan standar penamaan sistem Republic.
+- GUIListener.java:
+  → Pembaruan import untuk merujuk ke RepublicPresidentHistoryGUI dan RepublicRecallGUI di subpackage republic.
+  → Refaktor field types dan inisialisasi constructor agar menggunakan class Republic yang baru.
+  → Sinkronisasi seluruh pengecekan judul (title check) pada onInventoryClick dan onInventoryDrag untuk mendukung konstanta title dari class hasil refaktor.
+  → Pembaruan route pada executeGUIAction agar mengarah ke instance RepublicRecallGUI dan RepublicPresidentHistoryGUI yang baru.

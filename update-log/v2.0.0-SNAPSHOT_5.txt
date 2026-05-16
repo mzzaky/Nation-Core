@@ -1,0 +1,46 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#5
+====================================================
+Implementasi sistem klaim ibukota (Capital) dan perlindungan teritori (Territory 
+Protection) terhadap griefing, ledakan, dan PvP untuk member nation.
+
+[TERRITORYMANAGER - RADIAL LOGIC]
+- Bentuk Teritori Lingkaran 2D:
+  → Radius dihitung pada bidang X-Z (mengabaikan Y) untuk klaim radial yang lebih natural.
+- API Territory:
+  → getNationAt(Location): Identifikasi nation di lokasi tertentu.
+  → isProtectedFrom(Location, UUID): Cek proteksi terhadap non-member.
+  → findOverlapping(Location, radius, exclude): Deteksi tumpang tindih teritori.
+  → claimCapital(Player, Location): Prosedur klaim untuk leader dengan validasi overlap dan biaya kas nation.
+  → toBukkitLocation(CapitalLocation): Konversi koordinat data ke Location Bukkit.
+
+[CAPITALLISTENER - ANTI-GRIEF PROTECTION]
+- Proteksi Interaksi & Blok (Non-member):
+  → Pembatalan Block Break/Place dan Bucket Fill/Empty.
+  → Pembatalan Player Interact pada:
+      • Container (Chest, Furnace, Shulker, Barrel, dll.).
+      • Pintu (Door, Trapdoor, Fence Gate).
+      • Mekanisme (Button, Pressure Plate, Lever).
+      • Redstone (Repeater, Comparator, Daylight Detector).
+      • Blok interaktif lain (Anvil, Beacon, Ender Chest, dll.).
+  → Proteksi terhadap entitas gantung (Hanging Entity) seperti Item Frame dan Painting.
+- Proteksi Ledakan & PvP:
+  → Penyaringan ledakan (Entity/Block Explode) agar tidak merusak blok di dalam teritori.
+  → Pembatalan damage PvP antar pemain di dalam wilayah ibukota
+- Notifikasi Teritori:
+  → PlayerMoveEvent: Action bar notifikasi masuk/keluar wilayah nation (throttled).
+  → Pesan Denied: Dibatasi maksimal 1 pesan per detik per pemain.
+- Admin Bypass: Pemegang permission nation.admin mengabaikan semua aturan proteksi.
+
+[COMMAND BARU - CAPITAL MANAGEMENT]
+- /nc capital [info]: Menampilkan informasi detail ibukota (world, posisi, radius, umur klaim).
+- /nc capital claim: Melakukan klaim ibukota di lokasi pemain (khusus Leader).
+- /nc capital tp / spawn: Teleportasi cepat ke lokasi ibukota nation.
+
+[KONFIGURASI & PERMISSION]
+- Konfigurasi Baru (config.yml):
+  → default-radius: Radius awal ibukota (default: 50).
+  → protect: Master switch untuk mengaktifkan/matikan proteksi (default: true).
+  → claim-cost: Biaya klaim dari kas nation (default: 0).
+- Permission Baru:
+  → nation.capital (default: true): Akses dasar fitur ibukota.

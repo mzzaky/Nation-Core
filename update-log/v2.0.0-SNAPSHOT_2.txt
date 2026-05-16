@@ -1,0 +1,38 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#2
+====================================================
+
+[EMBED SUB-STATE DI NATION.JAVA]
+- Penambahan field sub-state di Nation.java:
+  → Field baru: republicGovernment (Government), election (Election), activeOrders (List<ExecutiveOrder>), activeDecisions (List<CabinetDecision>), recallPetition (RecallPetition), lastExecutiveOrderTime (long), gamesThisTerm (int).
+- Mekanisme Auto-init Republic:
+  → Saat new Nation(...) dengan type REPUBLIC, founder otomatis jadi Presiden term-1 melalui initRepublicGovernment().
+  → Pengaturan internal: termStartTime di-set, lastPresidentActivity di-set, consecutiveTerms=1.
+
+[OVERLOAD CONTEXT-AWARE MANAGERS]
+- Layer multi-nation dihubungkan ke tiga manager utama (Treasury, Government, ExecutiveOrder).
+- TreasuryManager (Overload Context-Aware):
+  → getTreasury(Nation), getTreasury(Player) — resolve nation pemain dulu.
+  → deposit/withdraw(Nation, type, amt, desc, uuid).
+  → canAfford(Nation, double), getBalance(Nation), addTax(Nation, double, uuid).
+- GovernmentManager (Overload Context-Aware):
+  → getGovernment(Nation | UUID), getTermRemainingTime(Nation).
+  → isPresident(Nation, UUID), isCabinetMember(Nation, UUID), getCabinetPosition(Nation, UUID).
+  → appointCabinet/removeCabinet, appointCabinetMember/removeCabinetMember.
+  → endPresidency(Nation, reason), updatePresidentActivity(Nation, UUID).
+- ExecutiveOrderManager (Overload Context-Aware):
+  → getActiveOrders(Nation), getActiveOrder(Nation, type).
+  → isOrderActive, isOrderOnCooldown, getOrderCooldownRemaining.
+  → issueOrderForNation(Player, type) — resolve nation dari player.
+- NationManager:
+  → resolveTreasury(UUID), resolveGovernment(UUID) — entry point lookup.
+  → setPendingCreation / getPendingCreation / consumePendingCreation / hasPendingCreation.
+
+[UPDATE NATIONCOMMAND HANDLERS]
+- Resolve ke nation pemain dengan fallback ke global legacy:
+  → /nc info: government info nation pemain.
+  → /nc treasury & /nc treasury donate <n>: manajemen kas nation pemain.
+  → /nc cabinet appoint/dismiss: kelola kabinet nation (validasi target harus member nation yang sama).
+  → /nc order [TYPE]: issueOrderForNation dengan kas + cooldown nation.
+  → /nc rate <1-5>: rate presiden nation pemain.
+  → /nc government: gate berdasarkan presiden/menteri nation.

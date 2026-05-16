@@ -1,0 +1,24 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#11
+====================================================
+Sistem Diplomasi: Implementasi mekanisme hubungan antar negara (Alliances, Wars, 
+Truces) dengan kontrol otoritas berbasis kabinet dan politbiro.
+
+[DIPLOMACY SYSTEM CORE]
+- Implementasi status hubungan antar negara:
+  → DiplomacyStatus.java: PEACE (Damai), ALLIANCE (Sekutu), TRUCE (Gencatan), WAR (Perang).
+  → DiplomacyRequest.java: Model data untuk pengajuan request yang sedang berjalan.
+  → Nation.java: Penambahan Map<String, DiplomacyStatus> untuk menyimpan relasi.
+
+[LOGIC & ACCESS CONTROL]
+- DiplomacyManager.java:
+  → Validasi Otoritas: Akses terbatas hanya untuk Pemimpin Tertinggi (Presiden/Sekjen) dan Menteri Pertahanan (DEFENSE).
+  → Alur Diplomasi: Method propose, accept, dan reject dengan sistem notifikasi otomatis.
+- Registrasi komponen di NationCore.java untuk inisialisasi manager.
+
+[COMMANDS & PERMISSIONS]
+- Subcommand baru /nc diplomacy:
+  → propose <nation> <status>: Mengajukan perubahan status hubungan.
+  → accept <nation>: Menerima tawaran diplomasi dari negara lain.
+  → reject <nation>: Menolak tawaran diplomasi dari negara lain.
+- Integrasi Permission: Penyatuan dengan sistem permission struktural pemerintahan yang sudah ada.

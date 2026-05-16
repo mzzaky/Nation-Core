@@ -1,0 +1,143 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#14
+====================================================
+Internasionalisasi Penuh Sistem GUI: Lokalisasi seluruh elemen UI ke Bahasa Inggris, 
+penyempurnaan layout menu Komunis, dan sinkronisasi logika otorisasi untuk jabatan
+Sekjen (Secretary General) serta Politburo.
+
+[LOKALISASI PENUH & INTERNASIONALISASI]
+- Lokalisasi Sistem GUI:
+  → Penerjemahan seluruh elemen UI, lore, judul menu, dan pesan sistem ke Bahasa Inggris.
+  → File terdampak: CommunistMainMenu.java, RepublicMainMenu.java, GovernmentGUI.java, 
+    GovernmentExecutiveOrdersMenu.java, GUIListener.java.
+- Pembaruan Formatting Bersama:
+  → Lokalisasi unit waktu (d, h, m) dan status pengerjaan di NationMenuBase.java.
+  → Penerjemahan nama jenis pemerintahan, deskripsi, dan gelar pemimpin di GovernmentType.java.
+- Dokumentasi Kode:
+  → Pembaruan komentar teknis dan dokumentasi internal ke Bahasa Inggris pada 
+    CommunistGovernment.java dan GUIListener.java.
+
+[PENYEMPURNAAN MENU KOMUNIS]
+- Penyesuaian Layout:
+  → Pemindahan slot Grand Event dari 33 ke 34 pada CommunistMainMenu.java.
+  → Optimalisasi sistem filler: Mengunci RED_STAINED_GLASS_PANE hanya pada slot border, 
+    sementara slot interior dikosongkan (AIR) untuk estetika yang lebih bersih.
+- Konektivitas Item:
+  → Perbaikan item Secretary General (Slot 13) agar terhubung ke Government Menu 
+    dengan pengecekan otorisasi yang tepat.
+
+[LOGIKA PEMERINTAHAN & OTORISASI]
+- Refactor Otorisasi (GovernmentGUI.java):
+  → Implementasi dukungan role Komunis: Sekretaris Jenderal dan anggota Politburo 
+    kini memiliki akses penuh ke Government GUI.
+  → Penambahan resolusi gelar dinamis untuk pesan error dan header UI (contoh: 
+    "Secretary General" vs "President").
+- Paritas Fitur:
+  → Penambahan lastBroadcastTime pada CommunistGovernment.java untuk mendukung 
+    pelacakan cooldown broadcast bagi pemimpin Komunis.
+  → Unifikasi logika pembuatan kepala pemimpin (leader head) untuk mendukung 
+    berbagai gelar dan jenis nation.
+
+[PERBAIKAN BUG & STABILITAS]
+- Stabilitas GovernmentGUI.java:
+  → Perbaikan missing imports (UUID, OfflinePlayer, List, CommunistGovernment).
+  → Resolusi masalah scope variabel pada pelacakan waktu broadcast.
+  → Penghapusan deklarasi variabel lokal duplikat pada logika pembuatan leader head.
+- Sinkronisasi GUI Listener:
+  → Pembaruan pesan error dan prompt chat agar selaras dengan lokalisasi Inggris baru.
+
+[REFACTORING KODE & OPTIMISASI]
+- Pemisahan Menu Executive Orders:
+  → Membagi GovernmentExecutiveOrdersMenu.java (500+ baris) menjadi dua kelas terpisah:
+    - RepublicExecutiveOrdersMenu.java: Menangani layout 3x3 dan 9 Executive Orders klasik.
+    - CommunistExecutiveOrdersMenu.java: Menangani layout 4x5 dan 20 Politburo Decisions.
+  → Dampak: Peningkatan maintainability dan pemisahan logika yang lebih bersih sesuai tipe negara.
+- Update Integrasi GUI:
+  → GovernmentGUI.java: Penambahan routing dinamis untuk membuka menu yang sesuai berdasarkan tipe Nation (Republic vs Communist).
+  → GUIListener.java: Pembaruan referensi slot dan penanganan event klik untuk mendukung kedua kelas menu baru.
+
+[PEMBERSIHAN TEKNIS & PERBAIKAN BUG]
+- CommunistGovernment.java:
+  → Perbaikan error "Duplicate method CommunistGovernment()": Penggabungan dua konstruktor duplikat menjadi satu inisialisasi tunggal yang mencakup seluruh field (Phase 4B & 4C).
+- Pembersihan Kode:
+  → Penghapusan GovernmentExecutiveOrdersMenu.java yang sudah tidak digunakan.
+  → Resolusi "Duplicate local variable" pada GovernmentGUI.java (stale diagnostics).
+
+[UI BER-TAB EXECUTIVE ORDERS KOMUNIS]
+- Desain Ulang UI Tabbed (CommunistExecutiveOrdersMenu.java):
+  → Implementasi sistem navigasi 5 sub-menu: Menteri Propaganda, Menteri Keuangan, Sekretaris Jenderal, Menteri Pertahanan, dan Menteri Kesehatan.
+  → Penempatan navigasi pada slot 47-51 dengan ikon khusus (Totem, Yellow Bundle, Nether Star, Gold Chestplate, Enchanted Apple).
+  → Implementasi slot filler statis sesuai spesifikasi (slot 0-3, 5-9, 17-18, 26-27, 35-36, 44-46, 52-53).
+  → Integrasi "Nation Profile" pada slot 4 menggunakan GLOW_ITEM_FRAME untuk menampilkan statistik negara secara real-time.
+  → Update tombol Back menggunakan SPECTRAL_ARROW pada slot 43.
+- Logika Navigasi Dinamis:
+  → Penambahan tracking tab aktif per pemain menggunakan UUID mapping.
+  → Pembaruan filter keputusan (executive orders) yang ditampilkan berdasarkan tab yang sedang aktif.
+  → Tab Sekretaris Jenderal menampilkan seluruh keputusan yang tersedia (Master View).
+
+[PENYEMPURNAAN GUI LISTENER & PERBAIKAN BUG]
+- Sinkronisasi Event Handling (GUIListener.java):
+  → Penanganan klik pada tab navigasi baru untuk me-refresh menu dengan tab yang dipilih.
+  → Pembaruan routing metode getDecisionAtSlot agar mendukung parameter Player untuk resolusi tab.
+- Pembersihan Teknis & Perbaikan Error:
+  → Perbaikan error "undefined method getGovernmentGUI()" dengan mereferensikan field lokal secara langsung.
+  → Resolusi peringatan "Potential null pointer access" pada variabel RecallPetition dengan penambahan null-check eksplisit.
+  → Modernisasi kode: Mengganti penggunaan ChatColor dan ItemMeta.getDisplayName() yang sudah deprecated dengan Adventure API (PlainTextComponentSerializer dan displayName()).
+  → Perbaikan missing imports untuk mendukung modernisasi API.
+
+[REFACTOR EXECUTIVE ORDER - VARIAN REPUBLIK & KOMUNIS]
+- ExecutiveOrder.java:
+  → Diubah dari kelas konkret menjadi abstract class.
+  → Penambahan enum NationType dengan nilai REPUBLIC ("Republic", "President") dan COMMUNIST ("Communist Party", "Secretary General").
+  → Penambahan factory method createForNation() untuk membuat variant yang sesuai berdasarkan tipe nation.
+  → Fields diubah dari private menjadi protected untuk akses subclass.
+
+- RepublicExecutiveOrder.java (baru):
+  → Subclass ExecutiveOrder khusus untuk nation Republic.
+  → Dikelola oleh Presiden sebagai pemimpin.
+
+- CommunistExecutiveOrder.java (baru):
+  → Subclass ExecutiveOrder khusus untuk nation Communist.
+  → Dikelola oleh Sekretaris Jenderal sebagai pemimpin.
+
+- ExecutiveOrderManager.java:
+  → Diperbarui untuk mendukung kedua variant (Republic dan Communist).
+  → issueOrderForNation() kini memeriksa status pemimpin: President (Republic) atau Secretary General (Communist).
+  → Menggunakan ExecutiveOrder.createForNation() untuk instansiasi yang tepat.
+  → Pesan broadcast kini menampilkan gelar pemimpin yang sesuai ("President" atau "Secretary General").
+
+[KEAMANAN & PENINGKATAN EXECUTIVE ORDERS KOMUNIS]
+- Integrasi Executive Orders (Sekjen):
+  → Tab Sekretaris Jenderal pada CommunistExecutiveOrdersMenu.java kini menampilkan ExecutiveOrderType (sama dengan Republic) daripada Politburo Decisions biasa.
+  → Mendukung sinkronisasi penuh dengan ExecutiveOrderManager untuk nation Komunis.
+- Keamanan & Otorisasi Ketat:
+  → Implementasi pengecekan "Minister-Only": Hanya pemegang jabatan menteri yang sah (PolitburoMember) yang dapat mengeksekusi keputusan di sektor mereka.
+  → Sekretaris Jenderal tidak lagi dapat mengeksekusi keputusan milik menteri/kabinet, memperkuat pemisahan wewenang Politburo.
+  → Seorang menteri tidak dapat mengeksekusi keputusan menteri di sektor lain.
+- Peningkatan UI & Informasi:
+  → Penambahan informasi pemegang jabatan (Nama Menteri / Nama Sekretaris Jenderal) secara real-time pada lore item di menu.
+  → Integrasi status "Vacant" jika jabatan belum diisi.
+  → Lokalisasi penuh (English) untuk seluruh elemen UI pada CommunistExecutiveOrdersMenu.java.
+- Sinkronisasi Logika (GUIListener.java):
+  → Pembaruan handleCommunistOrdersGUI untuk mendukung deteksi ganda antara CommunistDecisionType dan ExecutiveOrderType dalam satu antarmuka.
+  → Penyesuaian feedback suara dan penanganan penutupan inventori setelah eksekusi order.
+
+[CAKUPAN EXECUTIVE ORDER & AUDIT KEAMANAN]
+- Isolasi Spesifik-Nation:
+  → Refactor ExecutiveOrderManager: Efek order, cooldowns, dan state aktif kini di-scope secara ketat ke masing-masing Nation.
+  → Penghapusan Global State: Menghilangkan pelacakan efek global legacy untuk mencegah "kebocoran" bonus (XP, Vault, Damage) antar nation yang berbeda.
+  → Context-Aware Listeners: Memperbarui EconomyListener dan DamageListener untuk memverifikasi status order berdasarkan konteks Nation pemain.
+- Notifikasi Terarah:
+  → Implementasi sendToNation dan sendToNationTitle di MessageUtils: Peringatan aktivasi dan kedaluwarsa kini hanya disiarkan ke anggota nation yang menerbitkan.
+- Update Kontrol Admin:
+  → Memperbarui /nc admin stoporder <nation> <type> untuk mendukung manajemen order per-nation.
+
+[PERBAIKAN BUG TEKNIS & KOMPATIBILITAS]
+- Stabilitas GUI & Placeholder:
+  → TaxGUI.java: Memperbaiki error kompilasi dengan melewatkan konteks Nation ke pengecekan status dan multiplier pajak.
+  → NationExpansion.java: Memperbarui placeholders (%nation_order_...%) untuk mendukung deteksi per-pemain, memastikan tampilan bonus aktif yang akurat.
+- Deprecation & Pembersihan Kode:
+  → Mengganti Bukkit.broadcastMessage yang deprecated dengan MessageUtils.broadcast menggunakan Adventure API.
+  → Menekan peringatan legacy untuk ItemMeta dan Bukkit.createInventory di TaxGUI.java.
+  → Memperbaiki missing imports (Nation) dan menghapus fields/imports yang tidak digunakan (lastBonusTime, UUID) di EconomyListener.java.
+  → Resolusi "undefined method getNations()" di ExecutiveOrderManager dengan beralih ke getAllNations().

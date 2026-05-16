@@ -1,0 +1,44 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#10
+====================================================
+Restrukturisasi Birokrasi: Penyederhanaan sistem pemerintahan dengan penghapusan 
+3 menteri (Commerce, Infrastructure, Culture) dan 15 tipe Cabinet Decision.
+Artifact: target/Nation-Core-Plugin-1.5.0.jar
+
+[RESTRUKTURISASI KABINET & BIROKRASI]
+- Penghapusan 3 posisi Menteri utama:
+  → Minister of Commerce (📦)
+  → Minister of Infrastructure (🏗)
+  → Minister of Culture (🎭)
+- Dampak pada Sistem:
+  → Kabinet kini hanya fokus pada 2 posisi: Defense dan Treasury.
+  → Penghapusan 15 tipe CabinetDecision (Trade Fair, Resource Boom, Festival Week, dll).
+  → Penghapusan sistem gaji harian dan bonus khusus untuk posisi yang dihapus.
+
+[EXECUTIVE ORDERS & BUFF REMOVAL]
+- Penghapusan total 3 Executive Order Presiden:
+  → National Holiday (Bonus Global).
+  → State of Emergency (Proteksi PvP Nasional).
+  → Infrastructure Initiative (Efek Pembangunan).
+- Cleanup Sistem Buff:
+  → Penghapusan efek potion pasif dan deskripsi buff di BuffManager.java.
+  → Pemetaan Politbiro Komunis diperbarui agar hanya merujuk pada Defense & Treasury.
+
+[TECHNICAL CLEANUP & REFACTORING]
+- Manager Updates:
+  → CabinetManager: Hapus logika efek keputusan, field aktif, dan sistem expiration.
+  → ExecutiveOrderManager: Hapus logika aplikasi efek (applyOrderEffects) dan status PvP.
+- Listener & Integration:
+  → EconomyListener: Hapus bonus XP multiplier (Culture) dan diskon toko (Commerce).
+  → DamageListener: Hapus pengecekan isPvPDisabled() untuk State of Emergency.
+  → ChatListener: Hapus ikon prefix khusus menteri di chat.
+  → NationExpansion: Penghapusan placeholder PAPI terkait menteri dan order yang dihapus.
+
+[UI/UX & CONFIGURATION]
+- GUI Updates:
+  → CabinetGUI: Layout disederhanakan menjadi 2 slot (Slot 13 & 14).
+  → HelpGUI: Penataan ulang posisi item agar lebih simetris tanpa bantuan menteri.
+  → GovernmentSalaryMenu: Penghapusan tampilan reward gaji untuk posisi menteri lama.
+- Konfigurasi:
+  → config.yml: Pembersihan blok reward, cost, dan multiplier menteri.
+  → language.yml: Pembaruan pesan bantuan dan daftar posisi kabinet resmi.

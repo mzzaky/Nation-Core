@@ -1,0 +1,147 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#16
+====================================================
+Implementasi Fungsi Administrasi Nation: Aktivasi tombol Rename, Leave, 
+dan Disband pada menu Communist Government dengan mekanisme keamanan.
+
+[NATION ADMINISTRATION FEATURES]
+- Aktivasi Tombol di CommunistGovernmentGUI.java:
+  → Rename Nation (Slot 48): Memungkinkan Sekjen mengubah nama nation melalui input chat.
+  → Leave Nation (Slot 49): Fitur bagi anggota/pejabat untuk keluar dari nation.
+  → Disband Nation (Slot 50): Fitur bagi pemimpin untuk membubarkan nation secara total.
+- Mekanisme Keamanan (Security Layer):
+  → Implementasi ConfirmActionGUI.java: Menu konfirmasi interaktif sebelum melakukan tindakan Leave atau Disband.
+  → Proteksi klik tidak sengaja: Tindakan destruktif kini memerlukan 2 langkah verifikasi.
+
+[CHAT INPUT SYSTEM REFINEMENT]
+- Pembaruan NationManager.java:
+  → Penambahan sistem state pendingRenames untuk melacak pemain yang sedang dalam proses mengubah nama.
+- Pembaruan ChatListener.java:
+  → Implementasi handler untuk menangkap input nama baru di chat.
+  → Validasi nama nation: Minimal 3 karakter, maksimal 24, hanya alphanumeric dan spasi.
+  → Fitur pembatalan: Pemain dapat mengetik 'cancel' atau 'batal' untuk menghentikan proses.
+  → Broadcast otomatis saat nation berganti nama.
+
+[GUI LISTER & ROUTING]
+- Pembaruan GUIListener.java:
+  → Integrasi ConfirmActionGUI ke dalam sistem GUI utama.
+  → Penambahan logic handling untuk slot 48, 49, dan 50 pada menu Communist Government.
+  → Dispatch command otomatis (/nc leave) atau pemanggilan manager langsung (disbandNation) setelah konfirmasi sukses.
+  → Proteksi role: Hanya Sekretaris Jenderal atau Admin yang dapat memicu fitur Rename.
+
+[NATION MEMBER MANAGEMENT FEATURES]
+- Implementasi MemberManagementGUI.java:
+  → Custom GUI paginasi (28 slot/halaman) untuk daftar anggota nation.
+  → Ikon indikator status: ☆ Sekjen, ★ Politburo, ▶ Anggota Partai, dan · Citizen.
+  → Info real-time: Menampilkan status online/offline setiap anggota.
+- Fitur Interaktif Manajemen (Action Menu):
+  → Keluarkan Pemain (Kick): Menu konfirmasi terintegrasi untuk mengeluarkan anggota non-pemimpin.
+  → Angkat Anggota Partai: Fitur promosi cepat anggota biasa menjadi anggota partai.
+  → Angkat Politburo (Kabinet): Menu pemilihan posisi spesifik (Propaganda, Defense, Treasury, Health).
+- Pembaruan Backend:
+  → NationManager.java: Implementasi kickMember() dengan pembersihan otomatis status jabatan.
+  → GUIListener.java: Handler lengkap untuk list anggota, menu aksi, dan picker posisi kabinet.
+  → CommunistGovernmentGUI.java: Aktivasi tombol "Nation Member Management" (Slot 22).
+
+[TREASURY MENU REFACTOR & LOCALIZATION]
+- Pemisahan GovernmentTreasuryMenu.java:
+  → RepublicTreasuryMenu.java: Menu kas transparan khusus untuk nation Republik.
+  → CommunistTreasuryMenu.java: Menu kas terpusat khusus untuk nation Komunis.
+- Internasionalisasi (Localization):
+  → Migrasi seluruh teks GUI dari Bahasa Indonesia ke Bahasa Inggris (Full English).
+  → Pembaruan judul menu, lore item, dan indikator status transaksi.
+- Legacy Fallback:
+  → Penanganan kas global (tanpa nation) kini dipusatkan di RepublicTreasuryMenu dengan format baru.
+
+[BUG FIXES & CODE CLEANUP]
+- Perbaikan GUIListener.java:
+  → Resolusi error 'unresolved treasuryMenu' akibat perubahan struktur class treasury.
+  → Penanganan potensi NullPointerException pada variabel 'petition' di menu Recall.
+  → Modernisasi API: Mengganti getDisplayName() dan ChatColor yang deprecated dengan Adventure API (PlainTextComponentSerializer).
+  → Pembersihan import yang tidak digunakan (ChatColor).
+
+[LOCALIZATION & TRANSLATION SYSTEM]
+- Migrasi bahasa dari Bahasa Indonesia ke Bahasa Inggris (Full English):
+  → HubGUI.java: Seluruh teks antarmuka Nation Hub (Lore, Titles, dan Action Buttons).
+  → CommunistManager.java: Seluruh pesan sistem, broadcast negara, hasil pemilihan partai, dan notifikasi decision politbiro.
+  → ChatListener.java: Prefix chat (President/Secretary General), pesan sistem pembuatan/rename nation, dan notifikasi broadcast.
+- Standardisasi Komentar Kode:
+  → Menerjemahkan dokumentasi internal (comments) pada file-file di atas ke bahasa Inggris untuk konsistensi tim pengembang.
+
+[CORE TRANSLATION & SOURCE CODE LOCALIZATION]
+- Migrasi Bahasa Indonesia ke Bahasa Inggris (Full English Localization):
+  → NationCommand.java: Seluruh perintah (/nc), menu bantuan, pesan error, success messages, sistem diplomasi, dan help menu.
+  → NationManager.java: Dokumentasi Javadoc, komentar internal logika multi-nation, dan pesan validasi (Establishment, Membership, Kick).
+  → CreateNationGUI.java: Judul GUI, label tombol, dan lore informasi tipe pemerintahan (Republic/Communist).
+- Standardisasi Dokumentasi:
+  → Pembersihan sisa-sisa komentar Bahasa Indonesia di seluruh core logic untuk keseragaman codebase internasional.
+
+[RESEARCH ERA SYSTEM — UI OVERHAUL]
+- Pengenalan konsep ERA RISET pada fitur Nation Research:
+  → Penambahan enum ResearchEra (BASIC, ADVANCED, EXPANSION, MODERN, FUTURISTIC) di dalam ResearchGUI.java.
+  → Helper ResearchGUI.getEraOf(ResearchType) memetakan riset ke era berdasarkan suffix (_I, _II, _III, _IV, _V).
+  → Saat ini hanya Era I (Basic) yang aktif; Era II–V ditandai sebagai "Coming Soon".
+
+- Restrukturisasi layer GUI menjadi tiga lapis:
+  1. MAIN MENU (pemilihan Era)
+  2. MENU RESEARCH (list riset per Era dengan navigasi kategori)
+  3. MENU DETAIL (tetap sama seperti sebelumnya)
+
+- Tata letak Main Menu (54 slot, filler RED_STAINED_GLASS_PANE):
+  → Slot 4   : Brewing Stand — On Going Research (status riset aktif).
+  → Slot 20  : Enchanted Book — Era I (Basic) — aktif, membuka Menu Research Era I.
+  → Slot 22  : Enchanted Book — Era III (Expansion) — coming soon.
+  → Slot 24  : Enchanted Book — Era V (Futuristic) — coming soon.
+  → Slot 30  : Enchanted Book — Era II (Advanced) — coming soon.
+  → Slot 32  : Enchanted Book — Era IV (Modern) — coming soon.
+  → Slot 37  : Writable Book — Research Overview (rangkuman progres nation).
+  → Slot 43  : Spectral Arrow — Back ke menu utama nation (via MainMenuRouter).
+  → Slot 49  : Red Dye — Cancel Research (hanya tampil bila ada riset aktif & pemain leader).
+
+- Tata letak Menu Research per Era:
+  → Slot 4   : Brewing Stand — On Going Research.
+  → Slot 43  : Spectral Arrow — Back ke main menu (pemilihan era).
+  → Slot 48  : Fletching Table — Navigasi kategori War.
+  → Slot 49  : Enchanting Table — Navigasi kategori Technology (default saat era dibuka).
+  → Slot 50  : Cartography Table — Navigasi kategori Economy.
+  → 27 slot tengah (10–16, 19–25, 28–34, 37–42) menampung daftar riset
+    yang sesuai dengan era + kategori aktif.
+  → Tombol navigasi yang sedang aktif diberi prefix "▶" dan label "Currently viewing".
+
+- Penyesuaian Menu Detail:
+  → Tombol Back kini mengembalikan pemain ke Menu Research era yang relevan
+    (bukan ke menu kategori lama), berdasarkan ResearchType yang sedang dilihat.
+
+[ROUTING & TITLE ENCODING]
+- Penghapusan konstanta lama yang tidak relevan:
+  → SLOT_CLOSE, SLOT_CAT_ECONOMY, SLOT_CAT_TECHNOLOGY, SLOT_CAT_WAR,
+    CATEGORY_TITLE_PREFIX, parseCategoryFromTitle(), openCategory().
+- Penambahan konstanta baru:
+  → SLOT_BACK, SLOT_ERA_I…SLOT_ERA_V, ERA_SLOT_ACTIVE, ERA_SLOT_BACK,
+    ERA_SLOT_NAV_WAR/TECHNOLOGY/ECONOMY, ERA_TITLE_PREFIX, FILLER (public).
+- Title encoding baru:
+  → Format judul Menu Research: "&5&l⚛ &d&lEra: <warna>I - Basic — <warna>Technology"
+  → Helper ResearchGUI.parseEraTitle(String) mengembalikan EraTitleInfo (era + kategori)
+    sehingga GUIListener tetap stateless.
+
+[GUI LISTENER UPDATES]
+- Pembaruan GUIListener.java:
+  → Penggantian routing CATEGORY_TITLE_PREFIX → ERA_TITLE_PREFIX.
+  → Refactor handleResearchMain: menangani SLOT_BACK (kembali ke nation main menu),
+    SLOT_ERA_I (membuka era), serta blok "coming soon" untuk era II–V.
+  → Penambahan handleResearchEra: navigasi kategori dalam era yang sama,
+    klik daftar riset → membuka detail, dan tombol back ke main menu.
+  → Penyesuaian handleResearchDetail: Back kembali ke openEra(era, kategori) sesuai
+    ResearchType yang aktif.
+  → Filler check disinkronkan ke ResearchGUI.FILLER (RED_STAINED_GLASS_PANE) agar
+    tidak salah memblokir klik di GUI lain.
+
+[FILLER MATERIAL CHANGE]
+- Pergantian material filler riset dari PURPLE_STAINED_GLASS_PANE menjadi
+  RED_STAINED_GLASS_PANE sesuai spesifikasi tata letak baru.
+- Mode pengisian filler diperbarui: kini hanya slot non-fungsional yang diisi
+  filler (per slot list eksplisit) alih-alih flood fill seluruh inventory
+  lalu menimpanya — agar slot kosong list riset benar-benar kosong.
+
+Selesai. Build siap diuji.
+

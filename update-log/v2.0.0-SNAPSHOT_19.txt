@@ -1,0 +1,152 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#19
+====================================================
+Perbaikan sistem perizinan disband nation pada menu Caliphate Government dan sinkronisasi otorisasi pemimpin.
+
+- merapikan lore informasi pada menu communist
+
+[PERMISSION & AUTHORIZATION FIX]
+- GUIListener.java:
+  → Penambahan verifikasi status "Caliph" secara eksplisit pada handler slot 50 (Disband) untuk Caliphate Government.
+  → Penambahan verifikasi status "Caliph" pada handler slot 48 (Rename) untuk Caliphate Government.
+  → Implementasi pengecekan serupa (King/Sekjen) pada handler Monarchy dan Communist demi konsistensi keamanan antar jenis pemerintahan.
+  → Memastikan akses administratif eksklusif hanya dapat diakses oleh pemimpin tertinggi atau admin.
+  → Perbaikan bug di mana inventory tidak tertutup secara otomatis setelah aksi konfirmasi disband berhasil dieksekusi.
+
+[DEBUGGING & DIAGNOSTICS]
+- NationManager.java:
+  → Penambahan log debug pada metode disbandNation() untuk mencatat perbandingan UUID pemimpin (Nation object) dan UUID pemain (Requestor).
+  → Memudahkan diagnosa jika terjadi inkonsistensi data antara status pemimpin di database/file dengan identitas pemain saat ini.
+
+[CODE REFACTORING]
+- GUIListener.java:
+  → Refaktor metode handleCaliphateGovernmentGUI, handleMonarchyGovernmentGUI, dan handleCommunistGovernmentGUI.
+  → Resolusi objek Nation dilakukan secara terpusat di awal metode untuk memastikan konsistensi data context selama interaksi GUI berlangsung.
+
+[GUI ENHANCEMENT & OPTIMIZATION]
+- CommunistMainMenu.java:
+  → Menyembunyikan atribut armor (ItemFlags) pada slot 11 (Cabinet Members) dan slot 15 (Party Members).
+  → Refaktor item builder untuk menggunakan metode terpusat di NationMenuBase.
+- NationMenuBase.java:
+  → Optimasi buildIcon(), buildPlayerSkull(), dan buildOfflineSkull() untuk menambahkan semua ItemFlag secara eksplisit.
+  → Perbaikan bug sintaksis (bracket nesting) pada metode pembentukan skull pemain.
+
+[NEW FEATURE: SHARED STORAGE - COMMUNIST EXCLUSIVE]
+- SharedStorageData.java & SharedStorageEntry.java:
+  → Implementasi model data penyimpanan bersama berbasis Base64 serialization.
+  → Sistem pelacakan audit per slot (Depositor UUID, Nama, Waktu, dan Jumlah).
+  → Mekanisme anti-exploit: Rate-limiting (500ms) dan Slot-locking saat proses asinkron berlangsung.
+- CommunistSharedStorageGUI.java:
+  → Pembuatan GUI penyimpanan (54 slots) dengan border Red Stained Glass Pane khas tema Komunis.
+  → Injeksi metadata audit otomatis ke dalam lore item saat disimpan.
+  → Pembersihan metadata secara otomatis saat item diambil (Clean Withdraw).
+  → Tombol navigasi 'Back' (Spectral Arrow) untuk kembali ke Politburo Hall.
+- Nation.java:
+  → Penambahan field sharedStorageData dengan sistem lazy-initialization untuk persistensi data antar sesi.
+- CommunistMainMenu.java:
+  → Penggantian slot 30 (Election) menjadi Shared Storage (CHEST).
+  → Lore dinamis yang menampilkan statistik slot terisi/total slot storage.
+- GUIListener.java:
+  → Integrasi handler interaksi klik dan drag khusus untuk Shared Storage.
+  → Penanganan pembukaan menu via Main Menu dispatch.
+  → Implementasi save-on-interaction asinkron untuk performa optimal.
+
+[SHARED STORAGE ENHANCEMENT]
+- CommunistSharedStorageGUI.java:
+  → Implementasi fitur Shift-Click (Quick Deposit & Quick Withdraw) untuk alur penyimpanan yang lebih intuitif.
+  → Perbaikan interaksi inventori pemain (Bottom Inventory) agar pemain dapat memindahkan item secara normal.
+  → Mekanisme pencarian slot kosong otomatis di storage saat melakukan deposit cepat dari inventori.
+  → Modernisasi sistem serialisasi item menggunakan ItemStack byte-array serialization (kompatibilitas penuh Minecraft 1.21).
+  → Resolusi kesalahan kompilasi "missing variables" dan pembersihan daftar peringatan depresiasi API Spigot.
+- GUIListener.java:
+  → Refaktor handler interaksi Shared Storage untuk mendukung kontrol pembatalan event yang lebih fleksibel.
+
+[GUI AESTHETICS & CUSTOMIZATION]
+- NationMenuBase.java:
+  → Penambahan dukungan CustomModelData pada metode buildIcon() untuk integrasi resource pack.
+- CommunistMainMenu.java:
+  → Penggantian material ikon Kabinet (Slot 11) dan Anggota Partai (Slot 15) menjadi PAPER.
+  → Implementasi CustomModelData pada ikon tersebut untuk menampilkan tekstur armor tanpa memunculkan atribut statistik armor asli pada lore hover.
+
+[CODE REFACTORING - GUI LISTENER SPLIT]
+- GUIListener.java:
+  → Refaktor besar: file 2787 baris dipecah menjadi 6 file terpisah berdasarkan jenis nation.
+  → GUIListener kini berfungsi sebagai router event tipis dan penyimpan state bersama (viewingCandidate, viewingCabinetPosition, viewingAppointPosition, viewingPlayerStats, viewingManagedMember, memberListPage).
+  → Semua field GUI dan state diubah ke akses package-private agar dapat diakses handler di paket yang sama tanpa getter.
+  → API publik (openGovernmentGUI, openOrdersGUI, openTreasuryGUI, executeGUIAction, dll.) tidak berubah — backward compatible penuh.
+- RepublicGUIHandler.java (baru):
+  → Memuat handler GUI khusus Republic: main menu, voting, candidate info, government, executive orders.
+- CommunistGUIHandler.java (baru):
+  → Memuat handler GUI khusus Communist: main menu, government (Politburo Hall), party orders, member management, politburo picker, shared storage.
+- MonarchyGUIHandler.java (baru):
+  → Memuat handler GUI khusus Monarchy: main menu, Royal Court, Royal Decrees, Royal Treasury, treasury logs.
+- CaliphateGUIHandler.java (baru):
+  → Memuat handler GUI khusus Caliphate: main menu, Caliphate Court, executive orders, Bayt al-Mal, treasury logs.
+- CommonGUIHandler.java (baru):
+  → Memuat handler GUI lintas nation: cabinet, salary, treasury (Republic/Communist), president history, player stats, leaderboard, help, recall, tax, arena, hub, create nation, research.
+
+[SHARED STORAGE BUG FIXES]
+- GUIListener.java:
+  → Perbaikan interaksi pada slot kosong; memindahkan pengecekan Shared Storage ke awal onInventoryClick agar klik pada slot kosong (AIR) tetap diproses untuk kebutuhan deposit.
+- CommunistSharedStorageGUI.java:
+  → Perbaikan logika deposit: kini mendukung penukaran item (swap) secara otomatis saat mengklik slot yang sudah terisi.
+  → Penambahan pembersihan lore audit pada item yang ditaruh kembali ke kursor saat proses swap.
+  → Implementasi player.updateInventory() untuk memastikan sinkronisasi kursor dan inventori antara client dan server (mencegah item "macet").
+
+[COMMUNIST PARTY SYSTEM UPDATES]
+- CommunistMainMenu.java:
+  → Pembaruan ikon Kabinet (Slot 11) menjadi FIRE_CHARGE.
+  → Pembaruan ikon Anggota Partai (Slot 15) menjadi FIREWORK_STAR.
+  → Update lore Anggota Partai untuk menampilkan batas maksimal 5 anggota (Maximal 5 Members).
+- CommunistManager.java:
+  → Implementasi batasan maksimal 5 anggota partai pada fungsi joinParty().
+  → Implementasi batasan maksimal 5 anggota partai pada fungsi appointPolitburo() (auto-admit check).
+- CommunistGUIHandler.java:
+  → Penambahan validasi kuota partai (max 5) pada menu manajemen anggota sebelum mengizinkan penambahan anggota baru ke partai.
+
+[CODE REFACTORING - GUI SUBPACKAGE SEPARATION]
+- Restrukturisasi folder GUI: 22 file custom GUI yang spesifik untuk 4 jenis nation dipindahkan
+  dari package datar `id.nationcore.gui` ke 4 subpackage terpisah.
+- gui/republic/ (5 file):
+  → RepublicMainMenu.java
+  → RepublicGovernmentGUI.java
+  → RepublicTreasuryMenu.java
+  → RepublicExecutiveOrdersMenu.java
+  → RepublicGUIHandler.java
+- gui/monarchy/ (5 file):
+  → MonarchyMainMenu.java
+  → MonarchyGovernmentGUI.java
+  → MonarchyTreasuryMenu.java
+  → MonarchyExecutiveOrdersMenu.java
+  → MonarchyGUIHandler.java
+- gui/caliphate/ (5 file):
+  → CaliphateMainMenu.java
+  → CaliphateGovernmentGUI.java
+  → CaliphateTreasuryMenu.java
+  → CaliphateExecutiveOrdersMenu.java
+  → CaliphateGUIHandler.java
+- gui/communist/ (7 file):
+  → CommunistMainMenu.java
+  → CommunistGovernmentGUI.java
+  → CommunistTreasuryMenu.java
+  → CommunistExecutiveOrdersMenu.java
+  → CommunistMemberManagementGUI.java
+  → CommunistSharedStorageGUI.java
+  → CommunistGUIHandler.java
+- GUIListener.java:
+  → Seluruh field GUI instance dan state map (viewingCandidate, dll.) diubah dari
+    package-private menjadi public agar dapat diakses oleh handler di subpackage berbeda.
+- GovernmentGUIUtils.java:
+  → Class dan method static (createItem, fillGlass) dipromosikan dari package-private
+    ke public untuk aksesibilitas dari subpackage nation.
+- GovernmentSalaryMenu.java:
+  → Class, constructor, dan method open() dipromosikan ke public.
+- RepublicGUIHandler, MonarchyGUIHandler, CaliphateGUIHandler, CommunistGUIHandler,
+  CommonGUIHandler:
+  → Semua method handler yang dipanggil oleh GUIListener (total 44 method) dipromosikan
+    dari package-private ke public agar GUIListener dapat mengaksesnya lintas package.
+- Seluruh file yang dipindahkan mendapatkan pembaruan package declaration dan import
+  tambahan untuk referensi lintas package (total 54 import baru di 24 file).
+- File shared/common (NationMenuBase, GovernmentGUIUtils, MainMenuRouter, GUIListener,
+  CommonGUIHandler, dll.) tetap berada di root package `id.nationcore.gui`.
+

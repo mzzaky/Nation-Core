@@ -1,0 +1,54 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#6
+====================================================
+Implementasi fondasi sistem pemerintahan Komunis (Phase 4A) meliputi struktur 
+Politbiro, keanggotaan Partai, manajemen Sekretaris Jenderal (Sekjen), serta 
+integrasi buff dan chat prefix khusus ideologi Communist.
+
+[COMMUNISTGOVERNMENT - SUB-STATE DATA]
+- Struktur Data Pemerintahan:
+  → secretaryGeneralUUID & secretaryGeneralName: Identitas pemimpin tertinggi.
+  → termStartTime & consecutiveTerms: Tracking masa jabatan Sekjen.
+  → lastSecretaryActivity: Monitoring keaktifan untuk sistem otomatisasi.
+- Manajemen Organisasi:
+  → Map Politbiro: Tiga posisi kunci (PROPAGANDA, DEFENSE, PRODUCTION).
+  → Set PartyMembers: Daftar pemain yang terdaftar sebagai anggota Partai.
+- Framework Fase Lanjutan (Phase 4B):
+  → Skeleton Sanctions: CENSOR_MEDIA dan GULAG.
+  → Audit Field: totalSubsidyPayouts untuk pemantauan distribusi ekonomi.
+
+[COMMUNISTMANAGER - CORE OPERATIONS]
+- Manajemen Pemimpin & Anggota:
+  → setSecretaryGeneral: Prosedur inaugurasi penuh, cleanup mantan Sekjen, dan reset Politbiro.
+  → endSecretaryGeneral: Penghentian masa jabatan berdasarkan alasan tertentu.
+  → joinParty / leaveParty: Pendaftaran anggota (Sekjen dilarang keluar Partai).
+- Kontrol Politbiro:
+  → appointPolitburo: Penunjukan anggota (Sekjen-only), otomatisasi pendaftaran Partai, dan validasi posisi ganda.
+  → removePolitburo: Pencopotan jabatan dari struktur fungsional.
+- Helper API:
+  → isSecretaryGeneral / isPolitburoMember / getPolitburoPosition.
+
+[BUFF & CHAT INTEGRATION]
+- Dinamika Buff (BuffManager):
+  → Mapping Politbiro ke Cabinet:
+      • PROPAGANDA → CULTURE
+      • DEFENSE → DEFENSE
+      • PRODUCTION → TREASURY
+  → Sistem Refresh: Iterasi otomatis untuk nation berideologi Republic & Communist.
+- Komunikasi & Identitas (ChatListener):
+  → Prefix Visual Khas Soviet:
+      • 🚩 [Sekretaris Jenderal <Nation>] (Red Bold)
+      • 📢 [Menteri Propaganda <Nation>] (Light Purple)
+      • 🛡 [Menteri Pertahanan <Nation>] (Red)
+      • ⚒ [Menteri Produksi <Nation>] (Gold)
+- Informasi Login (PlayerListener):
+  → Pesan selamat datang menampilkan nama Sekjen yang menjabat.
+  → Status keanggotaan Partai (X/Y anggota).
+
+[COMMAND BARU - COMMUNIST MANAGEMENT]
+- /nc politburo [info]: Menampilkan susunan fungsionaris Politbiro nation.
+- /nc politburo appoint <POS> <player>: Menunjuk anggota Politbiro (Sekjen-only).
+- /nc politburo dismiss <pos>: Mencopot anggota dari posisi Politbiro (Sekjen-only).
+- /nc party: Menampilkan info Partai dan status pemain.
+- /nc party join / leave: Interaksi keanggotaan Partai.
+- /nc party list: Daftar lengkap anggota Partai dengan tag [Sekjen]/[Politbiro].

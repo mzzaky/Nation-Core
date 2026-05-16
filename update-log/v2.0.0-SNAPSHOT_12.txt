@@ -1,0 +1,52 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#12
+====================================================
+Adaptasi Sistem Kas Negara: Implementasi varian menu Treasury khusus untuk 
+sistem pemerintahan Republic dan Communist dengan fitur ideologi spesifik.
+
+[MULTI-SYSTEM TREASURY ADAPTATION]
+- Refaktor GovernmentTreasuryMenu.java menjadi 2 varian menu:
+  → Varian Republic (⚖): Fokus pada transparansi publik dan donasi sukarela.
+  → Varian Communist (☭): Fokus pada pengelolaan terpusat, subsidi, dan pajak progresif.
+- Fitur Varian Republic:
+  → Tampilan statistik: Saldo Kas, Total Pemasukan, dan Total Pengeluaran.
+  → Tombol Donasi: /nc treasury donate <jumlah>.
+  → Log Transaksi: Terbuka untuk seluruh warga negara (audit publik).
+- Fitur Varian Communist:
+  → Tampilan statistik: Saldo Kas Partai dan Total Payout Subsidi.
+  → Status Sistem: Tracking subsidi harian, pajak progresif, dan subsidi pangan (Free Food).
+  → Kontrol Akses: Log transaksi hanya dapat dilihat oleh Sekjen, Politbiro, atau Admin.
+
+[GUI ROUTING & INTEGRATION]
+- Pembaruan GUIListener.java:
+  → Implementasi explicit title matching untuk mendeteksi varian menu treasury yang aktif.
+  → Navigasi "Back" otomatis mengarah ke Main Menu nation pemain (Republic/Communist).
+  → Proteksi akses log transaksi kas partai berdasarkan role pemain.
+- Pembaruan GovernmentGUI.java:
+  → Penambahan method openCommunistTreasuryMenu() untuk memicu varian menu komunis.
+  → Penambahan method openCommunistTreasuryTransactionsMenu() untuk log transaksi tertutup.
+
+[TECHNICAL REFINEMENT]
+- Lokalisasi UI:
+  → Penyeragaman format waktu dan angka ke dalam Bahasa Indonesia di seluruh menu kas.
+  → Penambahan status intensifikasi pajak dan pembebasan pajak pada menu komunis.
+- Code Cleanup:
+  → Pembersihan unused imports dan variabel pada GUIListener.java.
+  → Perbaikan duplikasi import pada sistem GUI.
+  → Verifikasi build sukses menggunakan Maven Wrapper.
+
+[EXECUTIVE ORDERS & DECISIONS REWRITE]
+- Selesai. Build sukses.
+- GovernmentExecutiveOrdersMenu.java — ditulis ulang
+- Auto-route by nation type — open(player) resolve nation pemain lalu pilih openRepublic/openCommunist/legacy fallback.
+- Variant Republic — 9 ExecutiveOrderType dalam grid 3×3 (slots 11/13/15, 20/22/24, 29/31/33), tema biru, header bertuliskan nama nation, info card tampil saldo kas + cooldown nation, status per-card: [AKTIF], [COOLDOWN], [KAS KURANG], [TERSEDIA], [NO ACCESS].
+- Variant Komunis — 20 CommunistDecisionType dalam 4 baris × 5, tiap baris diberi badge sektor di kolom kiri (Propaganda 🎵 / Pertahanan ⚔ / Keuangan 💰 / Kesehatan 🍎). Tampilan status memperhitungkan posisi Politbiro pemain, bypass Sekjen, cooldown per-pemain, kas nation, dan flag aktif (isDefenseProtocolActive, isQuarantineActive, dst.).
+- Slot helpers statis (republicOrderAtSlot, communistDecisionAtSlot, isBackSlot, isCloseSlot) — dispatch klik pakai slot mapping, bukan parsing display name.
+- Layout rapi: header banner di slot 4, tombol Back di 45, info di 49, Close di 53; sisanya glass pane bertema warna nation.
+- GovernmentGUI.java
+  → Tambah ORDERS_GUI_TITLE_REPUBLIC & ORDERS_GUI_TITLE_COMMUNIST. ORDERS_GUI_TITLE lama di-@Deprecated dan alias ke versi Republic.
+- GUIListener.java
+  → Title dispatch dipecah dua: handleRepublicOrdersGUI & handleCommunistOrdersGUI.
+  → Tombol Back sekarang memanggil mainMenuRouter.openFor(player) → otomatis ke RepublicMainMenu / CommunistMainMenu sesuai nation pemain, bukan ke GovernmentGUI legacy lagi.
+  → Republic memakai issueOrderForNation (kas nation) bukan issueOrder lama; Komunis memanggil CommunistManager.executeDecision(nation, player, type) dan menampilkan pesan sukses/gagal.
+  → Drag-cancel handler mengakui kedua title baru.

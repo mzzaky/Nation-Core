@@ -1,0 +1,125 @@
+# =====================================================================
+#  NationCore — Nation Research Configuration
+# =====================================================================
+#  This file defines every research project a nation can pursue and the
+#  tuning knobs server administrators have to balance them.
+#
+#  • Research data is stored PER NATION (not server-wide).
+#  • Only the nation leader (President/Secretary General) can start or
+#    cancel a research project.
+#  • Effects apply to every member of the nation that owns the research.
+#  • Each nation can run at most ONE research project at a time.
+#
+#  Cost & duration both support per-level scaling. With cost-scaling=1.0
+#  and time-scaling=1.0 every level costs/takes the same. Set them above
+#  1.0 to make later levels progressively more expensive/slower; set them
+#  below 1.0 to make later levels cheaper/faster.
+# =====================================================================
+
+research:
+  # Master switch. Set to false to disable the entire feature.
+  enabled: true
+
+  # Percentage of the paid cost that is refunded to the treasury when the
+  # nation leader cancels a research project mid-progress. Set 0 for no
+  # refund, 100 for full refund.
+  cancel-refund-percent: 50
+
+  # =================================================================
+  #  Research catalog
+  # =================================================================
+  #  effect-per-level:
+  #    • For chance-based research (Agriculture, Husbandry, Mining):
+  #      probability per level that a "1–2 extra drops" bonus triggers
+  #      on each successful event. e.g. 0.01 = 1% per level.
+  #    • For multiplier research (Magic Education, Hunting Skill,
+  #      Attack/Defensive/Archery): fractional bonus per level
+  #      (0.01 = +1%/-1% per level).
+  #    • For Health Expansion: extra max-HP points per level
+  #      (0.5 = half a heart per level).
+  # =================================================================
+  types:
+
+    # ── ECONOMY — ERA I ────────────────────────────────────────────
+    agriculture_program_i:
+      enabled: true
+      cost: 25000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # +1% chance per level for 1–2 bonus drops
+
+    husbandry_boost_i:
+      enabled: true
+      cost: 25000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01
+
+    mining_luck_i:
+      enabled: true
+      cost: 25000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01
+
+    # ── TECHNOLOGY — ERA I ─────────────────────────────────────────
+    magic_education_i:
+      enabled: true
+      cost: 35000
+      cost-scaling: 1.0
+      time-seconds: 1500        # 25 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # +1% XP per level
+
+    health_expansion_i:
+      enabled: true
+      cost: 48000
+      cost-scaling: 1.0
+      time-seconds: 1920        # 32 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.5     # +0.5 max-HP (¼ heart) per level
+
+    hunting_skill_i:
+      enabled: true
+      cost: 50000
+      cost-scaling: 1.0
+      time-seconds: 2100        # 35 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # +1% damage to hostile mobs per level
+
+    # ── WAR — ERA I ────────────────────────────────────────────────
+    attack_exercise_i:
+      enabled: true
+      cost: 100000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # +1% damage vs other players per level
+
+    defensive_tactic_i:
+      enabled: true
+      cost: 100000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # -1% damage taken from other players per level
+
+    archery_training_i:
+      enabled: true
+      cost: 100000
+      cost-scaling: 1.0
+      time-seconds: 600         # 10 minutes
+      time-scaling: 1.0
+      max-level: 5
+      effect-per-level: 0.01    # +1% bow & crossbow damage per level
