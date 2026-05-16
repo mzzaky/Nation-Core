@@ -36,26 +36,13 @@ public class RepublicGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
-        if (slot == RepublicMainMenu.getSlot("CLOSE")) {
-            player.closeInventory();
-            return;
-        }
-        if (slot == RepublicMainMenu.getSlot("HUB")) {
-            gui.openHubGUI(player);
-            return;
-        }
-        if (slot == RepublicMainMenu.getSlot("PLAYER")) {
+        if (slot == RepublicMainMenu.getSlot("NATION")) {
             gui.viewingPlayerStats.put(player.getUniqueId(), player.getUniqueId());
             gui.playerStatsGUI.openPlayerStats(player, player.getUniqueId());
             return;
         }
         if (slot == RepublicMainMenu.getSlot("PRESIDENT")) {
             gui.openGovernmentGUI(player);
-            return;
-        }
-        if (slot == RepublicMainMenu.getSlot("APPROVAL")) {
-            player.closeInventory();
-            MessageUtils.send(player, "<yellow>Use: <white>/nc rate <1-5> <gray>to rate the president");
             return;
         }
         if (slot == RepublicMainMenu.getSlot("TREASURY")) {
@@ -97,6 +84,15 @@ public class RepublicGUIHandler {
         if (slot == RepublicMainMenu.getSlot("CAPITAL")) {
             player.closeInventory();
             Bukkit.dispatchCommand(player, "nationcore capital");
+            return;
+        }
+        if (slot == RepublicMainMenu.getSlot("RESEARCH")) {
+            gui.researchGUI.openMain(player);
+            return;
+        }
+        if (slot == RepublicMainMenu.getSlot("HUB")) {
+            gui.openHubGUI(player);
+            return;
         }
     }
 
@@ -115,7 +111,6 @@ public class RepublicGUIHandler {
         }
     }
 
-    @SuppressWarnings("deprecation")
     public void handleCandidateGUI(Player player, ItemStack clicked, String title) {
         UUID candidateUUID = gui.viewingCandidate.get(player.getUniqueId());
 
@@ -209,7 +204,6 @@ public class RepublicGUIHandler {
         }
     }
 
-    @SuppressWarnings("deprecation")
     public void handleOrdersGUI(Player player, ItemStack clicked, int slot) {
         if (RepublicExecutiveOrdersMenu.SLOT_CLOSE == slot || clicked.getType() == Material.BARRIER) {
             player.closeInventory();

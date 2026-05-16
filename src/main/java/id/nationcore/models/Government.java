@@ -13,6 +13,11 @@ public class Government {
     private long lastPresidentActivity;
     private List<ApprovalRating> approvalRatings;
     private double currentApprovalRating;
+    
+    private long quarantineUntil;
+    private long plagueUntil;
+    private long vaccinationUntil;
+    private long fieldMedicineCooldownUntil;
 
     private long lastBroadcastTime;
 
@@ -41,7 +46,8 @@ public class Government {
 
     public enum CabinetPosition {
         DEFENSE("Minister of Defense", "&4[MoD]"),
-        TREASURY("Minister of Treasury", "&2[MoT]");
+        TREASURY("Minister of Treasury", "&2[MoT]"),
+        HEALTH("Minister of Health", "&a[MoH]");
 
         private final String displayName;
         private final String prefix;
@@ -245,6 +251,23 @@ public class Government {
     public void setLastBroadcastTime(long lastBroadcastTime) {
         this.lastBroadcastTime = lastBroadcastTime;
     }
+
+    // Health Decision Status
+    public long getQuarantineUntil() { return quarantineUntil; }
+    public void setQuarantineUntil(long quarantineUntil) { this.quarantineUntil = quarantineUntil; }
+    public boolean isQuarantineActive() { return System.currentTimeMillis() < quarantineUntil; }
+
+    public long getPlagueUntil() { return plagueUntil; }
+    public void setPlagueUntil(long plagueUntil) { this.plagueUntil = plagueUntil; }
+    public boolean isPlagueActive() { return System.currentTimeMillis() < plagueUntil; }
+
+    public long getVaccinationUntil() { return vaccinationUntil; }
+    public void setVaccinationUntil(long vaccinationUntil) { this.vaccinationUntil = vaccinationUntil; }
+    public boolean isVaccinationActive() { return System.currentTimeMillis() < vaccinationUntil; }
+
+    public long getFieldMedicineCooldownUntil() { return fieldMedicineCooldownUntil; }
+    public void setFieldMedicineCooldownUntil(long fieldMedicineCooldownUntil) { this.fieldMedicineCooldownUntil = fieldMedicineCooldownUntil; }
+    public boolean isFieldMedicineOnCooldown() { return System.currentTimeMillis() < fieldMedicineCooldownUntil; }
 
     public boolean hasPresident() {
         return presidentUUID != null;

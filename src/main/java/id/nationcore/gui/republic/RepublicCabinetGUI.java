@@ -1,4 +1,4 @@
-package id.nationcore.gui;
+package id.nationcore.gui.republic;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,10 +20,10 @@ import id.nationcore.models.Government;
 import id.nationcore.utils.MessageUtils;
 
 /**
- * Cabinet GUI — displays all cabinet positions, their current ministers,
+ * Republic Cabinet GUI — displays all cabinet positions, their current ministers,
  * statistics, and allows the President to appoint players to each position.
  */
-public class CabinetGUI {
+public class RepublicCabinetGUI {
 
     private final NationCore plugin;
 
@@ -33,9 +33,9 @@ public class CabinetGUI {
     public static final String CABINET_APPOINT_TITLE = "§a§l👤 APPOINT MINISTER: ";
 
     // ── Slot layout for the 5 cabinet positions ──────────────────────────
-    private static final int[] MINISTER_SLOTS = { 13, 14 };
+    private static final int[] MINISTER_SLOTS = { 11, 13, 15 };
 
-    public CabinetGUI(NationCore plugin) {
+    public RepublicCabinetGUI(NationCore plugin) {
         this.plugin = plugin;
     }
 
@@ -198,8 +198,8 @@ public class CabinetGUI {
             lore.add("");
             lore.add("§7" + type.getDescription());
             lore.add("");
-            lore.add("§7Duration: §f" + MessageUtils.formatTime(type.getDurationMillis()));
-            lore.add("§7Cost: §6500,000");
+            lore.add("§7Duration: §f" + MessageUtils.formatTime(type.getDurationMillis() > 0 ? type.getDurationMillis() : 24 * 3600000L));
+            lore.add("§7Cost: §6" + MessageUtils.formatNumber(plugin.getCabinetManager().getDecisionCost(type)));
 
             if (canIssue && !active && !onCooldown) {
                 lore.add("");
@@ -384,6 +384,7 @@ public class CabinetGUI {
         String description = switch (pos) {
             case DEFENSE -> "Oversees military and defense policy.";
             case TREASURY -> "Manages the national treasury.";
+            case HEALTH -> "Manages national health and emergency protocols.";
             default -> "Minister of the government.";
         };
         lore.add("§7" + description);

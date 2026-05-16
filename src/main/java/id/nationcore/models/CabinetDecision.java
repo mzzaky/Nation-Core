@@ -7,7 +7,8 @@ public class CabinetDecision {
     // Re-export CabinetPosition untuk backward compatibility dengan NationCommand
     public static enum CabinetPosition {
         DEFENSE("Minister of Defense", "&4[MoD]"),
-        TREASURY("Minister of Treasury", "&2[MoT]");
+        TREASURY("Minister of Treasury", "&2[MoT]"),
+        HEALTH("Minister of Health", "&a[MoH]");
         
         private final String displayName;
         private final String prefix;
@@ -48,7 +49,19 @@ public class CabinetDecision {
         TREASURY_BONUS("Treasury Bonus", CabinetPosition.TREASURY, 12 * 60 * 60 * 1000L,
             "+50% vault points from mobs & mining"),
         MARKET_CRASH("Market Crash", CabinetPosition.TREASURY, 6 * 60 * 60 * 1000L,
-            "40% discount at admin shop");
+            "40% discount at admin shop"),
+        
+        // Health Minister Decisions
+        QUARANTINE_PROTOCOL("Quarantine Protocol", CabinetPosition.HEALTH, 10 * 60 * 1000L,
+            "Non-members cannot enter territory"),
+        FIELD_MEDICINE("Field Medicine", CabinetPosition.HEALTH, 5 * 60 * 1000L,
+            "Regeneration II for 5 minutes"),
+        VACCINATION_DRIVE("Vaccination Drive", CabinetPosition.HEALTH, 60 * 60 * 1000L,
+            "Immunity to poison & wither for 1 hour"),
+        EMERGENCY_RATIONS("Emergency Rations", CabinetPosition.HEALTH, 0L,
+            "Distribute food to members with low hunger"),
+        PLAGUE("Plague", CabinetPosition.HEALTH, 10 * 60 * 1000L,
+            "Enemies in territory receive Weakness & Hunger");
 
         
         private final String displayName;

@@ -36,3 +36,37 @@ Pembaruan tata letak (layout) Republic Main Menu dan restrukturisasi GUI Republi
   → Refaktor field types dan inisialisasi constructor agar menggunakan class Republic yang baru.
   → Sinkronisasi seluruh pengecekan judul (title check) pada onInventoryClick dan onInventoryDrag untuk mendukung konstanta title dari class hasil refaktor.
   → Pembaruan route pada executeGUIAction agar mengarah ke instance RepublicRecallGUI dan RepublicPresidentHistoryGUI yang baru.
+
+[RECALL SYSTEM SECURITY & MEMBERSHIP ENFORCEMENT]
+- RepublicRecallGUI.java:
+  → Implementasi pengecekan keanggotaan nation (isMember).
+  → UI sekarang bersifat nation-aware, mengambil data RecallPetition dan Government sesuai nation pemain.
+  → Menambahkan indikator status keanggotaan pada Slot 29.
+  → Pembatasan tombol interaksi (Sign, Withdraw, Vote, Start) hanya untuk anggota terdaftar.
+  → Perbaikan bug "Nation cannot be resolved" (missing import).
+  → Resolusi deprecation warnings pada createInventory, setDisplayName, dan setLore menggunakan Adventure API dan suppression.
+- CommonGUIHandler.java:
+  → Refaktor handleRecallMenuGUI untuk menggunakan nation-aware methods dari RecallManager.
+  → Sinkronisasi aksi sign, withdraw, dan vote agar merujuk ke petisi spesifik nation.
+- NationCommand.java:
+  → Enforce nation membership pada perintah /dc recall start, sign, dan vote.
+  → Penambahan pesan error dalam bahasa Indonesia untuk pemain non-member.
+
+[REPUBLIC MINISTER OF HEALTH IMPLEMENTATION]
+- Government.java & CabinetDecision.java:
+  → Penambahan posisi "HEALTH" (Menteri Kesehatan) pada enum CabinetPosition.
+  → Registrasi 5 jenis Executive Order baru: QUARANTINE_PROTOCOL, FIELD_MEDICINE, VACCINATION_DRIVE, EMERGENCY_RATIONS, dan PLAGUE.
+  → Penambahan field persistent pada model Government untuk menyimpan status aktif dan cooldown keputusan kesehatan.
+- CabinetManager.java:
+  → Implementasi logika efek untuk kelima keputusan menteri kesehatan.
+  → Dukungan multi-nation: Efek kesehatan kini diarahkan ke nation spesifik pemain yang mengeksekusi.
+  → Mekanisme cooldown dan durasi yang terintegrasi dengan konfigurasi global.
+- CapitalListener.java & DamageListener.java:
+  → Integrasi efek wilayah (Quarantine & Plague) untuk Nation tipe Republic.
+  → Implementasi kekebalan (immunity) terhadap efek Poison & Wither bagi anggota Republic saat Vaccination Drive aktif.
+  → Perbaikan bug "Government cannot be resolved" melalui penambahan import yang hilang.
+- RepublicCabinetGUI.java:
+  → Refaktor dan pemindahan dari CabinetGUI.java ke subpackage republic.
+  → Pembaruan layout menjadi 3 slot (Defense, Treasury, Health) pada baris kedua (Slot 11, 13, 15).
+  → Deskripsi dinamis untuk masing-masing posisi kabinet.
+  → Sinkronisasi biaya (cost) dan durasi keputusan dengan data dari CabinetManager.

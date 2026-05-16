@@ -19,29 +19,60 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Cari executable Maven
-$mvnExe = "mvn"
-if (!(Get-Command $mvnExe -ErrorAction SilentlyContinue)) {
-    Write-Host "PERINGATAN: 'mvn' tidak ditemukan di PATH." -ForegroundColor Yellow
-    
-    # Lokasi umum jika tidak ada di PATH
-    $possiblePaths = @(
-        "C:\Program Files\apache-maven-*\bin\mvn.cmd",
-        "C:\maven\bin\mvn.cmd"
+# Cari Java jika tidak ada di PATH dan JAVA_HOME kosong
+if (!(Get-Command "java" -ErrorAction SilentlyContinue) -and !($env:JAVA_HOME)) {
+    $possibleJavaPaths = @(
+        "C:\Program Files\Java\jdk-*",
+        "C:\Program Files\Java\latest",
+        "C:\Program Files\Java\jdk-21*"
     )
-    
-    $foundMvn = $null
-    foreach ($p in $possiblePaths) {
-        $foundMvn = Get-ChildItem $p -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($foundMvn) { break }
+    foreach ($p in $possibleJavaPaths) {
+        $foundJava = Get-ChildItem $p -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($foundJava) {
+            $env:JAVA_HOME = $foundJava.FullName
+            $env:PATH = "$($env:JAVA_HOME)\bin;$($env:PATH)"
+            Write-Host "Java ditemukan di: $($env:JAVA_HOME)" -ForegroundColor Gray
+            break
+        }
     }
+}
+
+# Konfigurasi Maven Portabel
+$mavenVersion = "3.9.6"
+$mavenHome = Join-Path $PSScriptRoot ".maven"
+$mvnExe = "mvn"
+
+# Cari executable Maven
+if (!(Get-Command $mvnExe -ErrorAction SilentlyContinue)) {
+    Write-Host "Maven tidak ditemukan di PATH sistem." -ForegroundColor Yellow
     
-    if ($foundMvn) {
-        $mvnExe = $foundMvn.FullName
-        Write-Host "Ditemukan Maven di: $mvnExe" -ForegroundColor Gray
+    $localMvnDir = Join-Path $mavenHome "apache-maven-$mavenVersion"
+    $mvnExe = Join-Path $localMvnDir "bin\mvn.cmd"
+    
+    if (!(Test-Path $mvnExe)) {
+        Write-Host "Mengunduh Maven portabel (v$mavenVersion)..." -ForegroundColor Cyan
+        
+        if (!(Test-Path $mavenHome)) { 
+            New-Item -ItemType Directory -Path $mavenHome -Force | Out-Null 
+        }
+        
+        $zipFile = Join-Path $mavenHome "maven.zip"
+        $url = "https://archive.apache.org/dist/maven/maven-3/$mavenVersion/binaries/apache-maven-$mavenVersion-bin.zip"
+        
+        try {
+            Write-Host "Menghubungi: $url" -ForegroundColor Gray
+            Invoke-WebRequest -Uri $url -OutFile $zipFile
+            Write-Host "Mengekstrak file..." -ForegroundColor Gray
+            Expand-Archive -Path $zipFile -DestinationPath $mavenHome -Force
+            Remove-Item $zipFile
+            Write-Host "Maven portabel siap digunakan." -ForegroundColor Green
+        } catch {
+            Write-Host "Gagal mengunduh Maven otomatis. Pastikan Anda memiliki koneksi internet." -ForegroundColor Red
+            Write-Error "Gagal mengunduh Maven: $($_.Exception.Message)"
+            exit 1
+        }
     } else {
-        Write-Error "Maven tidak ditemukan. Silakan instal Maven atau tambahkan ke PATH sistem Anda agar command 'mvn' bisa digunakan."
-        exit 1
+        Write-Host "Menggunakan Maven portabel: $localMvnDir" -ForegroundColor Gray
     }
 }
 
@@ -49,6 +80,13 @@ if ($MavenArgs.Count -eq 0) {
     Write-Host "--- Memulai Build (Default: clean package) ---" -ForegroundColor Cyan
     & $mvnExe clean package
 } else {
+    # Pre-process argumen untuk mempermudah (contoh: -psnapshot -> -Psnapshot)
+    for ($i = 0; $i -lt $MavenArgs.Count; $i++) {
+        if ($MavenArgs[$i] -eq "-psnapshot") {
+            $MavenArgs[$i] = "-Psnapshot"
+        }
+    }
+
     # Periksa apakah ada goal dalam argumen (argumen yang tidak dimulai dengan '-')
     $hasGoal = $false
     foreach ($arg in $MavenArgs) {

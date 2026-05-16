@@ -29,6 +29,7 @@ import org.bukkit.projectiles.ProjectileSource;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.CommunistGovernment;
+import id.nationcore.models.Government;
 import id.nationcore.models.GovernmentType;
 import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
@@ -240,12 +241,20 @@ public class CapitalListener implements Listener {
         }
         lastNation.put(player.getUniqueId(), currentId);
 
-        // Quarantine Protocol (Komunis): non-anggota tidak boleh masuk teritori
-        if (atLoc != null && atLoc.getType() == GovernmentType.COMMUNIST
-                && !atLoc.isMember(player.getUniqueId())
+        // Quarantine Protocol (Komunis & Republic): non-anggota tidak boleh masuk teritori
+        if (atLoc != null && !atLoc.isMember(player.getUniqueId())
                 && !player.hasPermission("nation.admin")) {
-            CommunistGovernment cg = atLoc.getCommunistGovernment();
-            if (cg != null && cg.isQuarantineActive()) {
+            
+            boolean quarantineActive = false;
+            if (atLoc.getType() == GovernmentType.COMMUNIST) {
+                CommunistGovernment cg = atLoc.getCommunistGovernment();
+                if (cg != null && cg.isQuarantineActive()) quarantineActive = true;
+            } else if (atLoc.getType() == GovernmentType.REPUBLIC) {
+                Government gov = atLoc.getRepublicGovernment();
+                if (gov != null && gov.isQuarantineActive()) quarantineActive = true;
+            }
+
+            if (quarantineActive) {
                 event.setCancelled(true);
                 player.sendActionBar(Component.text(
                         "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
@@ -278,11 +287,19 @@ public class CapitalListener implements Listener {
 
     private void applyPlagueTrigger(Nation atLoc, Player player) {
         if (atLoc == null) return;
-        if (atLoc.getType() != GovernmentType.COMMUNIST) return;
         if (atLoc.isMember(player.getUniqueId())) return;
         if (player.hasPermission("nation.admin")) return;
-        CommunistGovernment cg = atLoc.getCommunistGovernment();
-        if (cg == null || !cg.isPlagueActive()) return;
+
+        boolean plagueActive = false;
+        if (atLoc.getType() == GovernmentType.COMMUNIST) {
+            CommunistGovernment cg = atLoc.getCommunistGovernment();
+            if (cg != null && cg.isPlagueActive()) plagueActive = true;
+        } else if (atLoc.getType() == GovernmentType.REPUBLIC) {
+            Government gov = atLoc.getRepublicGovernment();
+            if (gov != null && gov.isPlagueActive()) plagueActive = true;
+        }
+
+        if (!plagueActive) return;
 
         long now = System.currentTimeMillis();
         Long last = lastPlagueApply.get(player.getUniqueId());

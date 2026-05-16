@@ -1,5 +1,7 @@
 package id.nationcore.gui;
 
+import id.nationcore.gui.republic.RepublicCabinetGUI;
+
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -393,7 +395,8 @@ public class CommonGUIHandler {
             return;
         }
 
-        RecallPetition petition = plugin.getDataManager().getRecallPetition();
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        RecallPetition petition = (nation != null) ? nation.getRecallPetition() : plugin.getDataManager().getRecallPetition();
         boolean hasActivePetition = petition != null
                 && petition.getPhase() != RecallPetition.RecallPhase.COMPLETED
                 && petition.getPhase() != RecallPetition.RecallPhase.FAILED;
@@ -411,14 +414,14 @@ public class CommonGUIHandler {
         if (petition != null && petition.getPhase() == RecallPetition.RecallPhase.COLLECTING) {
             if (slot == 38 && clicked.getType() == Material.LIME_CONCRETE) {
                 player.closeInventory();
-                plugin.getRecallManager().signPetition(player.getUniqueId());
+                plugin.getRecallManager().signPetition(nation, player.getUniqueId());
                 Bukkit.getScheduler().runTaskLater(plugin, () -> gui.recallGUI.openRecallMenu(player), 5L);
                 return;
             }
 
             if (slot == 38 && clicked.getType() == Material.ORANGE_CONCRETE) {
                 player.closeInventory();
-                plugin.getRecallManager().withdrawSignature(player.getUniqueId());
+                plugin.getRecallManager().withdrawSignature(nation, player.getUniqueId());
                 Bukkit.getScheduler().runTaskLater(plugin, () -> gui.recallGUI.openRecallMenu(player), 5L);
                 return;
             }
@@ -433,14 +436,14 @@ public class CommonGUIHandler {
         if (petition != null && petition.getPhase() == RecallPetition.RecallPhase.VOTING) {
             if (slot == 38 && clicked.getType() == Material.RED_CONCRETE) {
                 player.closeInventory();
-                plugin.getRecallManager().castRecallVote(player.getUniqueId(), true);
+                plugin.getRecallManager().castRecallVote(nation, player.getUniqueId(), true);
                 Bukkit.getScheduler().runTaskLater(plugin, () -> gui.recallGUI.openRecallMenu(player), 5L);
                 return;
             }
 
             if (slot == 42 && clicked.getType() == Material.LIME_CONCRETE) {
                 player.closeInventory();
-                plugin.getRecallManager().castRecallVote(player.getUniqueId(), false);
+                plugin.getRecallManager().castRecallVote(nation, player.getUniqueId(), false);
                 Bukkit.getScheduler().runTaskLater(plugin, () -> gui.recallGUI.openRecallMenu(player), 5L);
                 return;
             }
@@ -450,8 +453,9 @@ public class CommonGUIHandler {
     public void handleRecallConfirmGUI(Player player, ItemStack clicked) {
         if (clicked.getType() == Material.LIME_CONCRETE) {
             player.closeInventory();
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
             boolean success = plugin.getRecallManager().startPetition(
-                    player.getUniqueId(), "Player-initiated recall");
+                    nation, player.getUniqueId(), "Player-initiated recall");
             if (success) {
                 Bukkit.getScheduler().runTaskLater(plugin, () -> gui.recallGUI.openRecallMenu(player), 10L);
             } else {

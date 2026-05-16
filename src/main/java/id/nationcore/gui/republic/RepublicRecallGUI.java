@@ -17,8 +17,10 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.Government;
+import id.nationcore.models.Nation;
 import id.nationcore.models.RecallPetition;
 import id.nationcore.utils.MessageUtils;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 /**
  * Recall System GUI - Full interactive interface for the Recall system
@@ -40,13 +42,17 @@ public class RepublicRecallGUI {
      * Open the main Recall System menu
      */
     public void openRecallMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, RECALL_MENU_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, LegacyComponentSerializer.legacySection().deserialize(RECALL_MENU_TITLE));
 
-        Government gov = plugin.getDataManager().getGovernment();
-        RecallPetition petition = plugin.getDataManager().getRecallPetition();
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        Government gov = (nation != null) ? nation.getRepublicGovernment() : plugin.getDataManager().getGovernment();
+        RecallPetition petition = (nation != null) ? nation.getRecallPetition() : plugin.getDataManager().getRecallPetition();
+        
         boolean hasActivePetition = petition != null
                 && petition.getPhase() != RecallPetition.RecallPhase.COMPLETED
                 && petition.getPhase() != RecallPetition.RecallPhase.FAILED;
+        
+        boolean isMember = nation != null && nation.isMember(player.getUniqueId());
 
         // === ROW 1: Header ===
 
@@ -85,14 +91,14 @@ public class RepublicRecallGUI {
         if (hasActivePetition) {
             if (petition.getPhase() == RecallPetition.RecallPhase.COLLECTING) {
                 // Signature collection phase
-                createCollectingPhaseItems(inv, petition, player);
+                createCollectingPhaseItems(inv, petition, player, isMember);
             } else if (petition.getPhase() == RecallPetition.RecallPhase.VOTING) {
                 // Voting phase
-                createVotingPhaseItems(inv, petition, player);
+                createVotingPhaseItems(inv, petition, player, isMember);
             }
         } else {
             // No active petition - show start petition option
-            createNoPetitionItems(inv, player, gov);
+            createNoPetitionItems(inv, player, gov, isMember);
         }
 
         // === ROW 5: Action Buttons ===
@@ -100,7 +106,7 @@ public class RepublicRecallGUI {
         if (hasActivePetition) {
             if (petition.getPhase() == RecallPetition.RecallPhase.COLLECTING) {
                 // Sign Petition Button (Slot 38)
-                if (!petition.hasSigned(player.getUniqueId())
+                if (isMember && !petition.hasSigned(player.getUniqueId())
                         && !petition.getTargetId().equals(player.getUniqueId())) {
 
                     double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
@@ -120,7 +126,7 @@ public class RepublicRecallGUI {
                         addGlow(signItem);
                     inv.setItem(38, signItem);
 
-                } else if (petition.hasSigned(player.getUniqueId())
+                } else if (isMember && petition.hasSigned(player.getUniqueId())
                         && !petition.getInitiatorId().equals(player.getUniqueId())) {
 
                     // Withdraw Signature Button (Slot 38)
@@ -137,7 +143,7 @@ public class RepublicRecallGUI {
                             "§6Click to withdraw");
                     inv.setItem(38, withdrawItem);
 
-                } else if (petition.hasSigned(player.getUniqueId())
+                } else if (isMember && petition.hasSigned(player.getUniqueId())
                         && petition.getInitiatorId().equals(player.getUniqueId())) {
                     // Initiator - cannot withdraw
                     ItemStack initiatorItem = createItem(Material.GREEN_CONCRETE,
@@ -148,6 +154,15 @@ public class RepublicRecallGUI {
                             "§7You cannot withdraw.",
                             "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
                     inv.setItem(38, initiatorItem);
+                } else if (!isMember) {
+                    // Not a member - cannot participate
+                    ItemStack noMemberItem = createItem(Material.BARRIER, "§c§l✗ NOT A MEMBER",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                            "§7Only registered members of",
+                            "§7this nation can sign the",
+                            "§7recall petition.",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                    inv.setItem(38, noMemberItem);
                 }
 
                 // Status Command Info (Slot 40)
@@ -157,7 +172,7 @@ public class RepublicRecallGUI {
                 inv.setItem(40, statusCmd);
 
             } else if (petition.getPhase() == RecallPetition.RecallPhase.VOTING) {
-                if (!petition.hasVoted(player.getUniqueId())) {
+                if (isMember && !petition.hasVoted(player.getUniqueId())) {
                     // Vote REMOVE Button (Slot 38)
                     ItemStack removeVote = createItem(Material.RED_CONCRETE, "§c§l✗ VOTE: REMOVE",
                             "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
@@ -179,7 +194,7 @@ public class RepublicRecallGUI {
                             "",
                             "§aClick to vote KEEP");
                     inv.setItem(42, keepVote);
-                } else {
+                } else if (isMember && petition.hasVoted(player.getUniqueId())) {
                     // Already voted
                     boolean votedRemove = petition.getRecallVotes().get(player.getUniqueId());
                     ItemStack alreadyVoted = createItem(Material.ENCHANTED_BOOK,
@@ -190,6 +205,15 @@ public class RepublicRecallGUI {
                             "§7Thank you for voting!");
                     addGlow(alreadyVoted);
                     inv.setItem(40, alreadyVoted);
+                } else if (!isMember) {
+                    // Not a member - cannot vote
+                    ItemStack noMemberItem = createItem(Material.BARRIER, "§c§l✗ NOT A MEMBER",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                            "§7Only registered members of",
+                            "§7this nation can participate",
+                            "§7in the recall vote.",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                    inv.setItem(40, noMemberItem);
                 }
             }
         }
@@ -230,7 +254,7 @@ public class RepublicRecallGUI {
      * Open the Confirm Petition Start GUI
      */
     public void openConfirmPetition(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, RECALL_CONFIRM_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 27, LegacyComponentSerializer.legacySection().deserialize(RECALL_CONFIRM_TITLE));
 
         Government gov = plugin.getDataManager().getGovernment();
         double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
@@ -295,6 +319,7 @@ public class RepublicRecallGUI {
 
     // === Private Helper Methods for Building Inventory Content ===
 
+    @SuppressWarnings("deprecation")
     private ItemStack createPresidentHead(Government gov) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
@@ -391,7 +416,7 @@ public class RepublicRecallGUI {
                 "§7§oif recall fails.");
     }
 
-    private void createCollectingPhaseItems(Inventory inv, RecallPetition petition, Player player) {
+    private void createCollectingPhaseItems(Inventory inv, RecallPetition petition, Player player, boolean isMember) {
         int currentSigs = petition.getSignatureCount();
         int requiredSigs = plugin.getRecallManager().getRequiredSignatures();
         double progress = Math.min(1.0, (double) currentSigs / requiredSigs);
@@ -439,7 +464,15 @@ public class RepublicRecallGUI {
         inv.setItem(31, timeItem);
 
         // Player's Status (Slot 29)
-        if (petition.hasSigned(player.getUniqueId())) {
+        if (!isMember) {
+            ItemStack myStatusItem = createItem(Material.BARRIER, "§c§l✗ NOT A MEMBER",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7You are not a registered",
+                    "§7member of this nation.",
+                    "§7Only members can participate.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            inv.setItem(29, myStatusItem);
+        } else if (petition.hasSigned(player.getUniqueId())) {
             double playerDeposit = petition.getDeposit(player.getUniqueId());
             boolean isInitiator = petition.getInitiatorId().equals(player.getUniqueId());
             ItemStack myStatusItem = createItem(Material.LIME_DYE, "§a§l✔ YOUR STATUS",
@@ -476,7 +509,7 @@ public class RepublicRecallGUI {
         inv.setItem(33, signerItem);
     }
 
-    private void createVotingPhaseItems(Inventory inv, RecallPetition petition, Player player) {
+    private void createVotingPhaseItems(Inventory inv, RecallPetition petition, Player player, boolean isMember) {
         int removeVotes = petition.getRemoveVotes();
         int keepVotes = petition.getKeepVotes();
         int totalVotes = removeVotes + keepVotes;
@@ -543,7 +576,7 @@ public class RepublicRecallGUI {
         // Player vote status (Slot 40 is handled in action buttons section)
     }
 
-    private void createNoPetitionItems(Inventory inv, Player player, Government gov) {
+    private void createNoPetitionItems(Inventory inv, Player player, Government gov, boolean isMember) {
         if (!gov.hasPresident()) {
             // No president to recall
             ItemStack noPresItem = createItem(Material.BARRIER, "§c§l✗ NO PRESIDENT",
@@ -588,6 +621,14 @@ public class RepublicRecallGUI {
                     "§7petition against yourself.",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
             inv.setItem(22, selfItem);
+        } else if (!isMember) {
+            ItemStack memberItem = createItem(Material.BARRIER, "§c§l✗ NOT A MEMBER",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7You are not a registered",
+                    "§7member of this nation.",
+                    "§7Only members can start a recall.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            inv.setItem(22, memberItem);
         } else {
             String presName = Bukkit.getOfflinePlayer(gov.getPresidentUUID()).getName();
             ItemStack startItem = createItem(
@@ -636,6 +677,7 @@ public class RepublicRecallGUI {
 
     // === Utility Methods ===
 
+    @SuppressWarnings("deprecation")
     private ItemStack createItem(Material material, String name, String... lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
