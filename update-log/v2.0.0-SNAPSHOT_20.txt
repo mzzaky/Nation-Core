@@ -100,3 +100,9 @@ Pembaruan tata letak (layout) Republic Main Menu dan restrukturisasi GUI Republi
   → Kompatibilitas penuh dengan RepublicGUIHandler#handleGovernmentGUI dipertahankan
     karena routing klik tetap berbasis Material type (WRITABLE_BOOK, LECTERN, GOLD_BLOCK,
     PAPER, BOOK, COMPASS, EMERALD, NETHER_STAR, BELL, BARRIER).
+
+[AUTOMATED REPUBLIC ELECTION SYSTEM UPDATE]
+- ElectionManager.java:
+  → Pembatasan sistem pemilu otomatis (checkAllPhaseTransitions) agar hanya berjalan untuk nation dengan tipe pemerintahan REPUBLIC, serta menghapus pemilu global (legacy).
+  → Pembaruan logika checkAutoElectionStart untuk menunda pemilu pertama (founding term). Pemilu pertama sekarang akan dimulai tepat 7 hari setelah nation dibuat.
+  → Penambahan mekanisme penerusan jabatan pada fase REGISTRATION (advancePhase). Jika tidak ada kandidat yang mendaftar pada pemilu periode pertama, presiden pertama akan otomatis melanjutkan jabatannya tanpa mengulang fase registrasi.
