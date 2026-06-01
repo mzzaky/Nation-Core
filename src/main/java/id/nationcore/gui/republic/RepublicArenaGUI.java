@@ -1,4 +1,4 @@
-package id.nationcore.gui;
+package id.nationcore.gui.republic;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import id.nationcore.models.Government;
 import id.nationcore.utils.MessageUtils;
 
 /**
- * ArenaGUI — Full management interface for the Presidential Arena Games.
+ * RepublicArenaGUI — Full management interface for the Presidential Arena Games.
  *
  * <p>
  * Features:
@@ -37,7 +37,7 @@ import id.nationcore.utils.MessageUtils;
  * <li>Quick-action buttons: join, leave, view kit</li>
  * </ul>
  */
-public class ArenaGUI {
+public class RepublicArenaGUI {
 
     // ─────────────────────────────────────────────────────────────────────────
     // Constants
@@ -66,7 +66,7 @@ public class ArenaGUI {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    public ArenaGUI(NationCore plugin) {
+    public RepublicArenaGUI(NationCore plugin) {
         this.plugin = plugin;
     }
 

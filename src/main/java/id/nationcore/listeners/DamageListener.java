@@ -64,21 +64,38 @@ public class DamageListener implements Listener {
 
         // Vaccination Drive (Komunis): cancel poison & wither damage untuk anggota
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        if (nation != null && nation.getType() == GovernmentType.COMMUNIST) {
-            CommunistGovernment cg = nation.getCommunistGovernment();
-            if (cg != null && cg.isVaccinationActive()) {
-                EntityDamageEvent.DamageCause cause = event.getCause();
-                if (cause == EntityDamageEvent.DamageCause.POISON
-                        || cause == EntityDamageEvent.DamageCause.WITHER) {
-                    event.setCancelled(true);
-                    return;
+        if (nation != null) {
+            if (nation.getType() == GovernmentType.COMMUNIST) {
+                CommunistGovernment cg = nation.getCommunistGovernment();
+                if (cg != null && cg.isVaccinationActive()) {
+                    EntityDamageEvent.DamageCause cause = event.getCause();
+                    if (cause == EntityDamageEvent.DamageCause.POISON
+                            || cause == EntityDamageEvent.DamageCause.WITHER) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                    // Bersihkan efek poison/wither aktif (preventive)
+                    if (player.hasPotionEffect(PotionEffectType.POISON)) {
+                        player.removePotionEffect(PotionEffectType.POISON);
+                    }
+                    if (player.hasPotionEffect(PotionEffectType.WITHER)) {
+                        player.removePotionEffect(PotionEffectType.WITHER);
+                    }
                 }
-                // Bersihkan efek poison/wither aktif (preventive)
-                if (player.hasPotionEffect(PotionEffectType.POISON)) {
-                    player.removePotionEffect(PotionEffectType.POISON);
-                }
-                if (player.hasPotionEffect(PotionEffectType.WITHER)) {
-                    player.removePotionEffect(PotionEffectType.WITHER);
+            } else if (nation.getType() == GovernmentType.REPUBLIC) {
+                if (plugin.getCabinetManager().isDecisionActive(nation, id.nationcore.models.CabinetDecision.DecisionType.VACCINATION_DRIVE)) {
+                    EntityDamageEvent.DamageCause cause = event.getCause();
+                    if (cause == EntityDamageEvent.DamageCause.POISON
+                            || cause == EntityDamageEvent.DamageCause.WITHER) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                    if (player.hasPotionEffect(PotionEffectType.POISON)) {
+                        player.removePotionEffect(PotionEffectType.POISON);
+                    }
+                    if (player.hasPotionEffect(PotionEffectType.WITHER)) {
+                        player.removePotionEffect(PotionEffectType.WITHER);
+                    }
                 }
             }
         }

@@ -27,6 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 import id.nationcore.gui.republic.RepublicPresidentHistoryGUI;
 import id.nationcore.gui.republic.RepublicRecallGUI;
+import id.nationcore.gui.republic.RepublicArenaGUI;
+import id.nationcore.gui.republic.RepublicMemberManagementGUI;
+import id.nationcore.gui.republic.RepublicSalaryMenu;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -66,7 +69,7 @@ public class GUIListener implements Listener {
     public final CommunistTreasuryMenu communistTreasuryMenu;
     public final MonarchyTreasuryMenu monarchyTreasuryMenu;
     public final CaliphateTreasuryMenu caliphateTreasuryMenu;
-    public final GovernmentSalaryMenu salaryMenu;
+    public final RepublicSalaryMenu salaryMenu;
     public final CabinetGUI cabinetGUI;
     public final MainMenuRouter mainMenuRouter;
     public final PlayerStatsGUI playerStatsGUI;
@@ -74,13 +77,14 @@ public class GUIListener implements Listener {
     public final RepublicRecallGUI recallGUI;
     public final TaxGUI taxGUI;
     public final RepublicPresidentHistoryGUI presidentHistoryGUI;
-    public final ArenaGUI arenaGUI;
+    public final RepublicArenaGUI arenaGUI;
     public final HubGUI hubGUI;
     public final CreateNationGUI createNationGUI;
     public final ResearchGUI researchGUI;
     public final ConfirmActionGUI confirmActionGUI;
     public final CommunistMemberManagementGUI communistMemberManagementGUI;
     public final CommunistSharedStorageGUI communistSharedStorageGUI;
+    public final RepublicMemberManagementGUI republicMemberManagementGUI;
 
     // Shared per-player state.
     public final Map<UUID, UUID> viewingCandidate = new HashMap<>();
@@ -108,7 +112,7 @@ public class GUIListener implements Listener {
         this.communistTreasuryMenu = new CommunistTreasuryMenu(plugin);
         this.monarchyTreasuryMenu = new MonarchyTreasuryMenu(plugin);
         this.caliphateTreasuryMenu = new CaliphateTreasuryMenu(plugin);
-        this.salaryMenu = new GovernmentSalaryMenu(plugin);
+        this.salaryMenu = new RepublicSalaryMenu(plugin);
         this.cabinetGUI = new CabinetGUI(plugin);
         this.mainMenuRouter = new MainMenuRouter(plugin);
         this.playerStatsGUI = new PlayerStatsGUI(plugin);
@@ -116,13 +120,14 @@ public class GUIListener implements Listener {
         this.recallGUI = new RepublicRecallGUI(plugin);
         this.taxGUI = new TaxGUI(plugin);
         this.presidentHistoryGUI = new RepublicPresidentHistoryGUI(plugin);
-        this.arenaGUI = new ArenaGUI(plugin);
+        this.arenaGUI = new RepublicArenaGUI(plugin);
         this.hubGUI = new HubGUI(plugin);
         this.createNationGUI = new CreateNationGUI(plugin);
         this.researchGUI = new ResearchGUI(plugin);
         this.confirmActionGUI = new ConfirmActionGUI(plugin);
         this.communistMemberManagementGUI = new CommunistMemberManagementGUI(plugin);
         this.communistSharedStorageGUI = new CommunistSharedStorageGUI(plugin);
+        this.republicMemberManagementGUI = new RepublicMemberManagementGUI(plugin);
 
         this.republic = new RepublicGUIHandler(plugin, this);
         this.communist = new CommunistGUIHandler(plugin, this);
@@ -180,10 +185,16 @@ public class GUIListener implements Listener {
             republic.handleCandidateGUI(player, clicked, title);
         } else if (title.equals(RepublicGovernmentGUI.TITLE)) {
             event.setCancelled(true);
-            republic.handleGovernmentGUI(player, clicked);
+            republic.handleGovernmentGUI(player, clicked, event.getSlot());
         } else if (title.equals(RepublicExecutiveOrdersMenu.TITLE)) {
             event.setCancelled(true);
             republic.handleOrdersGUI(player, clicked, event.getSlot());
+        } else if (title.equals(RepublicMemberManagementGUI.TITLE)) {
+            event.setCancelled(true);
+            republic.handleMemberManagementGUI(player, clicked, event.getSlot());
+        } else if (title.startsWith(RepublicMemberManagementGUI.ACTION_TITLE_PREFIX)) {
+            event.setCancelled(true);
+            republic.handleMemberActionGUI(player, clicked, event.getSlot(), title);
 
         // ── Communist GUIs ──────────────────────────────────────────────
         } else if (title.equals(CommunistMainMenu.TITLE)) {
@@ -313,13 +324,13 @@ public class GUIListener implements Listener {
         } else if (title.equals(TaxGUI.TAX_DEBTORS_TITLE)) {
             event.setCancelled(true);
             common.handleTaxDebtorsGUI(player, clicked);
-        } else if (title.equals(ArenaGUI.ARENA_MENU_TITLE)) {
+        } else if (title.equals(RepublicArenaGUI.ARENA_MENU_TITLE)) {
             event.setCancelled(true);
             common.handleArenaGUI(player, clicked, event.getSlot());
-        } else if (title.equals(ArenaGUI.ARENA_LEADERBOARD_TITLE)) {
+        } else if (title.equals(RepublicArenaGUI.ARENA_LEADERBOARD_TITLE)) {
             event.setCancelled(true);
             common.handleArenaLeaderboardGUI(player, clicked);
-        } else if (title.equals(ArenaGUI.ARENA_KIT_TITLE)) {
+        } else if (title.equals(RepublicArenaGUI.ARENA_KIT_TITLE)) {
             event.setCancelled(true);
             common.handleArenaKitGUI(player, clicked);
         } else if (title.equals(HubGUI.HUB_TITLE)) {
@@ -384,9 +395,9 @@ public class GUIListener implements Listener {
                 title.equals(TaxGUI.TAX_MENU_TITLE) ||
                 title.equals(TaxGUI.TAX_HISTORY_TITLE) ||
                 title.equals(TaxGUI.TAX_DEBTORS_TITLE) ||
-                title.equals(ArenaGUI.ARENA_MENU_TITLE) ||
-                title.equals(ArenaGUI.ARENA_LEADERBOARD_TITLE) ||
-                title.equals(ArenaGUI.ARENA_KIT_TITLE) ||
+                title.equals(RepublicArenaGUI.ARENA_MENU_TITLE) ||
+                title.equals(RepublicArenaGUI.ARENA_LEADERBOARD_TITLE) ||
+                title.equals(RepublicArenaGUI.ARENA_KIT_TITLE) ||
                 title.equals(HubGUI.HUB_TITLE) ||
                 title.equals(CreateNationGUI.CREATE_TITLE) ||
                 title.equals(ConfirmActionGUI.TITLE) ||

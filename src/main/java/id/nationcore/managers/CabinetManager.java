@@ -116,6 +116,7 @@ public class CabinetManager {
     }
     
     private void applyDecisionEffect(CabinetDecision.DecisionType type, CabinetDecision decision) {
+        Nation nation = plugin.getNationManager().getNationOf(decision.getIssuedBy());
         switch (type) {
             // Defense Ministry Decisions
             case DECLARE_WAR -> startWarGamesEvent();
@@ -130,8 +131,72 @@ public class CabinetManager {
             case AUCTION_BOOST -> activateAuctionBoost();
             case TREASURY_BONUS -> distributeTreasuryBonus();
             case MARKET_CRASH -> triggerMarketCrash();
-            
 
+            // Health Ministry Decisions
+            case QUARANTINE_PROTOCOL -> activateQuarantineProtocol(nation);
+            case FIELD_MEDICINE -> activateFieldMedicine(nation);
+            case VACCINATION_DRIVE -> activateVaccinationDrive(nation);
+            case EMERGENCY_RATIONS -> activateEmergencyRations(nation);
+            case PLAGUE -> activatePlague(nation);
+        }
+    }
+
+    private void activateQuarantineProtocol(Nation nation) {
+        if (nation == null) return;
+        for (UUID uuid : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) MessageUtils.send(p, "<aqua>💉 Quarantine Protocol active!</aqua> <gray>Non-members cannot enter territory for 10 minutes.</gray>");
+        }
+    }
+
+    private void activateFieldMedicine(Nation nation) {
+        if (nation == null) return;
+        int ticks = 5 * 60 * 20;
+        for (UUID memberUUID : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(memberUUID);
+            if (p != null && p.isOnline()) {
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.REGENERATION, ticks, 1, false, true, true));
+                MessageUtils.send(p, "<green>💉 Field Medicine: <gray>Regeneration II for 5 minutes.</gray>");
+            }
+        }
+    }
+
+    private void activateVaccinationDrive(Nation nation) {
+        if (nation == null) return;
+        for (UUID uuid : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) MessageUtils.send(p, "<green>💉 Vaccination Drive aktif!</green> <gray>Anggota kebal poison & wither selama 1 jam.</gray>");
+        }
+    }
+
+    private void activateEmergencyRations(Nation nation) {
+        if (nation == null) return;
+        int distributed = 0;
+        for (UUID memberUUID : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(memberUUID);
+            if (p == null || !p.isOnline()) continue;
+            if (p.getFoodLevel() >= 10) continue;
+            ItemStack bread = new ItemStack(Material.BREAD, 8);
+            var leftover = p.getInventory().addItem(bread);
+            for (var dropItem : leftover.values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), dropItem);
+            }
+            MessageUtils.send(p, "<gold>🍞 Emergency Rations: <gray>8 bread for you.</gray>");
+            distributed++;
+        }
+        for (UUID uuid : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                MessageUtils.send(p, "<gold>🍞 Emergency Rations distributed to " + distributed + " members with low hunger.");
+            }
+        }
+    }
+
+    private void activatePlague(Nation nation) {
+        if (nation == null) return;
+        for (UUID uuid : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) MessageUtils.send(p, "<dark_red>☠ Plague active!</dark_red> <gray>Enemies entering territory will receive Weakness II + Hunger for 30 seconds. Active for 10 minutes.</gray>");
         }
     }
     
@@ -255,6 +320,12 @@ public class CabinetManager {
         return endTime != null && System.currentTimeMillis() < endTime;
     }
     
+    public boolean isDecisionActive(Nation nation, CabinetDecision.DecisionType type) {
+        if (nation == null) return isDecisionActive(type);
+        return nation.getActiveDecisions().stream()
+                .anyMatch(d -> d.getType() == type && d.isActive() && !d.isExpired());
+    }
+    
     public long getDecisionRemainingTime(CabinetDecision.DecisionType type) {
         Long endTime = decisionEndTimes.get(type);
         if (endTime == null) return 0;
@@ -289,7 +360,8 @@ public class CabinetManager {
                 Government.CabinetPosition.DEFENSE;
             case TAX_HOLIDAY, ECONOMIC_STIMULUS, AUCTION_BOOST, TREASURY_BONUS, MARKET_CRASH -> 
                 Government.CabinetPosition.TREASURY;
-            default -> null;
+            case QUARANTINE_PROTOCOL, FIELD_MEDICINE, VACCINATION_DRIVE, EMERGENCY_RATIONS, PLAGUE ->
+                Government.CabinetPosition.HEALTH;
         };
     }
     
@@ -315,7 +387,11 @@ public class CabinetManager {
             case AUCTION_BOOST -> "Auction Boost";
             case TREASURY_BONUS -> "Treasury Bonus";
             case MARKET_CRASH -> "Market Crash";
-            default -> "Unknown";
+            case QUARANTINE_PROTOCOL -> "Quarantine Protocol";
+            case FIELD_MEDICINE -> "Field Medicine";
+            case VACCINATION_DRIVE -> "Vaccination Drive";
+            case EMERGENCY_RATIONS -> "Emergency Rations";
+            case PLAGUE -> "Plague";
         };
     }
     

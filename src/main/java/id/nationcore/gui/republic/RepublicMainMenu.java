@@ -15,6 +15,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Election;
 import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
@@ -74,7 +75,7 @@ public class RepublicMainMenu extends NationMenuBase {
         Election election = nation.getElection();
 
         inv.setItem(SLOT_NATION, buildNationBadge(nation));
-        inv.setItem(SLOT_CABINET, buildCabinetCard(gov));
+        inv.setItem(SLOT_CABINET, buildCabinetCard(gov, nation));
         inv.setItem(SLOT_EXEC_ORDER, buildExecOrderCard(nation, player));
         inv.setItem(SLOT_PRESIDENT, buildPresidentCard(gov, nation));
         inv.setItem(SLOT_TREASURY, buildTreasuryCard(nation));
@@ -126,21 +127,42 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&8System: &fOpen Democracy");
     }
 
-    private ItemStack buildCabinetCard(Government gov) {
+    private ItemStack buildCabinetCard(Government gov, Nation nation) {
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        
         int filled = 0;
+        int total = Government.CabinetPosition.values().length;
+        
         if (gov != null) {
             for (Government.CabinetPosition pos : Government.CabinetPosition.values()) {
-                if (gov.getCabinetMember(pos) != null) filled++;
+                UUID ministerUUID = gov.getCabinetMember(pos);
+                String name = "&cVacant";
+                if (ministerUUID != null) {
+                    filled++;
+                    name = "&f" + Bukkit.getOfflinePlayer(ministerUUID).getName();
+                }
+                lore.add("&7• &b" + pos.getDisplayName() + ": " + name);
+                
+                // Get active decisions/orders for this position
+                if (ministerUUID != null && nation != null) {
+                    List<CabinetDecision> active = plugin.getCabinetManager().getActiveDecisionsByPosition(nation, CabinetDecision.CabinetPosition.valueOf(pos.name()));
+                    for (CabinetDecision decision : active) {
+                        String timeStr = formatRemaining(decision.getRemainingTime());
+                        lore.add("&a  ↳ Active: &e" + plugin.getCabinetManager().getDecisionDisplayName(decision.getType()) + " &7(&a" + timeStr + "&7)");
+                    }
+                }
             }
         }
-        int total = Government.CabinetPosition.values().length;
+        
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&7Slots filled: &f" + filled + " &8/ &f" + total);
+        lore.add("&7Appointed by the President to");
+        lore.add("&7assist in policy execution.");
+        
         return buildIcon(Material.WARPED_HANGING_SIGN,
                 "&3&lMinister Cabinet",
-                "&7Slots filled: &f" + filled + " &8/ &f" + total,
-                "&7Appointed by the President to",
-                "&7assist in policy execution.",
-                "",
-                "&eClick &7→ Open cabinet panel");
+                lore);
     }
 
     private ItemStack buildExecOrderCard(Nation nation, Player player) {
@@ -225,7 +247,7 @@ public class RepublicMainMenu extends NationMenuBase {
     }
 
     private ItemStack buildElectionCard(Election election, Player player) {
-        return buildIcon(Material.LIGHT_BLUE_BUNDLE,
+        return buildIcon(Material.ENDER_EYE,
                 "&e&lPresident Election",
                 "&7Coming Soon!");
     }

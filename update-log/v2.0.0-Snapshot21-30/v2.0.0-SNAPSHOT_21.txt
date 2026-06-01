@@ -1,0 +1,90 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#21
+====================================================
+Added Minister of Health position to Republic nations, implemented its cabinet decisions, and updated Republic Main Menu.
+
+[REPUBLIC CABINET & MAIN MENU UPDATES]
+- RepublicMainMenu.java:
+  → Changed buildCabinetCard signature to accept Nation object.
+  → Updated Cabinet card lore to display all three positions (Defense, Treasury, Health), current minister names, and any active cabinet decisions/orders with remaining duration.
+  → Disabled click actions visual indicator from the Cabinet card lore.
+  → Imported CabinetDecision.
+  → Changed President Election item material from LIGHT_BLUE_BUNDLE to ENDER_EYE.
+- RepublicGUIHandler.java:
+  → Added slot check for "RESEARCH" to open the Main Research GUI.
+  → Removed click handler for "CABINET" slot to disable cabinet menu open click action.
+
+[MINISTER OF HEALTH & CABINET DECISIONS]
+- Government.java:
+  → Added HEALTH ("Minister of Health", "&d[MoH]") to CabinetPosition enum.
+- CabinetDecision.java:
+  → Added HEALTH position to CabinetPosition enum.
+  → Added 5 Health-related decisions to DecisionType: QUARANTINE_PROTOCOL, FIELD_MEDICINE, VACCINATION_DRIVE, EMERGENCY_RATIONS, and PLAGUE.
+- CabinetManager.java:
+  → Added support for mapping the 5 Health decisions to the HEALTH position.
+  → Added display names for all new Health decisions.
+  → Implemented overloaded isDecisionActive(Nation, DecisionType) to check per-nation decision active state.
+  → Implemented action effects for the 5 Health decisions (Regeneration II buff, feeding low hunger players, state broadcasts).
+- DamageListener.java:
+  → Integrated VACCINATION_DRIVE for Republic, neutralizing poison and wither damage for online nation members when active.
+- CapitalListener.java:
+  → Integrated QUARANTINE_PROTOCOL for Republic, preventing non-members from entering nation territory when active.
+  → Integrated PLAGUE for Republic, applying Weakness II and Hunger to enemy intruders when active.
+- CabinetGUI.java:
+  → Expanded MINISTER_SLOTS to 3 slots ({ 13, 14, 15 }) to support Defense, Treasury, and Health ministers.
+  → Added custom description for the HEALTH minister slot.
+
+[LOCALIZATION & ROUTER]
+- MainMenuRouter.java:
+  → Translated all Javadoc comments and player-facing string messages from Indonesian to English to ensure codebase localization consistency.
+
+[GUI REFACTORING & REPUBLIC GOVERNMENT MENU UPDATE]
+- ArenaGUI.java → RepublicArenaGUI.java:
+  → Moved to `id.nationcore.gui.republic` package.
+  → Renamed class and constructor to `RepublicArenaGUI` for consistency with other Republic GUIs.
+- GovernmentSalaryMenu.java → RepublicSalaryMenu.java:
+  → Moved to `id.nationcore.gui.republic` package.
+  → Renamed class and constructor to `RepublicSalaryMenu`.
+- RepublicGovernmentGUI.java:
+  → Redesigned the menu with inventory size 54.
+  → Added custom fillers (Light Blue Stained Glass Pane) at slots 0-3, 5-9, 17-18, 26-27, 35-36, 44-47, and 51-53.
+  → Added BACK (spectral_arrow, slot 43), Salary (emerald, slot 37), Rename Nation (writable_book, slot 48), Leave Nation (compass, slot 49), and Disband Nation (tnt_minecart, slot 50).
+  → Added placeholders for Minister, Member, Broadcast, Border, and Diplomacy Management using various pottery sherds with "Coming Soon" tooltips.
+  → Integrated Presidential Games (prize_pottery_sherd, slot 31) pointing to RepublicArenaGUI.
+- RepublicGUIHandler.java:
+  → Changed `handleGovernmentGUI` signature to accept `int slot`.
+  → Implemented menu redirection to Main Menu (slot 43) and RepublicSalaryMenu (slot 37).
+  → Implemented Rename Nation (slot 48) requiring President/Admin privileges and starting the chat input rename mechanism.
+  → Implemented Leave Nation (slot 49) opening confirmation dialog to run `/nc leave`.
+  → Implemented Disband Nation (slot 50) requiring President/Admin privileges and opening confirmation dialog to disband the nation.
+  → Implemented Presidential Games (slot 31) opening RepublicArenaGUI.
+- GUIListener.java:
+  → Imported and instantiated `RepublicArenaGUI` and `RepublicSalaryMenu`.
+  → Updated Republic government GUI event routing to pass `event.getSlot()`.
+  → Replaced static constant references from `ArenaGUI` to `RepublicArenaGUI`.
+
+[ELECTION & NATION BROADCAST & MEMBER MANAGEMENT]
+- ElectionManager.java:
+  → Removed the legacy global election phase transition check (`checkPhaseTransitions()`) from `checkAllPhaseTransitions()` to prevent global elections from starting or advancing automatically on plugin enable/ticks.
+- RepublicGovernmentGUI.java:
+  → Removed the unused Leader Head item (slot 13) and deleted `createLeaderHead` helper method.
+  → Updated slot 4 (`GLOW_ITEM_FRAME`) to display the merged Detailed Presidential Status and Active Effects in its lore.
+  → Updated slot 21 (Minister Management) description to indicate it is now active.
+  → Updated slot 22 (Member Management) description to indicate it is now active.
+  → Removed the legacy gray glass pane filler (`GovernmentGUIUtils.fillGlass`), keeping unfilled slots as AIR.
+  → Updated slot 23 (Broadcast Message) to dynamically check and display sisa cooldown.
+- RepublicGUIHandler.java:
+  → Added slot 21 click handler to open the Cabinet GUI.
+  → Added slot 22 click handler to open the new Republic Member Management GUI.
+  → Added slot 23 click handler to prompt the President to type a custom broadcast message, enforcing a 6-hour cooldown.
+  → Implemented `handleMemberManagementGUI` and `handleMemberActionGUI` for navigating pages, kicking citizens, and promoting/demoting officers.
+  → Resolved compiler errors by importing `NationMember` and `NationRole` from the `Nation` model.
+- RepublicMemberManagementGUI.java:
+  → [NEW] Created a brand new Republic member management interface showing members, handling pagination, and allowing the President/Admin to kick citizens or promote/demote officers.
+- GUIListener.java:
+  → Registered and instantiated `RepublicMemberManagementGUI`.
+  → Routed inventory click events for `RepublicMemberManagementGUI` and its action sub-menus.
+- ChatListener.java:
+  → Implemented `pendingNationBroadcasts` map to capture President custom broadcast messages in chat.
+  → Added chat input handling to support `cancel` or `batal` to abort the broadcast.
+  → Implemented direct broadcast box styled with sound to all members of the President's nation.

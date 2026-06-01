@@ -628,8 +628,6 @@ public class ElectionManager {
      * setiap menit menggantikan {@link #checkPhaseTransitions()} yang lama.
      */
     public void checkAllPhaseTransitions() {
-        // Legacy global (pemain tanpa nation)
-        checkPhaseTransitions();
         // Per-nation
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.REPUBLIC) continue;

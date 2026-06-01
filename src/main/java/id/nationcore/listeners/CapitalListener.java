@@ -240,17 +240,25 @@ public class CapitalListener implements Listener {
         }
         lastNation.put(player.getUniqueId(), currentId);
 
-        // Quarantine Protocol (Komunis): non-anggota tidak boleh masuk teritori
-        if (atLoc != null && atLoc.getType() == GovernmentType.COMMUNIST
-                && !atLoc.isMember(player.getUniqueId())
-                && !player.hasPermission("nation.admin")) {
-            CommunistGovernment cg = atLoc.getCommunistGovernment();
-            if (cg != null && cg.isQuarantineActive()) {
-                event.setCancelled(true);
-                player.sendActionBar(Component.text(
-                        "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
-                        NamedTextColor.RED));
-                return;
+        // Quarantine Protocol (Komunis / Republic): non-anggota tidak boleh masuk teritori
+        if (atLoc != null && !atLoc.isMember(player.getUniqueId()) && !player.hasPermission("nation.admin")) {
+            if (atLoc.getType() == GovernmentType.COMMUNIST) {
+                CommunistGovernment cg = atLoc.getCommunistGovernment();
+                if (cg != null && cg.isQuarantineActive()) {
+                    event.setCancelled(true);
+                    player.sendActionBar(Component.text(
+                            "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
+                            NamedTextColor.RED));
+                    return;
+                }
+            } else if (atLoc.getType() == GovernmentType.REPUBLIC) {
+                if (plugin.getCabinetManager().isDecisionActive(atLoc, id.nationcore.models.CabinetDecision.DecisionType.QUARANTINE_PROTOCOL)) {
+                    event.setCancelled(true);
+                    player.sendActionBar(Component.text(
+                            "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
+                            NamedTextColor.RED));
+                    return;
+                }
             }
         }
 
@@ -278,11 +286,22 @@ public class CapitalListener implements Listener {
 
     private void applyPlagueTrigger(Nation atLoc, Player player) {
         if (atLoc == null) return;
-        if (atLoc.getType() != GovernmentType.COMMUNIST) return;
-        if (atLoc.isMember(player.getUniqueId())) return;
         if (player.hasPermission("nation.admin")) return;
-        CommunistGovernment cg = atLoc.getCommunistGovernment();
-        if (cg == null || !cg.isPlagueActive()) return;
+        if (atLoc.isMember(player.getUniqueId())) return;
+
+        boolean plagueActive = false;
+        if (atLoc.getType() == GovernmentType.COMMUNIST) {
+            CommunistGovernment cg = atLoc.getCommunistGovernment();
+            if (cg != null && cg.isPlagueActive()) {
+                plagueActive = true;
+            }
+        } else if (atLoc.getType() == GovernmentType.REPUBLIC) {
+            if (plugin.getCabinetManager().isDecisionActive(atLoc, id.nationcore.models.CabinetDecision.DecisionType.PLAGUE)) {
+                plagueActive = true;
+            }
+        }
+
+        if (!plagueActive) return;
 
         long now = System.currentTimeMillis();
         Long last = lastPlagueApply.get(player.getUniqueId());

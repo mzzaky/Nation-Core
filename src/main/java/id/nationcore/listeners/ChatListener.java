@@ -28,6 +28,7 @@ public class ChatListener implements Listener {
 
     private final NationCore plugin;
     public static final java.util.Set<UUID> pendingBroadcasts = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    public static final java.util.Map<UUID, Nation> pendingNationBroadcasts = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ChatListener(NationCore plugin) {
         this.plugin = plugin;
@@ -137,6 +138,39 @@ public class ChatListener implements Listener {
                 plugin.getDataManager().saveNations();
                 MessageUtils.send(player, "<green>Nation name successfully changed to '" + input + "'.</green>");
                 org.bukkit.Bukkit.broadcastMessage("§eNation §6" + oldName + " §ehas changed name to §6" + input + "§e.");
+            });
+            return;
+        }
+
+        if (pendingNationBroadcasts.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation nation = pendingNationBroadcasts.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<yellow>Nation broadcast cancelled.</yellow>"));
+                return;
+            }
+
+            id.nationcore.models.Government gov = nation.getRepublicGovernment();
+            if (gov != null) {
+                gov.setLastBroadcastTime(System.currentTimeMillis());
+                plugin.getDataManager().saveNations();
+            }
+
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                for (UUID memberUUID : nation.getMembers().keySet()) {
+                    Player onlinePlayer = org.bukkit.Bukkit.getPlayer(memberUUID);
+                    if (onlinePlayer != null) {
+                        MessageUtils.send(onlinePlayer, "");
+                        MessageUtils.send(onlinePlayer, "<gold>════════ [NATION BROADCAST] ════════</gold>");
+                        MessageUtils.send(onlinePlayer, "<yellow>" + input + "</yellow>");
+                        MessageUtils.send(onlinePlayer, "<gold>═══════════════════════════════════════</gold>");
+                        onlinePlayer.playSound(onlinePlayer.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 1.5f);
+                    }
+                }
             });
             return;
         }

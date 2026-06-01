@@ -33,7 +33,7 @@ public class CabinetGUI {
     public static final String CABINET_APPOINT_TITLE = "§a§l👤 APPOINT MINISTER: ";
 
     // ── Slot layout for the 5 cabinet positions ──────────────────────────
-    private static final int[] MINISTER_SLOTS = { 13, 14 };
+    private static final int[] MINISTER_SLOTS = { 13, 14, 15 };
 
     public CabinetGUI(NationCore plugin) {
         this.plugin = plugin;
@@ -384,7 +384,7 @@ public class CabinetGUI {
         String description = switch (pos) {
             case DEFENSE -> "Oversees military and defense policy.";
             case TREASURY -> "Manages the national treasury.";
-            default -> "Minister of the government.";
+            case HEALTH -> "Manages health policies, quarantine protocols, and healthcare.";
         };
         lore.add("§7" + description);
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");

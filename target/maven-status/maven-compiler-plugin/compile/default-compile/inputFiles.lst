@@ -1,5 +1,4 @@
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\commands\NationCommand.java
-C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\ArenaGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\CabinetGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\caliphate\CaliphateExecutiveOrdersMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\caliphate\CaliphateGovernmentGUI.java
@@ -17,7 +16,6 @@ C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\c
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\ConfirmActionGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\CreateNationGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\GovernmentGUIUtils.java
-C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\GovernmentSalaryMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\GUIAction.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\GUIListener.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\HelpGUI.java
@@ -30,12 +28,15 @@ C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\m
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\monarchy\MonarchyTreasuryMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\NationMenuBase.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\PlayerStatsGUI.java
-C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\PresidentHistoryGUI.java
-C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\RecallGUI.java
+C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicArenaGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicExecutiveOrdersMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicGovernmentGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicGUIHandler.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicMainMenu.java
+C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicMemberManagementGUI.java
+C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicPresidentHistoryGUI.java
+C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicRecallGUI.java
+C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicSalaryMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\republic\RepublicTreasuryMenu.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\ResearchGUI.java
 C:\Users\mohza\IdeaProjects\Nation-Core-Plugin\src\main\java\id\nationcore\gui\TaxGUI.java

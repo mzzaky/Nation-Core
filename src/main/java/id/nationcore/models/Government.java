@@ -41,7 +41,8 @@ public class Government {
 
     public enum CabinetPosition {
         DEFENSE("Minister of Defense", "&4[MoD]"),
-        TREASURY("Minister of Treasury", "&2[MoT]");
+        TREASURY("Minister of Treasury", "&2[MoT]"),
+        HEALTH("Minister of Health", "&d[MoH]");
 
         private final String displayName;
         private final String prefix;

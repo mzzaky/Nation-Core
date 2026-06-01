@@ -1,4 +1,4 @@
-package id.nationcore.gui;
+package id.nationcore.gui.republic;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,14 +11,15 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import id.nationcore.NationCore;
+import id.nationcore.gui.GovernmentGUIUtils;
 import id.nationcore.models.Government;
 import id.nationcore.utils.MessageUtils;
 
-public class GovernmentSalaryMenu {
+public class RepublicSalaryMenu {
 
     private final NationCore plugin;
 
-    public GovernmentSalaryMenu(NationCore plugin) {
+    public RepublicSalaryMenu(NationCore plugin) {
         this.plugin = plugin;
     }
 

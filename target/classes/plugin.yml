@@ -1,5 +1,5 @@
 name: NationCore
-version: 2.0.0
+version: 2.0.0.SNAPSHOT-21
 main: id.nationcore.NationCore
 api-version: '1.21'
 description: A comprehensive nation and government simulation plugin

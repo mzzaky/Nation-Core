@@ -13,17 +13,17 @@ import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
 
 /**
- * Entry point tunggal untuk membuka "Main Menu" pemain.
+ * Single entry point to open a player's "Main Menu".
  *
- * Tugas utama:
- *   1. Memastikan pemain tergabung di sebuah nation. Tanpa nation,
- *      pemain diarahkan ke {@link HubGUI} (tempat ia bisa join/create).
- *   2. Memilih implementasi menu yang sesuai dengan {@link GovernmentType}
- *      nation pemain — REPUBLIC → {@link RepublicMainMenu},
+ * Main tasks:
+ *   1. Ensure the player is joined to a nation. Without a nation,
+ *      the player is redirected to {@link HubGUI} (where they can join/create).
+ *   2. Select the menu implementation that matches the {@link GovernmentType}
+ *      of the player's nation — REPUBLIC → {@link RepublicMainMenu},
  *      COMMUNIST → {@link CommunistMainMenu}.
  *
- * Dengan pemisahan ini, GUIListener cukup memanggil
- * {@code router.openFor(player)} tanpa perlu tahu jenis pemerintahan.
+ * With this separation, the GUIListener only needs to call
+ * {@code router.openFor(player)} without needing to know the government type.
  */
 public class MainMenuRouter {
 
@@ -58,21 +58,21 @@ public class MainMenuRouter {
     }
 
     /**
-     * Buka menu utama untuk pemain. Bila pemain belum punya nation,
-     * arahkan ke Nation Hub agar mereka bisa join atau membuat nation.
+     * Open the main menu for the player. If the player does not have a nation yet,
+     * direct them to the Nation Hub so they can join or create a nation.
      */
     public void openFor(Player player) {
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation == null) {
-            MessageUtils.send(player, "<red>Anda belum tergabung di nation manapun. " +
-                    "Pilih atau buat nation di Hub terlebih dahulu.</red>");
+            MessageUtils.send(player, "<red>You are not joined to any nation yet. " +
+                    "Choose or create a nation in the Hub first.</red>");
             MessageUtils.playSound(player, Sound.BLOCK_NOTE_BLOCK_BASS);
             plugin.getGUIListener().openHubGUI(player);
             return;
         }
         if (nation.getType() == null) {
-            MessageUtils.send(player, "<red>Nation Anda tidak memiliki jenis pemerintahan yang valid. " +
-                    "Hubungi admin.</red>");
+            MessageUtils.send(player, "<red>Your nation does not have a valid government type. " +
+                    "Please contact an administrator.</red>");
             return;
         }
 
@@ -93,8 +93,8 @@ public class MainMenuRouter {
                 caliphateMenu.open(player, nation);
                 MessageUtils.playSound(player, Sound.UI_TOAST_IN);
             }
-            default -> MessageUtils.send(player, "<red>Jenis pemerintahan " +
-                    nation.getType() + " belum memiliki menu utama.</red>");
+            default -> MessageUtils.send(player, "<red>The government type " +
+                    nation.getType() + " does not have a main menu yet.</red>");
         }
     }
 }

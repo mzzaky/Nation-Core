@@ -12,6 +12,9 @@ import org.bukkit.inventory.meta.SkullMeta;
 import id.nationcore.NationCore;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.Government;
+import id.nationcore.models.Nation;
+import id.nationcore.models.Nation.NationMember;
+import id.nationcore.models.Nation.NationRole;
 import id.nationcore.utils.MessageUtils;
 
 /**
@@ -70,10 +73,6 @@ public class RepublicGUIHandler {
             gui.openOrdersGUI(player);
             return;
         }
-        if (slot == RepublicMainMenu.getSlot("CABINET")) {
-            gui.cabinetGUI.openCabinetMenu(player);
-            return;
-        }
         if (slot == RepublicMainMenu.getSlot("ARENA")) {
             gui.arenaGUI.openArenaMenu(player);
             return;
@@ -97,6 +96,10 @@ public class RepublicGUIHandler {
         if (slot == RepublicMainMenu.getSlot("CAPITAL")) {
             player.closeInventory();
             Bukkit.dispatchCommand(player, "nationcore capital");
+            return;
+        }
+        if (slot == RepublicMainMenu.getSlot("RESEARCH")) {
+            gui.researchGUI.openMain(player);
         }
     }
 
@@ -136,76 +139,109 @@ public class RepublicGUIHandler {
         }
     }
 
-    public void handleGovernmentGUI(Player player, ItemStack clicked) {
+    public void handleGovernmentGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == Material.AIR)
+            return;
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null)
+            return;
+
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+
         if (clicked.getType() == Material.BARRIER) {
             player.closeInventory();
-        }
-
-        if (clicked.getType() == Material.LECTERN) {
-            gui.cabinetGUI.openCabinetMenu(player);
             return;
         }
 
-        if (clicked.getType() == Material.WRITABLE_BOOK) {
-            gui.openOrdersGUI(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.GOLD_BLOCK) {
-            gui.republicTreasuryMenu.open(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.PAPER) {
-            gui.votingGUI.openVotingMenu(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.BOOK) {
-            gui.presidentHistoryGUI.openHistoryMenu(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.COMPASS) {
+        if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             gui.mainMenuRouter.openFor(player);
             return;
         }
 
-        if (clicked.getType() == Material.EMERALD) {
+        if (slot == 37 || clicked.getType() == Material.EMERALD) {
             gui.salaryMenu.open(player);
             return;
         }
 
-        if (clicked.getType() == Material.NETHER_STAR) {
-            Government gov = plugin.getDataManager().getGovernment();
-            if (gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId())) {
-                player.closeInventory();
-                boolean started = plugin.getArenaManager().startArena(player.getUniqueId());
-                if (!started) {
-                    MessageUtils.send(player,
-                            "<red>Cannot start Presidential Games at this time. (Check games limit or treasury balance)");
-                }
-            } else {
-                MessageUtils.send(player, "<red>Only the President can start the Arena Games.");
+        if (slot == 48) {
+            Government gov = nation.getRepublicGovernment();
+            boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            if (!isPresident && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player, "§cOnly the President can rename the nation.");
+                return;
             }
+            player.closeInventory();
+            plugin.getNationManager().setPendingRename(player.getUniqueId(), nation);
+            MessageUtils.send(player, "§ePlease type the new name for your nation in chat. Type 'cancel' to abort.");
             return;
         }
 
-        if (clicked.getType() == Material.BELL) {
-            Government gov = plugin.getDataManager().getGovernment();
-            if (gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId())) {
-                long cooldown = 8L * 60 * 60 * 1000;
-                long nextAvailable = gov.getLastBroadcastTime() + cooldown;
-                if (System.currentTimeMillis() >= nextAvailable) {
-                    player.closeInventory();
-                    id.nationcore.listeners.ChatListener.pendingBroadcasts.add(player.getUniqueId());
-                    MessageUtils.send(player, "government.broadcast_type_prompt");
-                } else {
-                    MessageUtils.send(player, "government.broadcast_cooldown");
-                }
-            } else {
-                MessageUtils.send(player, "government.broadcast_not_president");
+        if (slot == 49) {
+            gui.confirmActionGUI.open(player, "Leave your nation", () -> player.performCommand("nc leave"));
+            return;
+        }
+
+        if (slot == 50) {
+            Government gov = nation.getRepublicGovernment();
+            boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            boolean isAdmin = player.hasPermission("nation.admin");
+
+            if (!isPresident && !isAdmin) {
+                MessageUtils.send(player, "<red>Only the President or an admin can disband the nation.</red>");
+                return;
             }
+
+            gui.confirmActionGUI.open(player, "Dissolve your nation", () -> {
+                id.nationcore.managers.NationManager.Result result = plugin.getNationManager().disbandNation(player);
+                if (result.isSuccess()) {
+                    MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                    player.closeInventory();
+                } else {
+                    MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                }
+            });
+            return;
+        }
+
+        if (slot == 31 || clicked.getType() == Material.PRIZE_POTTERY_SHERD) {
+            gui.arenaGUI.openArenaMenu(player);
+            return;
+        }
+
+        if (slot == 21 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
+            gui.openCabinetGUI(player);
+            return;
+        }
+
+        if (slot == 22 || clicked.getType() == Material.FRIEND_POTTERY_SHERD) {
+            int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+            gui.republicMemberManagementGUI.open(player, nation, page);
+            return;
+        }
+
+        if (slot == 23) {
+            Government gov = nation.getRepublicGovernment();
+            if (gov == null) return;
+            boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            if (!isPresident && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player, "<red>Only the President can broadcast a message.</red>");
+                return;
+            }
+
+            long lastBroadcast = gov.getLastBroadcastTime();
+            long timeSinceLast = System.currentTimeMillis() - lastBroadcast;
+            long cooldownDuration = 6L * 60 * 60 * 1000;
+            if (timeSinceLast < cooldownDuration && !player.hasPermission("nation.admin")) {
+                long remaining = cooldownDuration - timeSinceLast;
+                MessageUtils.send(player, "<red>Broadcast is on cooldown. Remaining: <white>" + MessageUtils.formatTime(remaining) + "</white></red>");
+                return;
+            }
+
+            player.closeInventory();
+            id.nationcore.listeners.ChatListener.pendingNationBroadcasts.put(player.getUniqueId(), nation);
+            MessageUtils.send(player, "<yellow>Please type your custom broadcast message in chat. Type 'cancel' to abort.</yellow>");
+            return;
         }
     }
 
@@ -229,5 +265,121 @@ public class RepublicGUIHandler {
         }
         player.closeInventory();
         plugin.getExecutiveOrderManager().issueOrderForNation(player, type);
+    }
+
+    public void handleMemberManagementGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == Material.AIR)
+            return;
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE)
+            return;
+
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) {
+            player.closeInventory();
+            return;
+        }
+
+        int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+
+        if (slot == 47) {
+            gui.memberListPage.remove(player.getUniqueId());
+            gui.republicGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        if (slot == 45 && clicked.getType() == Material.ARROW) {
+            page = Math.max(0, page - 1);
+            gui.memberListPage.put(player.getUniqueId(), page);
+            gui.republicMemberManagementGUI.open(player, nation, page);
+            return;
+        }
+
+        if (slot == 53 && clicked.getType() == Material.ARROW) {
+            page++;
+            gui.memberListPage.put(player.getUniqueId(), page);
+            gui.republicMemberManagementGUI.open(player, nation, page);
+            return;
+        }
+
+        if (clicked.getType() == Material.PLAYER_HEAD) {
+            SkullMeta skull = (SkullMeta) clicked.getItemMeta();
+            if (skull == null || skull.getOwningPlayer() == null)
+                return;
+            UUID targetUUID = skull.getOwningPlayer().getUniqueId();
+            gui.viewingManagedMember.put(player.getUniqueId(), targetUUID);
+            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+        }
+    }
+
+    public void handleMemberActionGUI(Player player, ItemStack clicked, int slot, String title) {
+        if (clicked == null || clicked.getType() == Material.AIR)
+            return;
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE)
+            return;
+
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) {
+            player.closeInventory();
+            return;
+        }
+
+        Government gov = nation.getRepublicGovernment();
+        UUID targetUUID = gui.viewingManagedMember.get(player.getUniqueId());
+
+        if (slot == 22 || clicked.getType() == Material.SPECTRAL_ARROW) {
+            int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+            gui.republicMemberManagementGUI.open(player, nation, page);
+            return;
+        }
+
+        if (targetUUID == null) {
+            player.closeInventory();
+            return;
+        }
+
+        boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+        boolean isAdmin = player.hasPermission("nation.admin");
+        if (!isPresident && !isAdmin) {
+            MessageUtils.send(player, "§cOnly the President can manage members.");
+            player.closeInventory();
+            return;
+        }
+
+        if (slot == 11 && clicked.getType() == Material.RED_CONCRETE) {
+            gui.confirmActionGUI.open(player, "Kick " + Bukkit.getOfflinePlayer(targetUUID).getName() + " from nation",
+                    () -> {
+                        id.nationcore.managers.NationManager.Result result = plugin.getNationManager()
+                                .kickMember(player, targetUUID);
+                        if (result.isSuccess()) {
+                            MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                            gui.viewingManagedMember.remove(player.getUniqueId());
+                            int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+                            gui.republicMemberManagementGUI.open(player, nation, page);
+                        } else {
+                            MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                        }
+                    });
+            return;
+        }
+
+        if (slot == 15) {
+            NationMember targetMember = nation.getMember(targetUUID);
+            if (targetMember == null) return;
+            if (targetMember.getRole() == NationRole.OFFICER) {
+                targetMember.setRole(NationRole.CITIZEN);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "<green>" + targetMember.getName() + " has been demoted to Citizen.</green>");
+            } else {
+                targetMember.setRole(NationRole.OFFICER);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "<green>" + targetMember.getName() + " has been promoted to Officer.</green>");
+            }
+            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+        }
     }
 }
