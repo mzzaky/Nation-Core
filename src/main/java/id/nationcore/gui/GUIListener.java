@@ -20,6 +20,7 @@ import id.nationcore.gui.monarchy.MonarchyTreasuryMenu;
 import id.nationcore.gui.republic.RepublicExecutiveOrdersMenu;
 import id.nationcore.gui.republic.RepublicGovernmentGUI;
 import id.nationcore.gui.republic.RepublicGUIHandler;
+import id.nationcore.gui.republic.RepublicCabinetGUI;
 import id.nationcore.gui.republic.RepublicMainMenu;
 import id.nationcore.gui.republic.RepublicTreasuryMenu;
 import java.util.HashMap;
@@ -254,13 +255,13 @@ public class GUIListener implements Listener {
         } else if (title.equals("§2§l?? SALARY & REWARDS ??")) {
             event.setCancelled(true);
             common.handleSalaryGUI(player, clicked);
-        } else if (title.equals(CabinetGUI.CABINET_GUI_TITLE)) {
+        } else if (title.equals(RepublicCabinetGUI.CABINET_GUI_TITLE)) {
             event.setCancelled(true);
             common.handleCabinetGUI(player, clicked, event.getSlot(), event.getClick());
-        } else if (title.startsWith(CabinetGUI.CABINET_APPOINT_TITLE)) {
+        } else if (title.startsWith(RepublicCabinetGUI.CABINET_APPOINT_TITLE)) {
             event.setCancelled(true);
             common.handleCabinetAppointGUI(player, clicked, title);
-        } else if (title.equals(CabinetGUI.CABINET_DECISIONS_TITLE)) {
+        } else if (title.equals(RepublicCabinetGUI.CABINET_DECISIONS_TITLE)) {
             event.setCancelled(true);
             common.handleCabinetDecisionsGUI(player, clicked);
         } else if (title.equals(RepublicTreasuryMenu.TITLE)) {
@@ -371,9 +372,9 @@ public class GUIListener implements Listener {
                 title.equals(CommunistExecutiveOrdersMenu.TITLE) ||
                 title.equals(MonarchyExecutiveOrdersMenu.TITLE) ||
                 title.equals(CaliphateExecutiveOrdersMenu.TITLE) ||
-                title.equals(CabinetGUI.CABINET_GUI_TITLE) ||
-                title.startsWith(CabinetGUI.CABINET_APPOINT_TITLE) ||
-                title.equals(CabinetGUI.CABINET_DECISIONS_TITLE) ||
+                title.equals(RepublicCabinetGUI.CABINET_GUI_TITLE) ||
+                title.startsWith(RepublicCabinetGUI.CABINET_APPOINT_TITLE) ||
+                title.equals(RepublicCabinetGUI.CABINET_DECISIONS_TITLE) ||
                 title.contains("TREASURY") ||
                 title.equals(RepublicTreasuryMenu.TITLE) ||
                 title.equals(CommunistTreasuryMenu.TITLE) ||
@@ -635,7 +636,7 @@ public class GUIListener implements Listener {
                             || currentGUI.equals(MonarchyGovernmentGUI.TITLE)
                             || currentGUI.equals(CaliphateGovernmentGUI.TITLE)) {
                         openGovernmentGUI(player);
-                    } else if (currentGUI.equals(CabinetGUI.CABINET_GUI_TITLE)) {
+                    } else if (currentGUI.equals(RepublicCabinetGUI.CABINET_GUI_TITLE)) {
                         cabinetGUI.openCabinetMenu(player);
                     } else if (currentGUI.equals(RepublicRecallGUI.RECALL_MENU_TITLE)) {
                         recallGUI.openRecallMenu(player);

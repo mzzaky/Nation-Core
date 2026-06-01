@@ -21,15 +21,27 @@ import id.nationcore.utils.MessageUtils;
 public class RepublicGovernmentGUI {
 
     private final NationCore plugin;
-    public static final String TITLE = "§6§lGOVERNMENT";
+    public static final String TITLE = "§9§lREPUBLIC GOVERNMENT";
+
+    private static final int[] FILLER_SLOTS = {
+            0, 1, 2, 3, 5, 6, 7, 8,
+            9, 17,
+            18, 26,
+            27, 35,
+            36, 44,
+            45, 46, 47, 51, 52, 53
+    };
+
+    private static final Material PRIMARY_FILLER = Material.LIGHT_BLUE_STAINED_GLASS_PANE;
 
     public RepublicGovernmentGUI(NationCore plugin) {
         this.plugin = plugin;
     }
 
+    @SuppressWarnings("deprecation")
     public void open(Player player, Nation nation) {
         Government gov = nation != null ? nation.getRepublicGovernment() : plugin.getDataManager().getGovernment();
-        
+
         UUID leaderUUID = null;
         int term = 0;
         long termEndTime = 0;

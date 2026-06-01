@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -27,8 +27,7 @@ import id.nationcore.models.RecallPetition;
  */
 public class RepublicMainMenu extends NationMenuBase {
 
-    public static final String TITLE = ChatColor.translateAlternateColorCodes('&',
-            "&9&l⚖ &b&lRepublic Council");
+    public static final String TITLE = "§9§l⚖ §b§lRepublic Council";
 
     // Layout slots
     private static final int SLOT_NATION = 4;
@@ -57,7 +56,7 @@ public class RepublicMainMenu extends NationMenuBase {
     }
 
     public void open(Player player, Nation nation) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, LegacyComponentSerializer.legacySection().deserialize(TITLE));
 
         // Fill empty slots with AIR initially
         for (int i = 0; i < 54; i++) {
@@ -279,10 +278,14 @@ public class RepublicMainMenu extends NationMenuBase {
     private ItemStack buildResearchCard() {
         return buildIcon(Material.ENCHANTING_TABLE,
                 "&d&lResearch Center",
-                "&7View status and statistics of",
-                "&7republic nation research.",
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&7Pursue research projects that",
+                "&7benefit every citizen of the republic.",
                 "",
-                "&eClick &7→ Open research panel");
+                "&7Categories : &fEconomy, Technology, War",
+                "&7Started by : &fThe President",
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&eClick &7→ Open Research");
     }
 
     private ItemStack buildHistoryCard() {

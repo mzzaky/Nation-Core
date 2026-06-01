@@ -62,7 +62,7 @@ public class DamageListener implements Listener {
             return;
         }
 
-        // Vaccination Drive (Komunis): cancel poison & wither damage untuk anggota
+        // Vaccination Drive (Komunis & Republic): cancel poison & wither damage untuk anggota
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation != null) {
             if (nation.getType() == GovernmentType.COMMUNIST) {

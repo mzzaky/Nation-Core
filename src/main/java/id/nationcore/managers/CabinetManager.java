@@ -102,7 +102,8 @@ public class CabinetManager {
         decisionEndTimes.put(type, System.currentTimeMillis() + getDecisionDuration(type));
         
         // Execute the decision effect
-        applyDecisionEffect(type, decision);
+        Nation n = plugin.getNationManager().getNationOf(ministerId);
+        applyDecisionEffect(n, type, decision);
         
         // Broadcast
         Player minister = Bukkit.getPlayer(ministerId);
@@ -311,6 +312,72 @@ public class CabinetManager {
         MessageUtils.broadcast("<yellow>Quick! Buy everything you can!");
     }
     
+    // ==================== HEALTH MINISTRY DECISIONS ====================
+    
+    private void doQuarantineProtocol(Nation nation, CabinetDecision.DecisionType type) {
+        if (nation == null || nation.getRepublicGovernment() == null) return;
+        nation.getRepublicGovernment().setQuarantineUntil(System.currentTimeMillis() + getDecisionDuration(type));
+        broadcastToNation(nation, "<aqua>💉 Quarantine Protocol active!</aqua> <gray>Non-members cannot enter territory for 10 minutes.</gray>");
+    }
+    
+    private void doFieldMedicine(Nation nation, CabinetDecision.DecisionType type) {
+        if (nation == null || nation.getRepublicGovernment() == null) return;
+        Government gov = nation.getRepublicGovernment();
+        if (gov.isFieldMedicineOnCooldown()) return;
+        
+        long cooldownMs = 2L * 60 * 60 * 1000; // 2 hours
+        gov.setFieldMedicineCooldownUntil(System.currentTimeMillis() + cooldownMs);
+        
+        int durationTicks = (int) (getDecisionDuration(type) / 50);
+        int affected = 0;
+        for (UUID memberUUID : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(memberUUID);
+            if (p == null || !p.isOnline()) continue;
+            p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, durationTicks, 1, false, true, true));
+            MessageUtils.send(p, "<green>💉 Field Medicine: <gray>Regeneration II for 5 minutes.</gray>");
+            affected++;
+        }
+        broadcastToNation(nation, "<green>💉 Field Medicine!</green> <gray>" + affected + " online members receive Regeneration II for 5 minutes.</gray>");
+    }
+    
+    private void doVaccinationDrive(Nation nation, CabinetDecision.DecisionType type) {
+        if (nation == null || nation.getRepublicGovernment() == null) return;
+        nation.getRepublicGovernment().setVaccinationUntil(System.currentTimeMillis() + getDecisionDuration(type));
+        broadcastToNation(nation, "<green>💉 Vaccination Drive active!</green> <gray>Members immune to poison & wither for 1 hour.</gray>");
+    }
+    
+    private void doEmergencyRations(Nation nation) {
+        if (nation == null) return;
+        int distributed = 0;
+        for (UUID memberUUID : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(memberUUID);
+            if (p == null || !p.isOnline()) continue;
+            if (p.getFoodLevel() >= 10) continue;
+            ItemStack bread = new ItemStack(Material.BREAD, 8);
+            var leftover = p.getInventory().addItem(bread);
+            for (var dropItem : leftover.values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), dropItem);
+            }
+            MessageUtils.send(p, "<gold>🍞 Emergency Rations: <gray>8 bread for you.</gray>");
+            distributed++;
+        }
+        broadcastToNation(nation, "<gold>🍞 Emergency Rations distributed to " + distributed + " members with low hunger.");
+    }
+    
+    private void doPlague(Nation nation, CabinetDecision.DecisionType type) {
+        if (nation == null || nation.getRepublicGovernment() == null) return;
+        nation.getRepublicGovernment().setPlagueUntil(System.currentTimeMillis() + getDecisionDuration(type));
+        broadcastToNation(nation, "<dark_red>☠ Plague active!</dark_red> <gray>Enemies entering territory will receive Weakness II + Hunger for 30 seconds. Active for 10 minutes.</gray>");
+    }
+    
+    private void broadcastToNation(Nation nation, String message) {
+        if (nation == null) return;
+        for (UUID uuid : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) MessageUtils.send(p, message);
+        }
+    }
+    
 
     
     // ==================== UTILITY METHODS ====================
@@ -371,6 +438,7 @@ public class CabinetManager {
     }
     
     public long getDecisionDuration(CabinetDecision.DecisionType type) {
+        if (type.getDurationMillis() > 0) return type.getDurationMillis();
         String path = "cabinet.decisions." + getRequiredPosition(type).name().toLowerCase() + ".duration-hours";
         return plugin.getConfig().getLong(path, 24) * 3600000L;
     }
@@ -513,7 +581,7 @@ public class CabinetManager {
         activeDecisions.put(type, System.currentTimeMillis());
         decisionEndTimes.put(type, System.currentTimeMillis() + getDecisionDuration(type));
 
-        applyDecisionEffect(type, decision);
+        applyDecisionEffect(nation, type, decision);
 
         Player minister = Bukkit.getPlayer(ministerId);
         String ministerName = minister != null ? minister.getName() : "Unknown";

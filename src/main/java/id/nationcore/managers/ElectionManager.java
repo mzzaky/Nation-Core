@@ -623,10 +623,6 @@ public class ElectionManager {
         return Math.max(0, phaseDuration - elapsed);
     }
 
-    /**
-     * Iterasi seluruh nation REPUBLIC dan global legacy. Dipanggil scheduler
-     * setiap menit menggantikan {@link #checkPhaseTransitions()} yang lama.
-     */
     public void checkAllPhaseTransitions() {
         // Per-nation
         for (Nation nation : plugin.getNationManager().getAllNations()) {
@@ -648,15 +644,24 @@ public class ElectionManager {
     }
 
     private void checkAutoElectionStart(Nation nation) {
-        long remaining = plugin.getGovernmentManager().getTermRemainingTime(nation);
-        long threshold = 5L * 24 * 60 * 60 * 1000;
-
         var gov = plugin.getGovernmentManager().getGovernment(nation);
         if (gov == null) return;
 
-        // Mulai pemilu 5 hari sebelum term berakhir, atau bila tidak ada presiden
-        if ((remaining > 0 && remaining <= threshold) || !gov.hasPresident()) {
-            if (!nation.getElection().isActive()) startElection(nation);
+        boolean isFoundingTerm = Math.abs(gov.getTermStartTime() - nation.getFoundedAt()) < 60000;
+
+        if (isFoundingTerm) {
+            long electionStartTime = nation.getFoundedAt() + 7L * 24 * 60 * 60 * 1000;
+            if (System.currentTimeMillis() >= electionStartTime && !nation.getElection().isActive()) {
+                startElection(nation);
+            }
+        } else {
+            long remaining = plugin.getGovernmentManager().getTermRemainingTime(nation);
+            long threshold = 5L * 24 * 60 * 60 * 1000;
+
+            // Mulai pemilu 5 hari sebelum term berakhir, atau bila tidak ada presiden
+            if ((remaining > 0 && remaining <= threshold) || !gov.hasPresident()) {
+                if (!nation.getElection().isActive()) startElection(nation);
+            }
         }
     }
 
@@ -668,9 +673,19 @@ public class ElectionManager {
         switch (previousPhase) {
             case REGISTRATION -> {
                 if (election.getCandidates().isEmpty()) {
-                    MessageUtils.broadcast("<red>Tidak ada kandidat di " + nation.getName() +
-                            ". Fase registrasi diulang.</red>");
-                    election.setPhaseStartTime(System.currentTimeMillis());
+                    var gov = plugin.getGovernmentManager().getGovernment(nation);
+                    boolean isFoundingTerm = gov != null && Math.abs(gov.getTermStartTime() - nation.getFoundedAt()) < 60000;
+                    
+                    if (isFoundingTerm) {
+                        MessageUtils.broadcast("<yellow>Tidak ada kandidat di pemilu " + nation.getName() +
+                                ". Presiden pertama tetap melanjutkan kepemimpinannya.</yellow>");
+                        election.endElection();
+                        plugin.getGovernmentManager().setPresident(nation, gov.getPresidentUUID(), gov.getPresidentName(), true);
+                    } else {
+                        MessageUtils.broadcast("<red>Tidak ada kandidat di " + nation.getName() +
+                                ". Fase registrasi diulang.</red>");
+                        election.setPhaseStartTime(System.currentTimeMillis());
+                    }
                     return;
                 }
                 election.nextPhase();

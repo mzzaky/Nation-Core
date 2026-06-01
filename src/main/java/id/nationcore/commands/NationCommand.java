@@ -1479,6 +1479,12 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        // Enforce nation membership for interaction (start, sign, vote)
+        if (contextNation == null && (subCmd.equals("start") || subCmd.equals("sign") || subCmd.equals("vote"))) {
+            MessageUtils.send(player, "<red>Hanya anggota nation yang terdaftar yang dapat memulai dan berpartisipasi dalam impeachment.</red>");
+            return;
+        }
+
         switch (subCmd) {
             case "start":
                 if (contextNation != null) {
