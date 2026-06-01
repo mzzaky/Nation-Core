@@ -3,4 +3,5 @@ target/
 *.jar
 .idea/
 *.iml
-.vscode/
+
+.maven/

@@ -71,7 +71,7 @@ public class GUIListener implements Listener {
     public final MonarchyTreasuryMenu monarchyTreasuryMenu;
     public final CaliphateTreasuryMenu caliphateTreasuryMenu;
     public final RepublicSalaryMenu salaryMenu;
-    public final CabinetGUI cabinetGUI;
+    public final RepublicCabinetGUI cabinetGUI;
     public final MainMenuRouter mainMenuRouter;
     public final PlayerStatsGUI playerStatsGUI;
     public final HelpGUI helpGUI;
@@ -114,7 +114,7 @@ public class GUIListener implements Listener {
         this.monarchyTreasuryMenu = new MonarchyTreasuryMenu(plugin);
         this.caliphateTreasuryMenu = new CaliphateTreasuryMenu(plugin);
         this.salaryMenu = new RepublicSalaryMenu(plugin);
-        this.cabinetGUI = new CabinetGUI(plugin);
+        this.cabinetGUI = new RepublicCabinetGUI(plugin);
         this.mainMenuRouter = new MainMenuRouter(plugin);
         this.playerStatsGUI = new PlayerStatsGUI(plugin);
         this.helpGUI = new HelpGUI(plugin);

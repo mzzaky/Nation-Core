@@ -116,8 +116,10 @@ public class CabinetManager {
         return true;
     }
     
-    private void applyDecisionEffect(CabinetDecision.DecisionType type, CabinetDecision decision) {
-        Nation nation = plugin.getNationManager().getNationOf(decision.getIssuedBy());
+    private void applyDecisionEffect(Nation nation, CabinetDecision.DecisionType type, CabinetDecision decision) {
+        if (nation == null) {
+            nation = plugin.getNationManager().getNationOf(decision.getIssuedBy());
+        }
         switch (type) {
             // Defense Ministry Decisions
             case DECLARE_WAR -> startWarGamesEvent();

@@ -1,0 +1,26 @@
+===================================================================
+NATION CORE PLUGIN - UPDATE LOG v2.0.0-SNAPSHOT_21
+===================================================================
+
+1. Legacy Election Logic Clean-up:
+   - Removed legacy auto-start election logic on plugin enable in ElectionManager.java.
+   - Constrained automatic election initialization to the REPUBLIC government type.
+
+2. Republic Government GUI Updates (RepublicGovernmentGUI.java):
+   - Changed default slot layout and design aesthetics.
+   - Changed the default background glass filler material from GRAY_STAINED_GLASS_PANE to AIR.
+   - Removed slot 13.
+   - Removed slot 24 (Border Management).
+   - Changed slot 4 material to GLOW_ITEM_FRAME and seamlessly merged the lore descriptions of slot 13 and slot 4.
+   - Integrated slot 21 button to open the Republic Cabinet GUI (RepublicCabinetGUI.java).
+   - Integrated slot 22 button to open the new Republic Citizen & Officer Management GUI (RepublicMemberManagementGUI.java).
+   - Implemented a secure Broadcast Message mechanism on slot 23 (President only, 6-hour cooldown, cancel mechanism via chat input).
+
+3. GUI and Listener Improvements:
+   - Created RepublicMemberManagementGUI.java to manage citizen and officer listings and options.
+   - Resolved MiniMessage legacy formatting exceptions by converting traditional color symbols (§) to adventure MiniMessage XML-like color tags in modified chat handlers.
+   - Fixed GUIListener.java mapping, imports, and field initializations for RepublicCabinetGUI and RepublicMemberManagementGUI.
+
+4. Bug Fixes & Code Compilation:
+   - Fixed signature mismatch compilation error in CabinetManager.java by updating the applyDecisionEffect() method signature to correctly accept a Nation parameter.
+   - Successfully compiled and built package artifact target/NationCore-2.0.0.SNAPSHOT-21.jar with the snapshot profile.
