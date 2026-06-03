@@ -1,0 +1,48 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#22
+====================================================
+Transitioned legacy systems to per-nation mechanics, performed a massive command cleanup, and resolved compiler diagnostics.
+
+[PER-NATION TAX SYSTEM]
+- config.yml:
+  → Completely removed the legacy global-tax configuration section.
+- TaxManager.java:
+  → Transitioned tax collection from global to per-nation.
+  → Configured a hardcoded default tax amount of $50.00 collected every 24 Minecraft hours (20 real-time minutes).
+  → Modified tax collection logic to only bill players who are members of a nation.
+  → Configured manual and automated tax collections to deposit collected payments directly to the respective nation's treasury.
+- TaxGUI.java:
+  → Redesigned layout and metrics to display nation-specific statistics instead of global totals.
+  → Dynamically customized the statistics cards (Debtor list, total outstanding debt, expected revenue, taxable members, and treasury revenue) to calculate values from the viewer's specific nation.
+  → Provided a graceful no-nation status display fallback for players without a nation.
+  → Filtered debtor and history lists to include only members of the viewer's nation.
+
+[PRESIDENT HISTORY GUI ENHANCEMENTS]
+- RepublicPresidentHistoryGUI.java:
+  → Removed the close buttons from both the history menu and details sub-menu.
+  → Re-routed back buttons to direct players back to RepublicMainMenu instead of closing the GUI.
+
+[MASSIVE DEPRECATED COMMAND PURGE]
+- NationCommand.java:
+  → Fully purged command routing, backing methods, help logs, and autocompletion paths for 15 legacy commands: election, arena, candidates, vote, register, cabinet, campaign, endorse, government, history, leaderboard, rate, order, party, and politburo.
+- PlayerListener.java, ElectionManager.java, ArenaManager.java:
+  → Replaced player-facing chat references and text suggestions recommending deleted commands (e.g. /dc register, /dc vote, /dc campaign, /dc arena join) with instructions guiding them to open the respective interactive GUI menus instead.
+- HelpGUI.java, CommonGUIHandler.java:
+  → Streamlined command lists in the Help GUI and chat-based help lists to display only valid remaining commands (menu, status, tax, treasury, stats, recall).
+
+[LEADERBOARD GUI DELETION]
+- PlayerStatsGUI.java:
+  → Removed the Leaderboard button (Material.GOLD_INGOT) from the player stats menu.
+  → Deleted the openLeaderboard method and the createLeaderboardEntry helper method.
+- CommonGUIHandler.java:
+  → Removed handleLeaderboardGUI click handling.
+- GUIAction.java, GUIListener.java:
+  → Purged the OPEN_GUI_LEADERBOARD action enum mapping, event listeners, and GUI auto-refresh references.
+
+[NATIONCOMMAND SYNTAX & METHOD MISMATCH RESOLUTION]
+- NationCommand.java:
+  → Changed establishNation call to createNation to match the actual signature of NationManager.
+  → Corrected disbandNation(player, nation) calls inside /dc leave and /dc disband to disbandNation(player) to align with signature.
+  → Corrected leaveNation(player, nation) call to leaveNation(player) to align with signature.
+  → Resolved claimCapital signature mismatch from claimCapital(nation, player) to claimCapital(player, player.getLocation()).
+  → Resolved undefined toLocation() call on CapitalLocation by converting it to Bukkit-native location via plugin.getTerritoryManager().toBukkitLocation(nation.getCapital()).

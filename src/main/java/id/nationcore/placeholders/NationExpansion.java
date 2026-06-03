@@ -278,8 +278,7 @@ public class NationExpansion extends PlaceholderExpansion {
         }
 
         if (params.equalsIgnoreCase("tax_interval")) {
-            long hours = plugin.getConfig().getLong("global-tax.collection-interval-hours", 24);
-            return String.valueOf(hours);
+            return "24";
         }
 
         if (params.equalsIgnoreCase("tax_next_collection")) {

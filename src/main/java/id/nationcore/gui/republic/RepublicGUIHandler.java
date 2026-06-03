@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.ExecutiveOrder;
+import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
 import id.nationcore.models.Nation.NationMember;
@@ -236,20 +237,62 @@ public class RepublicGUIHandler {
             player.closeInventory();
             return;
         }
-        if (RepublicExecutiveOrdersMenu.SLOT_BACK == slot || clicked.getType() == Material.ARROW) {
+        if (RepublicExecutiveOrdersMenu.SLOT_BACK == slot || clicked.getType() == Material.SPECTRAL_ARROW || clicked.getType() == Material.ARROW) {
             gui.mainMenuRouter.openFor(player);
             return;
         }
-        ExecutiveOrder.ExecutiveOrderType type = RepublicExecutiveOrdersMenu.getOrderAtSlot(slot);
-        if (type == null)
+
+        if (RepublicExecutiveOrdersMenu.handleTabClick(player, slot)) {
+            gui.openOrdersGUI(player);
             return;
+        }
+
+        CabinetDecision.DecisionType type = RepublicExecutiveOrdersMenu.getDecisionAtSlot(player, slot);
+        if (type == null) {
+            ExecutiveOrder.ExecutiveOrderType eoType = RepublicExecutiveOrdersMenu.getExecutiveOrderAtSlot(player, slot);
+            if (eoType == null)
+                return;
+
+            if (clicked.getType() != Material.YELLOW_CONCRETE) {
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                return;
+            }
+
+            player.closeInventory();
+            plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
+            return;
+        }
 
         if (clicked.getType() != Material.YELLOW_CONCRETE) {
             MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
             return;
         }
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) {
+            MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
+            player.closeInventory();
+            return;
+        }
+
         player.closeInventory();
-        plugin.getExecutiveOrderManager().issueOrderForNation(player, type);
+        UUID targetId = player.getUniqueId();
+        if (player.hasPermission("nation.admin")) {
+            Government gov = nation.getRepublicGovernment();
+            if (gov != null) {
+                UUID ministerUUID = gov.getCabinetMember(type.getPosition().toGovernmentPosition());
+                if (ministerUUID != null) {
+                    targetId = ministerUUID;
+                }
+            }
+        }
+
+        boolean success = plugin.getCabinetManager().executeDecision(nation, targetId, type);
+        if (success) {
+            MessageUtils.send(player, "<green>Decision successfully executed!</green>");
+        } else {
+            MessageUtils.send(player, "<red>Failed to execute decision. Check requirements and cooldown.</red>");
+        }
     }
 
     public void handleMemberManagementGUI(Player player, ItemStack clicked, int slot) {

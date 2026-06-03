@@ -122,10 +122,7 @@ public class RepublicPresidentHistoryGUI {
 
         inv.setItem(45, createItem(Material.ARROW,
                 "§7§l← Back",
-                isGov ? "§7Return to Government Menu" : "§7Return to Main Menu"));
-        inv.setItem(53, createItem(Material.BARRIER,
-                "§c§lClose",
-                "§7Click to close"));
+                "§7Return to Main Menu"));
 
         fillGlass(inv);
         player.openInventory(inv);
@@ -195,13 +192,9 @@ public class RepublicPresidentHistoryGUI {
             inv.setItem(44, buildNavHead(next, index + 1, "§eNext »"));
         }
 
-        // ── Back to list ────────────────────────────────────────────────
         inv.setItem(45, createItem(Material.ARROW,
                 "§7§l← Back to List",
                 "§7Return to history list"));
-        inv.setItem(53, createItem(Material.BARRIER,
-                "§c§lClose",
-                "§7Click to close"));
 
         fillGlass(inv);
         player.openInventory(inv);

@@ -231,16 +231,7 @@ public class CommonGUIHandler {
             if (isDetailView) {
                 gui.presidentHistoryGUI.openHistoryMenu(player);
             } else {
-                Government gov = plugin.getDataManager().getGovernment();
-                boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
-                boolean isMinister = gov.getCabinetMemberByUUID(player.getUniqueId()) != null;
-                boolean isAdmin = player.hasPermission("nation.admin");
-
-                if (isPresident || isMinister || isAdmin) {
-                    gui.openGovernmentGUI(player);
-                } else {
-                    gui.mainMenuRouter.openFor(player);
-                }
+                gui.mainMenuRouter.openFor(player);
             }
             return;
         }
@@ -289,35 +280,9 @@ public class CommonGUIHandler {
             return;
         }
 
-        if (clicked.getType() == Material.GOLD_INGOT) {
-            gui.playerStatsGUI.openLeaderboard(player);
-            return;
-        }
-
         if (clicked.getType() == Material.BARRIER) {
             player.closeInventory();
             return;
-        }
-    }
-
-    public void handleLeaderboardGUI(Player player, ItemStack clicked, int slot) {
-        if (clicked.getType() == Material.ARROW) {
-            gui.mainMenuRouter.openFor(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.BARRIER) {
-            player.closeInventory();
-            return;
-        }
-
-        if (clicked.getType() == Material.PLAYER_HEAD) {
-            SkullMeta meta = (SkullMeta) clicked.getItemMeta();
-            if (meta.getOwningPlayer() != null) {
-                UUID targetUUID = meta.getOwningPlayer().getUniqueId();
-                gui.viewingPlayerStats.put(player.getUniqueId(), targetUUID);
-                gui.playerStatsGUI.openPlayerStats(player, targetUUID);
-            }
         }
     }
 
@@ -896,26 +861,22 @@ public class CommonGUIHandler {
     void showCommandList(Player player) {
         MessageUtils.send(player,
                 "<gold>•••••••••••••••••••••••••••••••••••••••");
-        MessageUtils.send(player, "<yellow>     ðŸ’» COMMAND LIST ðŸ’»");
+        MessageUtils.send(player, "<yellow>     💻 COMMAND LIST 💻");
         MessageUtils.send(player,
                 "<gold>•••••••••••••••••••••••••••••••••••••••");
-        MessageUtils.send(player, "<aqua>Menu & Info:");
+        MessageUtils.send(player, "<aqua>Menu & Info:</aqua>");
         MessageUtils.send(player, "<white>/dc menu <gray>- Open main menu");
         MessageUtils.send(player, "<white>/dc info <gray>- Government info");
         MessageUtils.send(player, "<white>/dc help <gray>- Command help");
         MessageUtils.send(player, "");
-        MessageUtils.send(player, "<aqua>Election:");
-        MessageUtils.send(player, "<white>/dc election <gray>- Election status");
-        MessageUtils.send(player, "<white>/dc candidates <gray>- Candidate list");
-        MessageUtils.send(player, "<white>/dc vote <player> <gray>- Vote for a candidate");
-        MessageUtils.send(player, "<white>/dc register <gray>- Candidate list");
-        MessageUtils.send(player, "<white>/dc endorse <player> <gray>- Endorse a candidate");
-        MessageUtils.send(player, "");
-        MessageUtils.send(player, "<aqua>Others:");
+        MessageUtils.send(player, "<aqua>Tax & Treasury:</aqua>");
+        MessageUtils.send(player, "<white>/dc tax <gray>- Open tax menu");
         MessageUtils.send(player, "<white>/dc treasury <gray>- Treasury info");
-        MessageUtils.send(player, "<white>/dc rate <1-5> <gray>- Rate president");
+        MessageUtils.send(player, "<white>/dc treasury donate <amount> <gray>- Donate to treasury");
+        MessageUtils.send(player, "");
+        MessageUtils.send(player, "<aqua>Others:</aqua>");
         MessageUtils.send(player, "<white>/dc stats [player] <gray>- Statistics");
-        MessageUtils.send(player, "<white>/dc history <gray>- History of presidents");
+        MessageUtils.send(player, "<white>/dc recall <gray>- Recall status & commands");
         MessageUtils.send(player,
                 "<gold>•••••••••••••••••••••••••••••••••••••••");
     }

@@ -45,7 +45,7 @@ public class ElectionManager {
         MessageUtils.broadcastAnnouncement("ELECTION BEGINS",
                 "<yellow>A new presidential election has begun!</yellow>\n" +
                         "<gray>Registration phase: " + getPhaseDuration(ElectionPhase.REGISTRATION) + " days</gray>\n" +
-                        "<green>Use </green><gold>/dc register [slogan]</gold><green> to run for president!</green>");
+                        "<green>Open the Election GUI from your nation menu to run for president!</green>");
 
         MessageUtils.broadcastTitle("<gold>🗳️ ELECTION TIME 🗳️</gold>",
                 "<yellow>Registration is now open!</yellow>", 20, 100, 20);
@@ -103,7 +103,7 @@ public class ElectionManager {
                             "<yellow>The election registration has restarted due to lack of candidates!</yellow>\n" +
                                     "<gray>Registration phase: " + getPhaseDuration(ElectionPhase.REGISTRATION)
                                     + " days</gray>\n" +
-                                    "<green>Use </green><gold>/dc register [slogan]</gold><green> to run for president!</green>");
+                                    "<green>Open the Election GUI from your nation menu to run for president!</green>");
                     return;
                 }
                 election.nextPhase();
@@ -117,7 +117,7 @@ public class ElectionManager {
                 MessageUtils.broadcastAnnouncement("VOTING PHASE",
                         "<yellow>Voting has begun!</yellow>\n" +
                                 "<gray>Duration: " + getPhaseDuration(ElectionPhase.VOTING) + " days</gray>\n" +
-                                "<green>Use </green><gold>/dc vote</gold><green> to cast your vote!</green>");
+                                "<green>Open the Election GUI from your nation menu to cast your vote!</green>");
                 MessageUtils.broadcastTitle("<gold>🗳️ VOTE NOW 🗳️</gold>",
                         "<yellow>Make your voice heard!</yellow>", 20, 100, 20);
             }
@@ -595,7 +595,7 @@ public class ElectionManager {
         MessageUtils.broadcastAnnouncement("ELECTION BEGINS — " + nation.getName(),
                 "<yellow>Pemilu presiden " + nation.getName() + " telah dimulai!</yellow>\n" +
                         "<gray>Fase registrasi: " + getPhaseDuration(ElectionPhase.REGISTRATION) + " hari</gray>\n" +
-                        "<green>Anggota nation gunakan </green><gold>/dc register</gold><green> untuk maju!</green>");
+                        "<green>Anggota nation, buka menu Pemilu di menu nation untuk maju!</green>");
     }
 
     public void startEmergencyElection(Nation nation) {

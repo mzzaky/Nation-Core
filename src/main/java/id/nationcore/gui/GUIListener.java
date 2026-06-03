@@ -252,7 +252,7 @@ public class GUIListener implements Listener {
             caliphate.handleTreasuryLogsGUI(player, clicked);
 
         // ── Common / cross-nation GUIs ──────────────────────────────────
-        } else if (title.equals("§2§l?? SALARY & REWARDS ??")) {
+        } else if (title.equals("§2§l💰 SALARY & REWARDS 💰")) {
             event.setCancelled(true);
             common.handleSalaryGUI(player, clicked);
         } else if (title.equals(RepublicCabinetGUI.CABINET_GUI_TITLE)) {
@@ -293,9 +293,6 @@ public class GUIListener implements Listener {
         } else if (title.equals(PlayerStatsGUI.STATS_GUI_TITLE)) {
             event.setCancelled(true);
             common.handlePlayerStatsGUI(player, clicked, event.getSlot());
-        } else if (title.equals(PlayerStatsGUI.LEADERBOARD_TITLE)) {
-            event.setCancelled(true);
-            common.handleLeaderboardGUI(player, clicked, event.getSlot());
         } else if (title.equals(HelpGUI.HELP_MENU_TITLE)) {
             event.setCancelled(true);
             common.handleHelpMenuGUI(player, clicked, event.getSlot());
@@ -367,7 +364,7 @@ public class GUIListener implements Listener {
                 title.equals(RepublicGovernmentGUI.TITLE) || title.equals(CommunistGovernmentGUI.TITLE) ||
                 title.equals(MonarchyGovernmentGUI.TITLE) ||
                 title.equals(CaliphateGovernmentGUI.TITLE) ||
-                title.equals("§2§l?? SALARY & REWARDS ??") ||
+                title.equals("§2§l💰 SALARY & REWARDS 💰") ||
                 title.equals(RepublicExecutiveOrdersMenu.TITLE) ||
                 title.equals(CommunistExecutiveOrdersMenu.TITLE) ||
                 title.equals(MonarchyExecutiveOrdersMenu.TITLE) ||
@@ -487,9 +484,7 @@ public class GUIListener implements Listener {
         playerStatsGUI.openPlayerStats(player, targetUUID);
     }
 
-    public void openLeaderboardGUI(Player player) {
-        playerStatsGUI.openLeaderboard(player);
-    }
+
 
     public void openHelpGUI(Player player) {
         helpGUI.openHelpMenu(player);
@@ -554,9 +549,7 @@ public class GUIListener implements Listener {
             case OPEN_GUI_HISTORY:
                 presidentHistoryGUI.openHistoryMenu(player);
                 break;
-            case OPEN_GUI_LEADERBOARD:
-                playerStatsGUI.openLeaderboard(player);
-                break;
+
             case OPEN_GUI_HELP:
                 helpGUI.openHelpMenu(player);
                 break;
@@ -643,8 +636,7 @@ public class GUIListener implements Listener {
                     } else if (currentGUI.equals(PlayerStatsGUI.STATS_GUI_TITLE)) {
                         UUID targetUUID = viewingPlayerStats.getOrDefault(player.getUniqueId(), player.getUniqueId());
                         playerStatsGUI.openPlayerStats(player, targetUUID);
-                    } else if (currentGUI.equals(PlayerStatsGUI.LEADERBOARD_TITLE)) {
-                        playerStatsGUI.openLeaderboard(player);
+
                     } else if (currentGUI.equals(HelpGUI.HELP_MENU_TITLE)) {
                         helpGUI.openHelpMenu(player);
                     } else if (currentGUI.equals(TaxGUI.TAX_MENU_TITLE)) {

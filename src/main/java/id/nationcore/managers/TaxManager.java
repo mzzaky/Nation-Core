@@ -8,6 +8,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.models.TaxRecord;
 import id.nationcore.models.TaxRecord.PlayerTaxData;
@@ -102,6 +103,12 @@ public class TaxManager {
                 continue;
             }
 
+            // Only charge players who are in a nation!
+            Nation nation = plugin.getNationManager().getNationOf(playerUUID);
+            if (nation == null) {
+                continue;
+            }
+
             PlayerTaxData taxData = record.getOrCreatePlayerTaxData(uuidStr, playerData.getName());
             taxData.setPlayerName(playerData.getName());
 
@@ -138,8 +145,8 @@ public class TaxManager {
             if (playerBalance >= totalOwed) {
                 // Full payment
                 plugin.getVaultHook().withdraw(playerUUID, totalOwed);
-                plugin.getTreasuryManager().deposit(TransactionType.GLOBAL_TAX_INCOME, totalOwed,
-                        "Global tax from " + playerData.getName(), playerUUID);
+                plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, totalOwed,
+                        "Nation tax from " + playerData.getName(), playerUUID);
 
                 taxData.recordPayment(totalOwed);
                 taxData.clearDebt();
@@ -154,7 +161,7 @@ public class TaxManager {
                 if (onlinePlayer != null && onlinePlayer.isOnline()) {
                     MessageUtils.send(onlinePlayer,
                             "<yellow>You have been charged <gold>$" + MessageUtils.formatNumber(totalOwed) +
-                                    "</gold> in global taxes. Payment deposited to national treasury.");
+                                    "</gold> in nation taxes. Payment deposited to nation treasury.");
                     MessageUtils.playSound(onlinePlayer, Sound.BLOCK_NOTE_BLOCK_PLING);
                 }
 
@@ -165,8 +172,8 @@ public class TaxManager {
                 double remainder = totalOwed - paid;
 
                 plugin.getVaultHook().withdraw(playerUUID, paid);
-                plugin.getTreasuryManager().deposit(TransactionType.GLOBAL_TAX_INCOME, paid,
-                        "Partial global tax from " + playerData.getName(), playerUUID);
+                plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, paid,
+                        "Partial nation tax from " + playerData.getName(), playerUUID);
 
                 taxData.recordPayment(paid);
                 taxData.clearDebt();
@@ -205,7 +212,7 @@ public class TaxManager {
                 Player onlinePlayer = Bukkit.getPlayer(playerUUID);
                 if (onlinePlayer != null && onlinePlayer.isOnline()) {
                     MessageUtils.send(onlinePlayer,
-                            "<red>You have no funds to pay the global tax of <gold>$" + MessageUtils.formatNumber(totalOwed) +
+                            "<red>You have no funds to pay the nation tax of <gold>$" + MessageUtils.formatNumber(totalOwed) +
                                     "</gold>. <red>This has been added to your debt. Total debt: <gold>$" +
                                     MessageUtils.formatNumber(taxData.getOutstandingDebt()));
                     MessageUtils.playSound(onlinePlayer, Sound.ENTITY_VILLAGER_NO);
@@ -226,7 +233,7 @@ public class TaxManager {
         // Broadcast tax collection summary
         if (taxedCount > 0 || penalizedCount > 0) {
             MessageUtils.broadcast("<gold>=======================================");
-            MessageUtils.broadcast("<yellow>     GLOBAL TAX COLLECTION");
+            MessageUtils.broadcast("<yellow>     NATION TAX COLLECTION");
             MessageUtils.broadcast("<gold>=======================================");
             MessageUtils.broadcast("<gray>Tax Amount: <gold>$" + MessageUtils.formatNumber(taxAmount));
             MessageUtils.broadcast("<gray>Players Taxed: <green>" + taxedCount);
@@ -251,31 +258,11 @@ public class TaxManager {
     private void applyPunishment(UUID playerUUID, PlayerData playerData,
                                   PlayerTaxData taxData, TaxRecord record) {
         String uuidStr = playerUUID.toString();
+        String punishmentDesc = "Tax evasion penalty";
 
-        // Apply punishment based on config
-        List<String> punishments = plugin.getConfig().getStringList("global-tax.punishment.commands");
-        String punishmentDesc = plugin.getConfig().getString("global-tax.punishment.description",
-                "Tax evasion penalty");
-
-        if (punishments.isEmpty()) {
-            // Default: add a punishment record
-            playerData.getPunishments().add(
-                    new PlayerData.Punishment("TAX_EVASION", punishmentDesc, 0));
-        } else {
-            // Execute configured punishment commands
-            Player onlinePlayer = Bukkit.getPlayer(playerUUID);
-            String playerName = playerData.getName();
-
-            for (String cmd : punishments) {
-                String processedCmd = cmd
-                        .replace("{player}", playerName)
-                        .replace("{debt}", String.format("%.0f", taxData.getOutstandingDebt()))
-                        .replace("{missed}", String.valueOf(taxData.getMissedPayments()));
-
-                Bukkit.getScheduler().runTask(plugin, () ->
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processedCmd));
-            }
-        }
+        // Default: add a punishment record
+        playerData.getPunishments().add(
+                new PlayerData.Punishment("TAX_EVASION", punishmentDesc, 0));
 
         // Record punishment
         taxData.getPunishmentHistory().add(String.valueOf(System.currentTimeMillis()));
@@ -284,8 +271,7 @@ public class TaxManager {
                 punishmentDesc + " (Missed " + taxData.getMissedPayments() + " payments)"));
 
         // Reset missed counter after punishment
-        int resetTo = plugin.getConfig().getInt("global-tax.punishment.reset-missed-after-punishment", 0);
-        taxData.setMissedPayments(resetTo);
+        taxData.setMissedPayments(0);
 
         // Notify player
         Player onlinePlayer = Bukkit.getPlayer(playerUUID);
@@ -324,8 +310,10 @@ public class TaxManager {
             return false;
         }
 
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+
         plugin.getVaultHook().withdraw(player.getUniqueId(), debt);
-        plugin.getTreasuryManager().deposit(TransactionType.GLOBAL_TAX_INCOME, debt,
+        plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, debt,
                 "Debt payment from " + player.getName(), player.getUniqueId());
 
         taxData.clearDebt();
@@ -393,38 +381,37 @@ public class TaxManager {
     // === Config Helpers ===
 
     public boolean isEnabled() {
-        return plugin.getConfig().getBoolean("global-tax.enabled", true) && getTaxRecord().isEnabled();
+        return getTaxRecord().isEnabled();
     }
 
     public double getTaxAmount() {
-        return plugin.getConfig().getDouble("global-tax.amount", 50);
+        return 50.0;
     }
 
     public long getCollectionIntervalMillis() {
-        long hours = plugin.getConfig().getLong("global-tax.collection-interval-hours", 24);
-        return hours * 60L * 60 * 1000;
+        return 20L * 60L * 1000L; // 24 Minecraft hours = 20 real minutes
     }
 
     public long getInactiveDaysThreshold() {
-        return plugin.getConfig().getLong("global-tax.inactive-days-exempt", 3);
+        return 3;
     }
 
     public double getLatePenaltyRate() {
-        return plugin.getConfig().getDouble("global-tax.late-penalty-rate", 0.10);
+        return 0.10;
     }
 
     public int getMaxMissedBeforePunishment() {
-        return plugin.getConfig().getInt("global-tax.punishment.missed-threshold", 3);
+        return 3;
     }
 
     /**
      * Get total number of taxable players (active within threshold)
      */
     public int getTaxablePlayerCount() {
-        long inactiveThreshold = System.currentTimeMillis() -
-                (getInactiveDaysThreshold() * 24L * 60 * 60 * 1000);
+        long inactiveThreshold = System.currentTimeMillis() - (getInactiveDaysThreshold() * 24L * 60 * 60 * 1000);
         return (int) plugin.getDataManager().getAllPlayerData().stream()
                 .filter(p -> p.getLastSeen() >= inactiveThreshold)
+                .filter(p -> plugin.getNationManager().getNationOf(p.getUuid()) != null)
                 .count();
     }
 
@@ -432,8 +419,16 @@ public class TaxManager {
      * Get total outstanding debt across all players
      */
     public double getTotalOutstandingDebt() {
-        return getTaxRecord().getPlayerTaxData().values().stream()
-                .mapToDouble(PlayerTaxData::getOutstandingDebt)
+        return getTaxRecord().getPlayerTaxData().entrySet().stream()
+                .filter(entry -> {
+                    try {
+                        UUID uuid = UUID.fromString(entry.getKey());
+                        return plugin.getNationManager().getNationOf(uuid) != null;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .mapToDouble(entry -> entry.getValue().getOutstandingDebt())
                 .sum();
     }
 
@@ -441,8 +436,16 @@ public class TaxManager {
      * Get number of players with outstanding debt
      */
     public int getDebtorCount() {
-        return (int) getTaxRecord().getPlayerTaxData().values().stream()
-                .filter(d -> d.getOutstandingDebt() > 0)
+        return (int) getTaxRecord().getPlayerTaxData().entrySet().stream()
+                .filter(entry -> {
+                    try {
+                        UUID uuid = UUID.fromString(entry.getKey());
+                        return plugin.getNationManager().getNationOf(uuid) != null;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .filter(entry -> entry.getValue().getOutstandingDebt() > 0)
                 .count();
     }
 }

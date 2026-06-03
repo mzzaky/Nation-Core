@@ -180,25 +180,7 @@ recall:
   removal-threshold: 0.60 # 60% to remove
   cooldown-after-failure-days: 15
 
-# Global Tax System
-global-tax:
-  enabled: true
-  amount: 50 # Tax amount per collection cycle (in dollars)
-  collection-interval-hours: 24 # How often taxes are collected (in real hours)
-  inactive-days-exempt: 3 # Players offline for this many days are exempt
-  late-penalty-rate: 0.10 # 10% penalty on outstanding debt each cycle
 
-  # Punishment for excessive missed payments
-  punishment:
-    missed-threshold: 3 # Number of missed payments before punishment
-    description: "Tax evasion penalty"
-    reset-missed-after-punishment: 0 # Reset missed counter to this after punishment
-    # Commands executed when punishment is triggered
-    # Placeholders: {player}, {debt}, {missed}
-    commands: []
-    # Example commands:
-    # - "say {player} has been punished for tax evasion! Debt: ${debt}"
-    # - "tempban {player} 1h Tax evasion - {missed} missed payments"
 
 # Approval Rating
 approval:

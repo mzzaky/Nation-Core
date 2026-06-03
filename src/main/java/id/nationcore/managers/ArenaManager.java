@@ -107,7 +107,7 @@ public class ArenaManager {
         MessageUtils.broadcast("");
         MessageUtils.broadcast("<yellow>Declared by: <white>" + presidentName);
         MessageUtils.broadcast("<yellow>Duration: <white>" + durationDays + " days");
-        MessageUtils.broadcast("<yellow>Use <gold>/dc arena join <yellow>to participate!");
+        MessageUtils.broadcast("<yellow>Open the Presidential Arena menu from your nation menu to participate!");
         MessageUtils.broadcast("");
         MessageUtils.broadcast("<gray>Daily rewards for top 10 players!");
         MessageUtils.broadcast("<gray>Grand prize: <gold>1,000,000 vault + exclusive items!");
@@ -210,7 +210,7 @@ public class ArenaManager {
 
         MessageUtils.send(player, "<gold>⚔ <yellow>You have joined the Arena Games!");
         MessageUtils.send(player, "<gray>Kill other players to earn rewards!");
-        MessageUtils.send(player, "<gray>Use <white>/dc arena leave <gray>to exit.");
+        MessageUtils.send(player, "<gray>Use the Arena GUI menu to leave.");
 
         // Announce
         MessageUtils.broadcast("<gold>⚔ <white>" + player.getName() + " <yellow>has joined the Arena Games!");

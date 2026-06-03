@@ -66,7 +66,7 @@ public class PlayerListener implements Listener {
                 if (plugin.getElectionManager().isElectionActive(nation)) {
                     MessageUtils.send(player,
                             "<yellow>📢 Election is ongoing in " + nation.getName() +
-                                    "! Use <white>/dc election <yellow>for info.");
+                                    "! Open the menu for details.");
                 }
                 if (nation.getRecallPetition() != null) {
                     MessageUtils.send(player, "<red>📜 Recall petition active in " + nation.getName() +
@@ -90,7 +90,7 @@ public class PlayerListener implements Listener {
             }
             if (plugin.getElectionManager().isElectionActive()) {
                 MessageUtils.send(player,
-                        "<yellow>📢 An election is currently in progress! Use <white>/dc election <yellow>for info.");
+                        "<yellow>📢 An election is currently in progress! Open the menu for details.");
             }
             if (plugin.getRecallManager().hasPetitionActive()) {
                 MessageUtils.send(player,
@@ -101,7 +101,7 @@ public class PlayerListener implements Listener {
         // Check for active arena
         if (plugin.getArenaManager().isArenaActive()) {
             MessageUtils.send(player,
-                    "<red>⚔ <yellow>Presidential Arena Games are active! Use <white>/dc arena join <yellow>to participate!");
+                    "<red>⚔ <yellow>Presidential Arena Games are active! Open the Presidential Arena menu from your nation menu to participate!");
         }
 
         // Check for outstanding tax debt

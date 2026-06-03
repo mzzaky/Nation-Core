@@ -140,8 +140,8 @@ public class HelpGUI {
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7View all commands:",
                 "§f/dc menu §8- Open main menu",
-                "§f/dc vote §8- Vote candidate",
-                "§f/dc register §8- Register candidate",
+                "§f/dc status §8- Government status",
+                "§f/dc tax §8- Open tax menu",
                 "§f/dc help §8- Command help",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§aClick for full list");
@@ -474,11 +474,9 @@ public class HelpGUI {
         // How to Join
         ItemStack join = createItem(Material.LIME_WOOL, "§a§lHOW TO JOIN",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Use command:",
-                "§f/dc arena join",
-                "",
-                "§7Or click button in menu",
-                "§7when arena session is active",
+                "§7Open the Presidential Arena",
+                "§7menu from your nation menu",
+                "§7and click 'Join Arena'",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         inv.setItem(19, join);
 
@@ -506,11 +504,9 @@ public class HelpGUI {
         // Leave
         ItemStack leave = createItem(Material.RED_WOOL, "§c§lLEAVE ARENA",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Use command:",
-                "§f/dc arena leave",
-                "",
-                "§7Or leave the arena",
-                "§7area manually",
+                "§7Open the Presidential Arena",
+                "§7menu from your nation menu",
+                "§7and click 'Leave Arena'",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         inv.setItem(25, leave);
 
