@@ -2,6 +2,7 @@ package id.nationcore.listeners;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.ArenaSession;
+import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.utils.MessageUtils;
 import org.bukkit.Bukkit;
@@ -37,7 +38,9 @@ public class ArenaListener implements Listener {
             return;
         }
         
-        ArenaSession session = plugin.getArenaManager().getCurrentSession();
+        Nation nation = plugin.getNationManager().getNationOf(victim.getUniqueId());
+        if (nation == null) return;
+        ArenaSession session = nation.getArenaSession();
         if (session == null) return;
         
         // Handle death through ArenaManager
@@ -56,7 +59,7 @@ public class ArenaListener implements Listener {
         }
         
         if (lostStreak >= 5) {
-            MessageUtils.broadcast("<yellow>" + victim.getName() + " <gray>kehilangan killstreak <red>" + 
+            MessageUtils.sendToNation(nation, "<yellow>" + victim.getName() + " <gray>kehilangan killstreak <red>" + 
                 lostStreak + "!");
         }
         
@@ -77,31 +80,31 @@ public class ArenaListener implements Listener {
             }
             
             // Handle streak milestones with additional rewards
-            handleStreakMilestone(killer, streak);
+            handleStreakMilestone(killer, streak, nation);
         }
         
         // Custom death message
         event.setDeathMessage(null);
         if (killer != null) {
-            MessageUtils.broadcast("<red>☠ <yellow>" + victim.getName() + " <gray>dibunuh oleh <green>" + 
+            MessageUtils.sendToNation(nation, "<red>☠ <yellow>" + victim.getName() + " <gray>dibunuh oleh <green>" + 
                 killer.getName() + " <gray>di arena!");
         } else {
-            MessageUtils.broadcast("<red>☠ <yellow>" + victim.getName() + " <gray>mati di arena!");
+            MessageUtils.sendToNation(nation, "<red>☠ <yellow>" + victim.getName() + " <gray>mati di arena!");
         }
     }
     
-    private void handleStreakMilestone(Player killer, int streak) {
+    private void handleStreakMilestone(Player killer, int streak, Nation nation) {
         String killerName = killer.getName();
         
         switch (streak) {
             case 5 -> {
-                MessageUtils.broadcast("<gold>🔥 <yellow>" + killerName + " <gold>mendapat <white>5 KILLSTREAK!");
+                MessageUtils.sendToNation(nation, "<gold>🔥 <yellow>" + killerName + " <gold>mendapat <white>5 KILLSTREAK!");
                 plugin.getVaultHook().deposit(killer.getUniqueId(), 25000.0);
                 MessageUtils.send(killer, "<gold>+25,000 Bonus killstreak 5!");
                 MessageUtils.playSound(killer, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
             }
             case 10 -> {
-                MessageUtils.broadcast("<gold>🔥🔥 <red>" + killerName + " <gold>UNSTOPPABLE! <white>10 KILLSTREAK!");
+                MessageUtils.sendToNation(nation, "<gold>🔥🔥 <red>" + killerName + " <gold>UNSTOPPABLE! <white>10 KILLSTREAK!");
                 plugin.getVaultHook().deposit(killer.getUniqueId(), 50000.0);
                 MessageUtils.send(killer, "<gold>+50,000 Bonus killstreak 10!");
                 MessageUtils.playSound(killer, org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE);
@@ -110,8 +113,8 @@ public class ArenaListener implements Listener {
                     org.bukkit.Material.GOLDEN_APPLE, 3));
             }
             case 25 -> {
-                MessageUtils.broadcast("<dark_red>🔥🔥🔥 <red>" + killerName + " <dark_red>GODLIKE!! <white>25 KILLSTREAK!");
-                plugin.getVaultHook().deposit(killer.getUniqueId(), 100000.0);
+                MessageUtils.sendToNation(nation, "<dark_red>🔥🔥🔥 <red>" + killerName + " <dark_red>GODLIKE!! <white>25 KILLSTREAK!");
+                plugin.getVaultHook().deposit(killer.getUniqueId(), 10000.0);
                 MessageUtils.send(killer, "<gold>+100,000 Bonus killstreak 25!");
                 MessageUtils.playSound(killer, org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL);
                 // Give netherite
@@ -119,15 +122,18 @@ public class ArenaListener implements Listener {
                     org.bukkit.Material.NETHERITE_INGOT, 1));
             }
             case 50 -> {
-                MessageUtils.broadcast("<dark_purple>👑 <light_purple>" + killerName +
+                MessageUtils.sendToNation(nation, "<dark_purple>👑 <light_purple>" + killerName +
                     " <dark_purple>LEGENDARY!!! <white>50 KILLSTREAK!");
                 plugin.getVaultHook().deposit(killer.getUniqueId(), 250000.0);
                 MessageUtils.send(killer, "<gold>+250,000 Bonus killstreak 50!");
-
-                // Special broadcast with title
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    MessageUtils.sendTitle(p, "<dark_purple>LEGENDARY",
-                        "<light_purple>" + killerName + " - 50 Kills!", 10, 60, 20);
+ 
+                // Special broadcast with title (only to same nation players)
+                for (UUID memberUUID : nation.getMembers().keySet()) {
+                    Player p = Bukkit.getPlayer(memberUUID);
+                    if (p != null && p.isOnline()) {
+                        MessageUtils.sendTitle(p, "<dark_purple>LEGENDARY",
+                            "<light_purple>" + killerName + " - 50 Kills!", 10, 60, 20);
+                    }
                 }
             }
         }
@@ -178,9 +184,15 @@ public class ArenaListener implements Listener {
             return;
         }
         
-        // If both in arena, allow PvP regardless of other settings
+        // If both in arena, restrict PvP to same nation players only
         if (victimInArena && attackerInArena) {
-            event.setCancelled(false);
+            Nation victimNation = plugin.getNationManager().getNationOf(victim.getUniqueId());
+            Nation attackerNation = plugin.getNationManager().getNationOf(attacker.getUniqueId());
+            if (victimNation == null || attackerNation == null || !victimNation.getId().equals(attackerNation.getId())) {
+                event.setCancelled(true);
+            } else {
+                event.setCancelled(false);
+            }
         }
     }
     

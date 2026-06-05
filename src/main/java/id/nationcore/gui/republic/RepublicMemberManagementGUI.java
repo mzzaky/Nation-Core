@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.FakeMember;
 import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
 import id.nationcore.models.Nation.NationMember;
@@ -49,6 +50,9 @@ public class RepublicMemberManagementGUI {
         Government gov = nation.getRepublicGovernment();
 
         List<NationMember> members = new ArrayList<>(nation.getMembers().values());
+        for (FakeMember npc : nation.getAllFakeMembers()) {
+            members.add(new NationMember(npc.getId(), npc.getName(), npc.getRole()));
+        }
         // Sort: leader first, then officers, then citizens
         members.sort((a, b) -> a.getRole().ordinal() - b.getRole().ordinal());
 
@@ -108,6 +112,14 @@ public class RepublicMemberManagementGUI {
     public void openActionMenu(Player viewer, Nation nation, UUID targetUUID) {
         if (nation == null) return;
         NationMember member = nation.getMember(targetUUID);
+        boolean isNpc = false;
+        if (member == null && FakeMember.isNpcUUID(targetUUID)) {
+            FakeMember npc = nation.getFakeMember(targetUUID);
+            if (npc != null) {
+                member = new NationMember(npc.getId(), npc.getName(), npc.getRole());
+                isNpc = true;
+            }
+        }
         if (member == null) {
             MessageUtils.send(viewer, "§cMember not found.");
             return;
@@ -135,6 +147,14 @@ public class RepublicMemberManagementGUI {
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         profileLore.add("§7Nation Role  : " + formatRole(member.getRole()));
         profileLore.add("§7President    : " + (isPresident ? "§a✔ Yes" : "§c✘ No"));
+        if (isNpc) {
+            FakeMember npc = nation.getFakeMember(targetUUID);
+            if (npc != null) {
+                profileLore.add("§7Type         : §dFake Member (NPC)");
+                profileLore.add("§7Balance      : §e$" + MessageUtils.formatNumber(npc.getTaxBalance()));
+                profileLore.add("§7Debt         : §c$" + MessageUtils.formatNumber(npc.getTaxDebt()));
+            }
+        }
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         skull.setLore(profileLore);
         head.setItemMeta(skull);
@@ -196,6 +216,7 @@ public class RepublicMemberManagementGUI {
         boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(member.getUuid());
         boolean isOfficer = member.getRole() == NationRole.OFFICER;
         boolean isOnline = Bukkit.getPlayer(member.getUuid()) != null;
+        boolean isNpc = FakeMember.isNpcUUID(member.getUuid());
 
         String prefix;
         if (isPresident) prefix = "§6👑 ";
@@ -206,7 +227,11 @@ public class RepublicMemberManagementGUI {
 
         List<String> lore = new ArrayList<>();
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add("§7Status    : " + (isOnline ? "§aOnline" : "§8Offline"));
+        if (isNpc) {
+            lore.add("§7Status    : §dFake Member (NPC)");
+        } else {
+            lore.add("§7Status    : " + (isOnline ? "§aOnline" : "§8Offline"));
+        }
         lore.add("§7Role      : " + formatRole(member.getRole()));
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("§eClick to manage this member.");

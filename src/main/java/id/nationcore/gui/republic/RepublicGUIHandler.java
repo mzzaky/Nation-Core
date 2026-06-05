@@ -10,6 +10,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.FakeMember;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Government;
@@ -378,8 +379,29 @@ public class RepublicGUIHandler {
         }
 
         if (slot == 11 && clicked.getType() == Material.RED_CONCRETE) {
-            gui.confirmActionGUI.open(player, "Kick " + Bukkit.getOfflinePlayer(targetUUID).getName() + " from nation",
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (targetName == null && FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc != null) targetName = npc.getName();
+            }
+            final String finalName = targetName != null ? targetName : "NPC";
+
+            gui.confirmActionGUI.open(player, "Kick " + finalName + " from nation",
                     () -> {
+                        if (FakeMember.isNpcUUID(targetUUID)) {
+                            var result = plugin.getFakeMemberManager().kickNpcByUUID(nation.getId(), targetUUID);
+                            if (result.isSuccess()) {
+                                MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                                gui.viewingManagedMember.remove(player.getUniqueId());
+                                int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+                                gui.republicMemberManagementGUI.open(player, nation, page);
+                            } else {
+                                MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                                gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                            }
+                            return;
+                        }
+
                         id.nationcore.managers.NationManager.Result result = plugin.getNationManager()
                                 .kickMember(player, targetUUID);
                         if (result.isSuccess()) {
@@ -396,6 +418,20 @@ public class RepublicGUIHandler {
         }
 
         if (slot == 15) {
+            if (FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc == null) return;
+                NationRole newRole = npc.getRole() == NationRole.OFFICER ? NationRole.CITIZEN : NationRole.OFFICER;
+                var result = plugin.getFakeMemberManager().setNpcRole(nation.getId(), npc.getName(), newRole);
+                if (result.isSuccess()) {
+                    MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                } else {
+                    MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                }
+                gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                return;
+            }
+
             NationMember targetMember = nation.getMember(targetUUID);
             if (targetMember == null) return;
             if (targetMember.getRole() == NationRole.OFFICER) {

@@ -99,7 +99,7 @@ public class PlayerListener implements Listener {
         }
 
         // Check for active arena
-        if (plugin.getArenaManager().isArenaActive()) {
+        if (nation != null && plugin.getArenaManager().isArenaActive(nation)) {
             MessageUtils.send(player,
                     "<red>⚔ <yellow>Presidential Arena Games are active! Open the Presidential Arena menu from your nation menu to participate!");
         }
@@ -110,7 +110,7 @@ public class PlayerListener implements Listener {
                     .getPlayerTaxData(player.getUniqueId().toString());
             if (taxData != null && taxData.getOutstandingDebt() > 0) {
                 MessageUtils.send(player, "<red>💲 You have an outstanding tax debt of <gold>$" +
-                        MessageUtils.formatNumber(taxData.getOutstandingDebt()) +
+                         MessageUtils.formatNumber(taxData.getOutstandingDebt()) +
                         "</gold>! <red>Use <white>/dc tax pay <red>to settle your debt.");
             }
         }

@@ -25,6 +25,7 @@ import org.bukkit.scheduler.BukkitTask;
 import id.nationcore.NationCore;
 import id.nationcore.models.ArenaSession;
 import id.nationcore.models.Government;
+import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.models.Treasury;
 import id.nationcore.utils.MessageUtils;
@@ -32,7 +33,6 @@ import id.nationcore.utils.MessageUtils;
 public class ArenaManager {
 
     private final NationCore plugin;
-    private ArenaSession currentSession;
     private final Map<UUID, Integer> killStreaks = new ConcurrentHashMap<>();
     private final Map<UUID, Location> playerReturnLocations = new HashMap<>();
     private final Set<UUID> arenaPlayers = new HashSet<>();
@@ -50,113 +50,122 @@ public class ArenaManager {
         this.plugin = plugin;
     }
 
-    public boolean canStartArena() {
-        Government gov = plugin.getDataManager().getGovernment();
-        if (!gov.hasPresident())
+    public boolean isArenaActive(Nation nation) {
+        if (nation == null) return false;
+        ArenaSession session = nation.getArenaSession();
+        return session != null && !session.isExpired() && session.isActive();
+    }
+
+    public boolean canStartArena(Nation nation) {
+        if (nation == null || nation.getType() != id.nationcore.models.GovernmentType.REPUBLIC)
+            return false;
+        Government gov = nation.getRepublicGovernment();
+        if (gov == null || !gov.hasPresident())
             return false;
 
         // Check if arena is already active
-        if (isArenaActive())
+        if (isArenaActive(nation))
             return false;
 
         // Check games this term
         int maxGames = plugin.getConfig().getInt("presidential-games.max-per-term", 2);
-        int gamesThisTerm = plugin.getDataManager().getGamesThisTerm();
+        int gamesThisTerm = nation.getGamesThisTerm();
         if (gamesThisTerm >= maxGames)
             return false;
 
         // Check cost
         int cost = plugin.getConfig().getInt("presidential-games.cost", 100000);
-        return plugin.getDataManager().getTreasury().getBalance() >= cost;
+        return nation.getTreasury().getBalance() >= cost;
     }
 
-    public boolean startArena(UUID presidentId) {
-        if (!canStartArena())
+    public boolean startArena(Nation nation, UUID presidentId) {
+        if (!canStartArena(nation))
             return false;
 
-        Government gov = plugin.getDataManager().getGovernment();
+        Government gov = nation.getRepublicGovernment();
         if (!gov.getPresidentUUID().equals(presidentId))
             return false;
 
         // Deduct cost
         int cost = plugin.getConfig().getInt("presidential-games.cost", 100000);
-        plugin.getTreasuryManager().withdraw(Treasury.TransactionType.PRESIDENTIAL_GAMES, (double) cost,
+        plugin.getTreasuryManager().withdraw(nation, Treasury.TransactionType.PRESIDENTIAL_GAMES, (double) cost,
                 "Presidential Arena Games", presidentId);
 
         // Create new session
         long durationDays = plugin.getConfig().getLong("presidential-games.duration-days", 7);
-        currentSession = new ArenaSession(presidentId, durationDays);
+        ArenaSession session = new ArenaSession(presidentId, durationDays);
+        nation.setArenaSession(session);
 
         // Set arena location (use world spawn or configured location)
-        World world = Bukkit.getWorlds().get(0);
-        arenaCenter = world.getSpawnLocation();
-        arenaSpawn = arenaCenter.clone().add(0, 1, 0);
-        arenaRadius = plugin.getConfig().getInt("presidential-games.radius", 100);
+        if (arenaCenter == null) {
+            World world = Bukkit.getWorlds().get(0);
+            arenaCenter = world.getSpawnLocation();
+            arenaSpawn = arenaCenter.clone().add(0, 1, 0);
+            arenaRadius = plugin.getConfig().getInt("presidential-games.radius", 100);
+        }
 
         // Increment games count
-        plugin.getDataManager().setGamesThisTerm(plugin.getDataManager().getGamesThisTerm() + 1);
+        nation.setGamesThisTerm(nation.getGamesThisTerm() + 1);
 
-        // Broadcast
+        // Broadcast to nation members
         Player president = Bukkit.getPlayer(presidentId);
         String presidentName = president != null ? president.getName() : "The President";
 
-        MessageUtils.broadcast("");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
-        MessageUtils.broadcast("<red>⚔ <gold><bold>PRESIDENTIAL ARENA GAMES</bold> <red>⚔");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
-        MessageUtils.broadcast("");
-        MessageUtils.broadcast("<yellow>Declared by: <white>" + presidentName);
-        MessageUtils.broadcast("<yellow>Duration: <white>" + durationDays + " days");
-        MessageUtils.broadcast("<yellow>Open the Presidential Arena menu from your nation menu to participate!");
-        MessageUtils.broadcast("");
-        MessageUtils.broadcast("<gray>Daily rewards for top 10 players!");
-        MessageUtils.broadcast("<gray>Grand prize: <gold>1,000,000 vault + exclusive items!");
-        MessageUtils.broadcast("");
+        MessageUtils.sendToNation(nation, "");
+        MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
+        MessageUtils.sendToNation(nation, "<red>⚔ <gold><bold>PRESIDENTIAL ARENA GAMES</bold> <red>⚔");
+        MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
+        MessageUtils.sendToNation(nation, "");
+        MessageUtils.sendToNation(nation, "<yellow>Declared by: <white>" + presidentName);
+        MessageUtils.sendToNation(nation, "<yellow>Duration: <white>" + durationDays + " days");
+        MessageUtils.sendToNation(nation, "<yellow>Open the Presidential Arena menu from your nation menu to participate!");
+        MessageUtils.sendToNation(nation, "");
+        MessageUtils.sendToNation(nation, "<gray>Daily rewards for top 10 players!");
+        MessageUtils.sendToNation(nation, "<gray>Grand prize: <gold>1,000,000 vault + exclusive items!");
+        MessageUtils.sendToNation(nation, "");
 
-        // Play sound to all
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
+        // Play sound to all online members of the nation
+        for (UUID memberUUID : nation.getMembers().keySet()) {
+            Player p = Bukkit.getPlayer(memberUUID);
+            if (p != null && p.isOnline()) {
+                p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
+            }
         }
 
-        // Start arena task
+        // Start arena task if not already running
         startArenaTask();
 
-        plugin.getDataManager().setArenaSession(currentSession);
-        plugin.getDataManager().saveAll();
+        plugin.getDataManager().saveNations();
 
         return true;
     }
 
-    public void endArena() {
-        if (currentSession == null)
+    public void endArena(Nation nation) {
+        if (nation == null)
+            return;
+        ArenaSession session = nation.getArenaSession();
+        if (session == null)
             return;
 
         // Calculate final standings
-        distributeFinalRewards();
+        distributeFinalRewards(nation);
 
-        // Teleport all players out
+        // Teleport players of this nation out
         for (UUID playerId : new HashSet<>(arenaPlayers)) {
-            leaveArena(playerId);
-        }
-
-        // Clear data
-        killStreaks.clear();
-        arenaPlayers.clear();
-
-        // Stop task
-        if (arenaTask != null) {
-            arenaTask.cancel();
-            arenaTask = null;
+            Nation playerNation = plugin.getNationManager().getNationOf(playerId);
+            if (playerNation != null && playerNation.getId().equals(nation.getId())) {
+                leaveArena(playerId);
+            }
         }
 
         // Broadcast end
-        MessageUtils.broadcast("");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
-        MessageUtils.broadcast("<red>⚔ <gold><bold>ARENA GAMES CONCLUDED</bold> <red>⚔");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
+        MessageUtils.sendToNation(nation, "");
+        MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
+        MessageUtils.sendToNation(nation, "<red>⚔ <gold><bold>ARENA GAMES CONCLUDED</bold> <red>⚔");
+        MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
 
         // Show top 3
-        List<Map.Entry<UUID, ArenaSession.ArenaStats>> topPlayers = currentSession.getPlayerStats().entrySet()
+        List<Map.Entry<UUID, ArenaSession.ArenaStats>> topPlayers = session.getPlayerStats().entrySet()
                 .stream()
                 .sorted((a, b) -> Integer.compare(b.getValue().getKills(), a.getValue().getKills()))
                 .limit(3)
@@ -166,20 +175,19 @@ public class ArenaManager {
         for (int i = 0; i < topPlayers.size(); i++) {
             Map.Entry<UUID, ArenaSession.ArenaStats> entry = topPlayers.get(i);
             String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
-            MessageUtils
-                    .broadcast("<yellow>" + medals[i] + " " + name + " - " + entry.getValue().getKills() + " kills");
+            MessageUtils.sendToNation(nation, "<yellow>" + medals[i] + " " + name + " - " + entry.getValue().getKills() + " kills");
         }
 
-        MessageUtils.broadcast("");
+        MessageUtils.sendToNation(nation, "");
 
-        currentSession = null;
-        plugin.getDataManager().setArenaSession(null);
-        plugin.getDataManager().saveAll();
+        nation.setArenaSession(null);
+        plugin.getDataManager().saveNations();
     }
 
     public boolean joinArena(Player player) {
-        if (!isArenaActive()) {
-            MessageUtils.send(player, "<red>No arena games are currently active!");
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || !isArenaActive(nation)) {
+            MessageUtils.send(player, "<red>No arena games are currently active for your nation!");
             return false;
         }
 
@@ -196,7 +204,7 @@ public class ArenaManager {
         killStreaks.put(player.getUniqueId(), 0);
 
         // Initialize stats if needed
-        currentSession.getOrCreateStats(player.getUniqueId(), player.getName());
+        nation.getArenaSession().getOrCreateStats(player.getUniqueId(), player.getName());
 
         // Teleport to arena
         player.teleport(arenaSpawn);
@@ -212,8 +220,8 @@ public class ArenaManager {
         MessageUtils.send(player, "<gray>Kill other players to earn rewards!");
         MessageUtils.send(player, "<gray>Use the Arena GUI menu to leave.");
 
-        // Announce
-        MessageUtils.broadcast("<gold>⚔ <white>" + player.getName() + " <yellow>has joined the Arena Games!");
+        // Announce to nation only
+        MessageUtils.sendToNation(nation, "<gold>⚔ <white>" + player.getName() + " <yellow>has joined the Arena Games!");
 
         return true;
     }
@@ -247,7 +255,8 @@ public class ArenaManager {
     }
 
     public void handleKill(Player killer, Player victim) {
-        if (!isArenaActive())
+        Nation nation = plugin.getNationManager().getNationOf(killer.getUniqueId());
+        if (nation == null || !isArenaActive(nation))
             return;
         if (!arenaPlayers.contains(killer.getUniqueId()) || !arenaPlayers.contains(victim.getUniqueId()))
             return;
@@ -255,9 +264,13 @@ public class ArenaManager {
         UUID killerId = killer.getUniqueId();
         UUID victimId = victim.getUniqueId();
 
+        ArenaSession session = nation.getArenaSession();
+        if (session == null)
+            return;
+
         // Update stats
-        ArenaSession.ArenaStats killerStats = currentSession.getOrCreateStats(killerId, killer.getName());
-        ArenaSession.ArenaStats victimStats = currentSession.getOrCreateStats(victimId, victim.getName());
+        ArenaSession.ArenaStats killerStats = session.getOrCreateStats(killerId, killer.getName());
+        ArenaSession.ArenaStats victimStats = session.getOrCreateStats(victimId, victim.getName());
 
         killerStats.addKill();
         victimStats.addDeath();
@@ -275,22 +288,22 @@ public class ArenaManager {
         if (streak == 5) {
             reward += 10000;
             streakBonus = " <gold>(+10k Killstreak!)";
-            MessageUtils.broadcast("<red>🔥 " + killer.getName() + " is on a 5 KILLSTREAK!");
+            MessageUtils.sendToNation(nation, "<red>🔥 " + killer.getName() + " is on a 5 KILLSTREAK!");
             giveKillstreakReward(killer, 5);
         } else if (streak == 10) {
             reward += 25000;
             streakBonus = " <gold>(+25k Killstreak!)";
-            MessageUtils.broadcast("<red>🔥🔥 " + killer.getName() + " is on a 10 KILLSTREAK!");
+            MessageUtils.sendToNation(nation, "<red>🔥🔥 " + killer.getName() + " is on a 10 KILLSTREAK!");
             giveKillstreakReward(killer, 10);
         } else if (streak == 25) {
             reward += 50000;
             streakBonus = " <gold>(+50k Killstreak!)";
-            MessageUtils.broadcast("<red>🔥🔥🔥 " + killer.getName() + " is UNSTOPPABLE with 25 KILLS!");
+            MessageUtils.sendToNation(nation, "<red>🔥🔥🔥 " + killer.getName() + " is UNSTOPPABLE with 25 KILLS!");
             giveKillstreakReward(killer, 25);
         } else if (streak == 50) {
             reward += 100000;
             streakBonus = " <gold>(+100k Killstreak!)";
-            MessageUtils.broadcast("<red><bold>☠ " + killer.getName() + " IS A LEGEND WITH 50 KILLS! ☠");
+            MessageUtils.sendToNation(nation, "<red><bold>☠ " + killer.getName() + " IS A LEGEND WITH 50 KILLS! ☠");
             giveKillstreakReward(killer, 50);
         }
 
@@ -412,16 +425,30 @@ public class ArenaManager {
     }
 
     private void startArenaTask() {
+        if (arenaTask != null) {
+            return;
+        }
         arenaTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            if (currentSession == null) {
-                if (arenaTask != null)
-                    arenaTask.cancel();
-                return;
+            boolean anyActive = false;
+            for (Nation nation : plugin.getNationManager().getAllNations()) {
+                ArenaSession session = nation.getArenaSession();
+                if (session == null)
+                    continue;
+
+                // Check if session expired
+                if (session.isExpired()) {
+                    endArena(nation);
+                    continue;
+                }
+
+                anyActive = true;
             }
 
-            // Check if session expired
-            if (currentSession.isExpired()) {
-                endArena();
+            if (!anyActive) {
+                if (arenaTask != null) {
+                    arenaTask.cancel();
+                    arenaTask = null;
+                }
                 return;
             }
 
@@ -441,60 +468,65 @@ public class ArenaManager {
     }
 
     public void distributeDailyRewards() {
-        if (currentSession == null)
-            return;
+        for (Nation nation : plugin.getNationManager().getAllNations()) {
+            ArenaSession session = nation.getArenaSession();
+            if (session == null || session.isExpired() || !session.isActive())
+                continue;
 
-        List<Map.Entry<UUID, ArenaSession.ArenaStats>> leaderboard = currentSession.getPlayerStats().entrySet()
-                .stream()
-                .sorted((a, b) -> Integer.compare(b.getValue().getKills(), a.getValue().getKills()))
-                .limit(10)
-                .toList();
+            List<Map.Entry<UUID, ArenaSession.ArenaStats>> leaderboard = session.getPlayerStats().entrySet()
+                    .stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue().getKills(), a.getValue().getKills()))
+                    .limit(10)
+                    .toList();
 
-        MessageUtils.broadcast("");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
-        MessageUtils.broadcast("<yellow>⚔ <gold>Daily Arena Leaderboard <yellow>⚔");
-        MessageUtils.broadcast("<gold>═══════════════════════════════════════");
+            if (leaderboard.isEmpty())
+                continue;
 
-        for (int i = 0; i < leaderboard.size(); i++) {
-            Map.Entry<UUID, ArenaSession.ArenaStats> entry = leaderboard.get(i);
-            String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
-            int kills = entry.getValue().getKills();
-            int reward = DAILY_REWARDS[i];
-            int netherite = NETHERITE_REWARDS[i];
+            MessageUtils.sendToNation(nation, "");
+            MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
+            MessageUtils.sendToNation(nation, "<yellow>⚔ <gold>Daily Arena Leaderboard <yellow>⚔");
+            MessageUtils.sendToNation(nation, "<gold>═══════════════════════════════════════");
 
-            // Give rewards
-            Player player = Bukkit.getPlayer(entry.getKey());
-            if (player != null && player.isOnline()) {
-                plugin.getVaultHook().deposit(player.getUniqueId(), (double) reward);
-                player.getInventory().addItem(new ItemStack(Material.NETHERITE_INGOT, netherite));
-                MessageUtils.send(player, "<gold>Daily arena reward: $" + MessageUtils.formatNumber(reward) + " + "
-                        + netherite + " netherite!");
-            } else {
-                // Store for offline player - deposit directly to vault
-                plugin.getVaultHook().deposit(entry.getKey(), (double) reward);
+            for (int i = 0; i < leaderboard.size(); i++) {
+                Map.Entry<UUID, ArenaSession.ArenaStats> entry = leaderboard.get(i);
+                String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
+                int kills = entry.getValue().getKills();
+                int reward = DAILY_REWARDS[i];
+                int netherite = NETHERITE_REWARDS[i];
+
+                // Give rewards
+                Player player = Bukkit.getPlayer(entry.getKey());
+                if (player != null && player.isOnline()) {
+                    plugin.getVaultHook().deposit(player.getUniqueId(), (double) reward);
+                    player.getInventory().addItem(new ItemStack(Material.NETHERITE_INGOT, netherite));
+                    MessageUtils.send(player, "<gold>Daily arena reward: $" + MessageUtils.formatNumber(reward) + " + "
+                            + netherite + " netherite!");
+                } else {
+                    // Store for offline player - deposit directly to vault
+                    plugin.getVaultHook().deposit(entry.getKey(), (double) reward);
+                }
+
+                String medal = switch (i) {
+                    case 0 -> "🥇";
+                    case 1 -> "🥈";
+                    case 2 -> "🥉";
+                    default -> "#" + (i + 1);
+                };
+
+                MessageUtils.sendToNation(nation, "<yellow>" + medal + " <white>" + name + " <gray>- " + kills + " kills <green>($"
+                        + MessageUtils.formatNumber(reward) + ")");
             }
 
-            String medal = switch (i) {
-                case 0 -> "🥇";
-                case 1 -> "🥈";
-                case 2 -> "🥉";
-                default -> "#" + (i + 1);
-            };
-
-            MessageUtils.broadcast("<yellow>" + medal + " <white>" + name + " <gray>- " + kills + " kills <green>($"
-                    + MessageUtils.formatNumber(reward) + ")");
+            MessageUtils.sendToNation(nation, "");
         }
-
-        MessageUtils.broadcast("");
-
-        // Note: Daily stats reset is handled by preserving cumulative stats
     }
 
-    private void distributeFinalRewards() {
-        if (currentSession == null)
+    private void distributeFinalRewards(Nation nation) {
+        ArenaSession session = nation.getArenaSession();
+        if (session == null)
             return;
 
-        List<Map.Entry<UUID, ArenaSession.ArenaStats>> finalStandings = currentSession.getPlayerStats().entrySet()
+        List<Map.Entry<UUID, ArenaSession.ArenaStats>> finalStandings = session.getPlayerStats().entrySet()
                 .stream()
                 .sorted((a, b) -> Integer.compare(b.getValue().getKills(), a.getValue().getKills()))
                 .toList();
@@ -519,7 +551,7 @@ public class ArenaManager {
             meta.lore(List.of(
                     MessageUtils.parse("<gray>Presidential Arena Games Champion"),
                     MessageUtils.parse("<yellow>Total Kills: " + winner.getValue().getKills()),
-                    MessageUtils.parse("<gray>Season: " + currentSession.getStartTime())));
+                    MessageUtils.parse("<gray>Season: " + session.getStartTime())));
             trophy.setItemMeta(meta);
             winnerPlayer.getInventory().addItem(trophy);
 
@@ -537,21 +569,13 @@ public class ArenaManager {
             plugin.getVaultHook().deposit(winner.getKey(), (double) grandPrize);
         }
 
-        MessageUtils.broadcast("<gold>🏆 <yellow>Arena Champion: <white>" + winnerName + " <gray>("
+        MessageUtils.sendToNation(nation, "<gold>🏆 <yellow>Arena Champion: <white>" + winnerName + " <gray>("
                 + winner.getValue().getKills() + " total kills)");
     }
 
     // Getters
-    public boolean isArenaActive() {
-        return currentSession != null && !currentSession.isExpired();
-    }
-
     public boolean isInArena(UUID playerId) {
         return arenaPlayers.contains(playerId);
-    }
-
-    public ArenaSession getCurrentSession() {
-        return currentSession;
     }
 
     public int getKillStreak(UUID playerId) {
@@ -562,10 +586,13 @@ public class ArenaManager {
         return Collections.unmodifiableSet(arenaPlayers);
     }
 
-    public List<Map.Entry<UUID, ArenaSession.ArenaStats>> getLeaderboard(int limit) {
-        if (currentSession == null)
+    public List<Map.Entry<UUID, ArenaSession.ArenaStats>> getLeaderboard(Nation nation, int limit) {
+        if (nation == null)
             return Collections.emptyList();
-        return currentSession.getPlayerStats().entrySet()
+        ArenaSession session = nation.getArenaSession();
+        if (session == null)
+            return Collections.emptyList();
+        return session.getPlayerStats().entrySet()
                 .stream()
                 .sorted((a, b) -> Integer.compare(b.getValue().getKills(), a.getValue().getKills()))
                 .limit(limit)
@@ -573,16 +600,18 @@ public class ArenaManager {
     }
 
     public void loadSession() {
-        currentSession = plugin.getDataManager().getArenaSession();
-        if (currentSession != null && !currentSession.isExpired()) {
-            startArenaTask();
-        } else {
-            currentSession = null;
+        // Since session is now per-nation, we scan nations and restart the task if any nation has a valid active session.
+        boolean anyActive = false;
+        for (Nation nation : plugin.getNationManager().getAllNations()) {
+            ArenaSession session = nation.getArenaSession();
+            if (session != null && !session.isExpired()) {
+                anyActive = true;
+            } else {
+                nation.setArenaSession(null);
+            }
         }
-    }
-
-    // Additional method for NationCommand
-    public boolean startNewSession(Player player) {
-        return startArena(player.getUniqueId());
+        if (anyActive) {
+            startArenaTask();
+        }
     }
 }

@@ -1,6 +1,8 @@
 package id.nationcore.models;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +108,12 @@ public class Nation {
 
     private Map<UUID, NationMember> members;
 
+    /**
+     * Fake members (NPC) yang terdaftar sebagai anggota nation ini.
+     * Key: UUID deterministik hasil FakeMember.generateNpcUUID().
+     */
+    private Map<UUID, FakeMember> fakeMembers;
+
     private CapitalLocation capital;
 
     private Treasury treasury;
@@ -140,6 +148,7 @@ public class Nation {
     private List<ExecutiveOrder> activeOrders;
     private List<CabinetDecision> activeDecisions;
     private RecallPetition recallPetition;
+    private ArenaSession arenaSession;
     private long lastExecutiveOrderTime;
     private int gamesThisTerm;
 
@@ -157,6 +166,7 @@ public class Nation {
 
     public Nation() {
         this.members = new HashMap<>();
+        this.fakeMembers = new HashMap<>();
         this.treasury = new Treasury();
         this.activeOrders = new ArrayList<>();
         this.activeDecisions = new ArrayList<>();
@@ -255,7 +265,16 @@ public class Nation {
         return members.get(uuid);
     }
 
+    /**
+     * Jumlah total anggota nation: real player + fake member (NPC).
+     */
     public int getMemberCount() {
+        int fakeCount = fakeMembers != null ? fakeMembers.size() : 0;
+        return members.size() + fakeCount;
+    }
+
+    /** Jumlah anggota pemain nyata saja (tidak termasuk NPC). */
+    public int getRealMemberCount() {
         return members.size();
     }
 
@@ -269,6 +288,57 @@ public class Nation {
 
     public Map<UUID, NationMember> getMembers() {
         return members;
+    }
+
+    // === Fake Member (NPC) API ===
+
+    /**
+     * Lazy-init guard: Gson mungkin deserialize tanpa memanggil constructor
+     * sehingga fakeMembers bisa null pada data lama.
+     */
+    private Map<UUID, FakeMember> ensureFakeMembers() {
+        if (fakeMembers == null) fakeMembers = new HashMap<>();
+        return fakeMembers;
+    }
+
+    public void addFakeMember(FakeMember npc) {
+        ensureFakeMembers().put(npc.getId(), npc);
+    }
+
+    public boolean removeFakeMember(UUID npcUUID) {
+        return ensureFakeMembers().remove(npcUUID) != null;
+    }
+
+    public boolean isFakeMember(UUID uuid) {
+        return ensureFakeMembers().containsKey(uuid);
+    }
+
+    public FakeMember getFakeMember(UUID uuid) {
+        return ensureFakeMembers().get(uuid);
+    }
+
+    public int getFakeMemberCount() {
+        return ensureFakeMembers().size();
+    }
+
+    public Collection<FakeMember> getAllFakeMembers() {
+        return Collections.unmodifiableCollection(ensureFakeMembers().values());
+    }
+
+    public Map<UUID, FakeMember> getFakeMembers() {
+        return ensureFakeMembers();
+    }
+
+    /**
+     * Mencari FakeMember berdasarkan nama (case-insensitive).
+     * Mengembalikan null jika tidak ditemukan.
+     */
+    public FakeMember getFakeMemberByName(String name) {
+        if (name == null) return null;
+        for (FakeMember npc : ensureFakeMembers().values()) {
+            if (npc.getName().equalsIgnoreCase(name)) return npc;
+        }
+        return null;
     }
 
     // === Capital API ===
@@ -367,6 +437,14 @@ public class Nation {
 
     public void setRecallPetition(RecallPetition recallPetition) {
         this.recallPetition = recallPetition;
+    }
+
+    public ArenaSession getArenaSession() {
+        return arenaSession;
+    }
+
+    public void setArenaSession(ArenaSession arenaSession) {
+        this.arenaSession = arenaSession;
     }
 
     public long getLastExecutiveOrderTime() {

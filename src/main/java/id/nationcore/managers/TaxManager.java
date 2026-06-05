@@ -227,14 +227,39 @@ public class TaxManager {
             }
         }
 
+        // === Fake Member (NPC) Tax Collection ===
+        int npcTaxedCount  = 0;
+        int npcDebtCount   = 0;
+        double npcCollected = 0;
+
+        for (Nation nation : plugin.getNationManager().getAllNations()) {
+            if (nation.getAllFakeMembers().isEmpty()) continue;
+
+            for (id.nationcore.models.FakeMember npc : nation.getAllFakeMembers()) {
+                double paid = plugin.getFakeMemberManager().collectTax(npc, nation, taxAmount);
+                npcCollected += paid;
+
+                if (paid < taxAmount) {
+                    npcDebtCount++;
+                } else {
+                    npcTaxedCount++;
+                }
+            }
+        }
+
+        // Simpan perubahan taxBalance NPC ke disk
+        if (npcTaxedCount > 0 || npcDebtCount > 0) {
+            plugin.getDataManager().saveNations();
+        }
+
         // Update cycle
         record.incrementCycle();
 
         // Broadcast tax collection summary
-        if (taxedCount > 0 || penalizedCount > 0) {
-            MessageUtils.broadcast("<gold>=======================================");
-            MessageUtils.broadcast("<yellow>     NATION TAX COLLECTION");
-            MessageUtils.broadcast("<gold>=======================================");
+        if (taxedCount > 0 || penalizedCount > 0 || npcTaxedCount > 0 || npcDebtCount > 0) {
+            MessageUtils.broadcast("<gold>=======================================================");
+            MessageUtils.broadcast("<yellow>          NATION TAX COLLECTION");
+            MessageUtils.broadcast("<gold>=======================================================");
             MessageUtils.broadcast("<gray>Tax Amount: <gold>$" + MessageUtils.formatNumber(taxAmount));
             MessageUtils.broadcast("<gray>Players Taxed: <green>" + taxedCount);
             if (penalizedCount > 0) {
@@ -243,13 +268,21 @@ public class TaxManager {
             if (exemptCount > 0) {
                 MessageUtils.broadcast("<gray>Players Exempt: <aqua>" + exemptCount);
             }
-            MessageUtils.broadcast("<gray>Total Collected: <gold>$" + MessageUtils.formatNumber(totalCollected));
-            MessageUtils.broadcast("<gold>=======================================");
+            if (npcTaxedCount > 0 || npcDebtCount > 0) {
+                MessageUtils.broadcast("<gray>NPC Members Taxed: <green>" + npcTaxedCount
+                        + " <gray>| NPC Debt: <red>" + npcDebtCount);
+                MessageUtils.broadcast("<gray>NPC Total Paid: <gold>$" + MessageUtils.formatNumber(npcCollected));
+            }
+            MessageUtils.broadcast("<gray>Total Collected: <gold>$"
+                    + MessageUtils.formatNumber(totalCollected + npcCollected));
+            MessageUtils.broadcast("<gold>=======================================================");
         }
 
         plugin.getLogger().info("Tax collection completed: " + taxedCount + " taxed, " +
-                penalizedCount + " penalized, " + exemptCount + " exempt. Total: $" +
-                String.format("%.2f", totalCollected));
+                penalizedCount + " penalized, " + exemptCount + " exempt. " +
+                "NPC: " + npcTaxedCount + " taxed, " + npcDebtCount + " in debt. " +
+                "Total (player): $" + String.format("%.2f", totalCollected) +
+                " | Total (NPC): $" + String.format("%.2f", npcCollected));
     }
 
     /**

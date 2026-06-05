@@ -597,16 +597,26 @@ public class GUIListener implements Listener {
                 break;
             case ACTION_ARENA_START:
                 player.closeInventory();
-                if (!plugin.getArenaManager().startArena(player.getUniqueId())) {
-                    MessageUtils.send(player, "<red>Cannot start arena! Check requirements.");
-                } else {
-                    arenaGUI.openArenaMenu(player);
+                {
+                    id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+                    if (nation == null || !plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
+                        MessageUtils.send(player, "<red>Cannot start arena! Check requirements.");
+                    } else {
+                        arenaGUI.openArenaMenu(player);
+                    }
                 }
                 break;
             case ACTION_ARENA_END:
                 player.closeInventory();
-                plugin.getArenaManager().endArena();
-                MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
+                {
+                    id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+                    if (nation != null) {
+                        plugin.getArenaManager().endArena(nation);
+                        MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
+                    } else {
+                        MessageUtils.send(player, "<red>You do not belong to a nation.");
+                    }
+                }
                 break;
             case ACTION_ARENA_LEAVE:
                 player.closeInventory();

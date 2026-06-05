@@ -27,6 +27,7 @@ import id.nationcore.managers.CaliphateManager;
 import id.nationcore.managers.DataManager;
 import id.nationcore.managers.ElectionManager;
 import id.nationcore.managers.ExecutiveOrderManager;
+import id.nationcore.managers.FakeMemberManager;
 import id.nationcore.managers.GovernmentManager;
 import id.nationcore.managers.NationManager;
 import id.nationcore.managers.RecallManager;
@@ -58,6 +59,7 @@ public class NationCore extends JavaPlugin {
     private CaliphateManager caliphateManager;
     private id.nationcore.managers.DiplomacyManager diplomacyManager;
     private ResearchManager researchManager;
+    private FakeMemberManager fakeMemberManager;
     private VaultHook vaultHook;
     private GUIListener guiListener;
     private YamlConfiguration languageConfig;
@@ -100,6 +102,7 @@ public class NationCore extends JavaPlugin {
         caliphateManager = new CaliphateManager(this);
         diplomacyManager = new id.nationcore.managers.DiplomacyManager(this);
         researchManager = new ResearchManager(this);
+        fakeMemberManager = new FakeMemberManager(this);
 
         // Load data
         dataManager.loadAll();
@@ -153,7 +156,7 @@ public class NationCore extends JavaPlugin {
                 "                                                  &b|___/ "));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&', ""));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                "  &7===================================================="));
+                "  &7"));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&', "  &ePlugin Info:"));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&', "  &8• &aVersion: &f" + version));
         console.sendMessage(
@@ -161,7 +164,7 @@ public class NationCore extends JavaPlugin {
         console.sendMessage(
                 ChatColor.translateAlternateColorCodes('&', "  &8• &aStatus: &a&lSUCCESSFULLY LOADED \u2714"));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                "  &7===================================================="));
+                "  &7"));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&', "  &3Thank you for using NationCore!"));
         console.sendMessage(ChatColor.translateAlternateColorCodes('&', ""));
     }
@@ -348,6 +351,10 @@ public class NationCore extends JavaPlugin {
 
     public ResearchManager getResearchManager() {
         return researchManager;
+    }
+
+    public FakeMemberManager getFakeMemberManager() {
+        return fakeMemberManager;
     }
 
     public VaultHook getVaultHook() {

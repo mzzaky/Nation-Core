@@ -19,8 +19,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Cari Java jika tidak ada di PATH dan JAVA_HOME kosong
-if (!(Get-Command "java" -ErrorAction SilentlyContinue) -and !($env:JAVA_HOME)) {
+# Cari Java local JDK dulu untuk diprioritaskan
+$localJdkPattern = "$PSScriptRoot\.jdk\jdk-*"
+$foundLocalJava = Get-ChildItem $localJdkPattern -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($foundLocalJava) {
+    $env:JAVA_HOME = $foundLocalJava.FullName
+    $env:PATH = "$($env:JAVA_HOME)\bin;$($env:PATH)"
+    Write-Host "Menggunakan Local JDK: $($env:JAVA_HOME)" -ForegroundColor Green
+} elseif (!(Get-Command "java" -ErrorAction SilentlyContinue) -and !($env:JAVA_HOME)) {
     $possibleJavaPaths = @(
         "C:\Program Files\Java\jdk-*",
         "C:\Program Files\Java\latest",

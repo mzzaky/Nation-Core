@@ -371,7 +371,8 @@ public class ChatListener implements Listener {
 
     private Component getArenaOrFallback(UUID uuid) {
         if (plugin.getArenaManager().isInArena(uuid)) {
-            ArenaSession session = plugin.getArenaManager().getCurrentSession();
+            Nation nation = plugin.getNationManager().getNationOf(uuid);
+            ArenaSession session = nation != null ? nation.getArenaSession() : null;
             int kills = 0;
             if (session != null) {
                 ArenaSession.ArenaStats stats = session.getPlayerStats().get(uuid);

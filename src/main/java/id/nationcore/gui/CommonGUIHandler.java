@@ -533,15 +533,18 @@ public class CommonGUIHandler {
         }
 
         if (slot == 43) {
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
             if (clicked.getType() == Material.BEACON) {
-                if (!plugin.getArenaManager().startArena(player.getUniqueId())) {
+                if (nation == null || !plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
                     MessageUtils.send(player, "<red>Cannot start arena! Check requirements.");
                 } else {
                     gui.arenaGUI.openArenaMenu(player);
                 }
             } else if (clicked.getType() == Material.TNT) {
-                plugin.getArenaManager().endArena();
-                MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
+                if (nation != null) {
+                    plugin.getArenaManager().endArena(nation);
+                    MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
+                }
                 gui.arenaGUI.openArenaMenu(player);
             }
         }

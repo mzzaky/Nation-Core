@@ -46,3 +46,42 @@ Transitioned legacy systems to per-nation mechanics, performed a massive command
   → Corrected leaveNation(player, nation) call to leaveNation(player) to align with signature.
   → Resolved claimCapital signature mismatch from claimCapital(nation, player) to claimCapital(player, player.getLocation()).
   → Resolved undefined toLocation() call on CapitalLocation by converting it to Bukkit-native location via plugin.getTerritoryManager().toBukkitLocation(nation.getCapital()).
+
+[PER-NATION ARENA GAMES REFACTOR & COMMAND REVISIONS]
+- Nation.java:
+  → Added the `arenaSession` field with its getter and setter to persist arena sessions per-nation.
+- ArenaManager.java:
+  → Refactored isArenaActive, canStartArena, startArena, endArena, joinArena, handleKill, distributeDailyRewards, and startArenaTask to be fully nation-aware instead of using a single global session.
+- ArenaListener.java:
+  → Restricted PvP damage in the arena to players belonging to the same nation.
+  → Updated player death events and killstreak milestone notifications to be routed and broadcasted only within the victim's nation.
+- RepublicArenaGUI.java:
+  → Refactored the UI elements to retrieve active session, player stats, and leaderboards from the player's specific nation instead of the global session.
+- GUIListener.java & CommonGUIHandler.java:
+  → Adapted ACTION_ARENA_START and ACTION_ARENA_END to obtain the player's nation context and invoke the revised per-nation arena methods.
+- PlayerListener.java:
+  → Modified the login listener to display active arena notifications only if the joining player's nation has an active arena session.
+- ChatListener.java:
+  → Updated the getArenaOrFallback method to look up and resolve the player's nation-specific ArenaSession.
+- NationCommand.java:
+  → Purged legacy commands `/nationcore tax` and `/nationcore recall` (along with subcommands).
+  → Purged legacy admin commands `/nationcore admin startelection`, `/nationcore admin skipelection`, `/nationcore admin endelection`, `/nationcore admin endarena`, and `/nationcore admin stoporder`.
+  → Updated `/nationcore admin addtreasury` to require `<nation_id> <value>` with tab-completion support for existing nation IDs.
+- build.ps1:
+  → Prioritized local portable JDK detection by checking the local `.jdk` directory first and appending it to the Environment PATH.
+
+[FAKE MEMBER (NPC) SIMULATION SYSTEM]
+- FakeMember.java & FakeMemberManager.java:
+  → Implemented fake members (NPCs) with deterministic UUIDs (`npc:<name>`), simulated tax balances, and tax debt tracking.
+  → Implemented admin commands to invite, kick, list, and set role (Citizen or Officer) for NPCs.
+  → Integrated NPC tax collections into TaxManager (auto-deducted from simulated balances into the nation treasury).
+  → Added simulated benefits/stipends distribution support for NPC officers.
+- Nation.java, NationManager.java, NationCore.java:
+  → Added mapping and lifecycle management for fake members.
+  → Extended member lookup and counts to seamlessly include NPC counts.
+- NationCommand.java & FakeMemberManager.java:
+  → Localized all NPC system messages, logs, error/success feedback, and lists to English.
+- RepublicMemberManagementGUI.java & RepublicGUIHandler.java:
+  → Fully integrated NPCs into the Republic Member Management GUI.
+  → Displayed NPCs with specialized head lore showing "Status: Fake Member (NPC)", simulated tax balance, and outstanding debt.
+  → Enabled GUI-based Kick and Promote/Demote actions for NPC members.

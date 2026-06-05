@@ -59,17 +59,11 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "treasury":
                 handleTreasury(sender, args);
                 break;
-            case "recall":
-                handleRecall(sender, args);
-                break;
             case "stats":
                 showPlayerStats(sender, args);
                 break;
             case "admin":
                 handleAdmin(sender, args);
-                break;
-            case "tax":
-                handleTax(sender, args);
                 break;
             case "hub":
                 handleHub(sender);
@@ -429,106 +423,6 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "treasury.donate_usage");
     }
 
-    // === RECALL ===
-
-    private void handleRecall(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            MessageUtils.send(sender, "general.player_only");
-            return;
-        }
-
-        if (args.length < 2) {
-            showRecallHelp(player);
-            return;
-        }
-
-        String subCmd = args[1].toLowerCase();
-        Nation contextNation = plugin.getNationManager().getNationOf(player.getUniqueId());
-
-        if (contextNation != null && contextNation.getType() == GovernmentType.COMMUNIST) {
-            MessageUtils.send(player, "<red>Recall/impeachment system is not available in Communist governments.</red>");
-            return;
-        }
-
-        if (contextNation == null && (subCmd.equals("start") || subCmd.equals("sign") || subCmd.equals("vote"))) {
-            MessageUtils.send(player, "<red>Hanya anggota nation yang terdaftar yang dapat berpartisipasi.</red>");
-            return;
-        }
-
-        switch (subCmd) {
-            case "start":
-                if (contextNation != null) {
-                    plugin.getRecallManager().startPetition(contextNation, player.getUniqueId(),
-                            "General dissatisfaction");
-                } else {
-                    plugin.getRecallManager().startPetition(player.getUniqueId(), "General dissatisfaction");
-                }
-                break;
-            case "sign":
-                if (contextNation != null) {
-                    plugin.getRecallManager().signPetition(contextNation, player.getUniqueId());
-                } else {
-                    plugin.getRecallManager().signPetition(player.getUniqueId());
-                }
-                break;
-            case "vote":
-                if (args.length < 3) {
-                    MessageUtils.send(player, "recall.vote_usage");
-                    return;
-                }
-                boolean voteYes = args[2].equalsIgnoreCase("yes") || args[2].equalsIgnoreCase("remove");
-                if (contextNation != null) {
-                    plugin.getRecallManager().castRecallVote(contextNation, player.getUniqueId(), voteYes);
-                } else {
-                    plugin.getRecallManager().castRecallVote(player.getUniqueId(), voteYes);
-                }
-                break;
-            case "status":
-                showRecallStatus(player);
-                break;
-            default:
-                showRecallHelp(player);
-                break;
-        }
-    }
-
-    private void showRecallHelp(Player player) {
-        MessageUtils.send(player, "recall.help_header");
-        MessageUtils.send(player, "recall.help_start");
-        MessageUtils.send(player, "recall.help_sign");
-        MessageUtils.send(player, "recall.help_vote");
-        MessageUtils.send(player, "recall.help_status");
-    }
-
-    private void showRecallStatus(Player player) {
-        Nation contextNation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        RecallPetition petition = contextNation != null
-                ? contextNation.getRecallPetition()
-                : plugin.getDataManager().getRecallPetition();
-
-        if (petition == null || petition.getPhase() == RecallPetition.RecallPhase.COMPLETED
-                || petition.getPhase() == RecallPetition.RecallPhase.FAILED) {
-            MessageUtils.send(player, "recall.no_active_petition");
-            return;
-        }
-
-        MessageUtils.send(player, "recall.status_header");
-        if (contextNation != null) {
-            MessageUtils.send(player, "<gray>Nation: <gold>" + contextNation.getName() + "</gold>");
-        }
-        MessageUtils.send(player, "recall.status_phase", "phase", petition.getPhase().name());
-        int requiredSignatures = contextNation != null
-                ? plugin.getRecallManager().getRequiredSignatures(contextNation)
-                : (int) Math.ceil(plugin.getServer().getOnlinePlayers().size() * 0.3);
-        MessageUtils.send(player, "recall.status_signatures", "current", petition.getSignatureCount(), "required",
-                requiredSignatures);
-
-        if (petition.getPhase() == RecallPetition.RecallPhase.VOTING) {
-            MessageUtils.send(player, "recall.status_remove_votes", "votes", petition.getRemoveVotes());
-            MessageUtils.send(player, "recall.status_keep_votes", "votes", petition.getKeepVotes());
-        }
-    }
-
     // === STATS ===
 
     private void showPlayerStats(CommandSender sender, String[] args) {
@@ -606,22 +500,6 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "confirm":
                 handleAdminConfirm(sender);
                 break;
-            case "startelection":
-            case "startElection":
-                handleAdminStartElection(sender);
-                break;
-            case "endelection":
-            case "endElection":
-                handleAdminEndElection(sender);
-                break;
-            case "skipelection":
-            case "skipElection":
-                handleAdminSkipElection(sender);
-                break;
-            case "endarena":
-            case "endArena":
-                handleAdminEndArena(sender);
-                break;
             case "addtreasury":
                 handleAdminAddTreasury(sender, args);
                 break;
@@ -631,30 +509,29 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "reset":
                 handleAdminReset(sender, args);
                 break;
-            case "stoporder":
-                handleAdminStopOrder(sender, args);
-                break;
             case "action":
                 handleAdminAction(sender, args);
+                break;
+            case "npc":
+                handleAdminNpc(sender, args);
                 break;
             default:
                 showAdminHelp(sender);
                 break;
         }
     }
-
     private void showAdminHelp(CommandSender sender) {
         MessageUtils.send(sender, "admin.help_header");
         MessageUtils.send(sender, "admin.help_setpresident");
         MessageUtils.send(sender, "admin.help_removepresident");
-        MessageUtils.send(sender, "admin.help_startelection");
-        MessageUtils.send(sender, "admin.help_endelection");
-        MessageUtils.send(sender, "<gold>/dc admin skipelection <gray>- Force skip to the next election phase");
-        MessageUtils.send(sender, "<gold>/dc admin endarena <gray>- Force end active arena games");
         MessageUtils.send(sender, "admin.help_addtreasury");
         MessageUtils.send(sender, "admin.help_reload");
         MessageUtils.send(sender, "admin.help_reset");
         MessageUtils.send(sender, "<gold>/dc admin action <action_id> <player> <gray>- Execute a GUI action on a player");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc invite <nation_id> <name> <gray>- Invite a fake member to the nation");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc kick <nation_id> <name>   <gray>- Kick a fake member from the nation");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc role <nation_id> <name> <role> <gray>- Change a fake member's role");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc list <nation_id>           <gray>- View list of fake members");
     }
 
     private void handleAdminAction(CommandSender sender, String[] args) {
@@ -693,6 +570,116 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                     + target.getName() + "<green>'.");
         } catch (Exception e) {
             MessageUtils.send(sender, "<red>Failed to execute action: " + e.getMessage());
+        }
+    }
+
+    // === ADMIN NPC ===
+
+    private void handleAdminNpc(CommandSender sender, String[] args) {
+        // /nationcore admin npc <sub> <nation_id> [name] [role]
+        if (args.length < 3) {
+            sendNpcHelp(sender);
+            return;
+        }
+
+        String sub = args[2].toLowerCase();
+
+        switch (sub) {
+            case "invite" -> handleAdminNpcInvite(sender, args);
+            case "kick"   -> handleAdminNpcKick(sender, args);
+            case "role"   -> handleAdminNpcRole(sender, args);
+            case "list"   -> handleAdminNpcList(sender, args);
+            default       -> sendNpcHelp(sender);
+        }
+    }
+
+    private void sendNpcHelp(CommandSender sender) {
+        MessageUtils.send(sender, "<gold>═══ ADMIN NPC COMMANDS ═══");
+        MessageUtils.send(sender, "<white>/nationcore admin npc invite <nation_id> <name>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc kick   <nation_id> <name>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc role   <nation_id> <name> <CITIZEN|OFFICER>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc list   <nation_id>");
+    }
+
+    private void handleAdminNpcInvite(CommandSender sender, String[] args) {
+        // /nationcore admin npc invite <nation_id> <name>
+        if (args.length < 5) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc invite <nation_id> <name>");
+            return;
+        }
+        String nationId = args[3];
+        String npcName  = args[4];
+
+        var result = plugin.getFakeMemberManager().inviteNpc(nationId, npcName);
+        MessageUtils.send(sender,
+                (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
+    }
+
+    private void handleAdminNpcKick(CommandSender sender, String[] args) {
+        // /nationcore admin npc kick <nation_id> <name>
+        if (args.length < 5) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc kick <nation_id> <name>");
+            return;
+        }
+        String nationId = args[3];
+        String npcName  = args[4];
+
+        var result = plugin.getFakeMemberManager().kickNpc(nationId, npcName);
+        MessageUtils.send(sender,
+                (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
+    }
+
+    private void handleAdminNpcRole(CommandSender sender, String[] args) {
+        // /nationcore admin npc role <nation_id> <name> <CITIZEN|OFFICER>
+        if (args.length < 6) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc role <nation_id> <name> <CITIZEN|OFFICER>");
+            return;
+        }
+        String nationId = args[3];
+        String npcName  = args[4];
+        String roleStr  = args[5].toUpperCase();
+
+        id.nationcore.models.Nation.NationRole role;
+        try {
+            role = id.nationcore.models.Nation.NationRole.valueOf(roleStr);
+        } catch (IllegalArgumentException e) {
+            MessageUtils.send(sender, "<red>Invalid role. Choose: CITIZEN or OFFICER.");
+            return;
+        }
+
+        var result = plugin.getFakeMemberManager().setNpcRole(nationId, npcName, role);
+        MessageUtils.send(sender,
+                (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
+    }
+
+    private void handleAdminNpcList(CommandSender sender, String[] args) {
+        // /nationcore admin npc list <nation_id>
+        if (args.length < 4) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc list <nation_id>");
+            return;
+        }
+        String nationId = args[3];
+        id.nationcore.models.Nation nation = plugin.getNationManager().getNation(nationId);
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation with ID '" + nationId + "' not found.");
+            return;
+        }
+
+        var npcs = plugin.getFakeMemberManager().getAllNpcsInNation(nation);
+        MessageUtils.send(sender, "<gold>═══ Fake Members: " + nation.getName()
+                + " (" + npcs.size() + " NPC) ═══");
+        if (npcs.isEmpty()) {
+            MessageUtils.send(sender, "<gray>No fake members in this nation.");
+            return;
+        }
+        for (id.nationcore.models.FakeMember npc : npcs) {
+            String roleColor = npc.getRole() == id.nationcore.models.Nation.NationRole.OFFICER
+                    ? "<yellow>" : "<white>";
+            MessageUtils.send(sender,
+                    "<gray> • " + roleColor + npc.getName()
+                    + " <gray>[" + npc.getRole().name() + "]  "
+                    + "Balance: <gold>$" + MessageUtils.formatNumber(npc.getTaxBalance())
+                    + " <gray>Debt: <red>$" + MessageUtils.formatNumber(npc.getTaxDebt()));
         }
     }
 
@@ -776,43 +763,28 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void handleAdminStartElection(CommandSender sender) {
-        plugin.getElectionManager().startElection();
-        MessageUtils.send(sender, "admin.startelection_success");
-    }
 
-    private void handleAdminEndElection(CommandSender sender) {
-        plugin.getElectionManager().endElection();
-        MessageUtils.send(sender, "admin.endelection_success");
-    }
-
-    private void handleAdminSkipElection(CommandSender sender) {
-        if (!plugin.getElectionManager().isElectionActive()) {
-            MessageUtils.send(sender, "<red>There is no active election to skip.</red>");
-            return;
-        }
-        plugin.getElectionManager().forceNextPhase();
-        MessageUtils.send(sender, "<green>Election skipped to the next phase.</green>");
-    }
-
-    private void handleAdminEndArena(CommandSender sender) {
-        if (!plugin.getArenaManager().isArenaActive()) {
-            MessageUtils.send(sender, "<red>There are no active Arena Games to end.</red>");
-            return;
-        }
-        plugin.getArenaManager().endArena();
-        MessageUtils.send(sender, "<green>Arena games force-ended.</green>");
-    }
 
     private void handleAdminAddTreasury(CommandSender sender, String[] args) {
-        if (args.length < 3) {
+        if (args.length < 4) {
             MessageUtils.send(sender, "admin.addtreasury_usage");
             return;
         }
 
+        String nationId = args[2];
+        Nation nation = plugin.getNationManager().getNation(nationId);
+        if (nation == null) {
+            nation = plugin.getNationManager().getNationByName(nationId);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation with ID or name '" + nationId + "' not found.</red>");
+            return;
+        }
+
         try {
-            long amount = Long.parseLong(args[2]);
-            plugin.getTreasuryManager().deposit(Treasury.TransactionType.MISC_EXPENSE, amount,
+            long amount = Long.parseLong(args[3]);
+            plugin.getTreasuryManager().deposit(nation, Treasury.TransactionType.MISC_EXPENSE, amount,
                     "Admin deposit by " + sender.getName(), null);
             MessageUtils.send(sender, "admin.addtreasury_success", "amount", MessageUtils.formatNumber(amount));
         } catch (NumberFormatException e) {
@@ -860,189 +832,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void handleAdminStopOrder(CommandSender sender, String[] args) {
-        if (args.length < 4) {
-            MessageUtils.send(sender, "<yellow>Usage: /nc admin stoporder <nation> <type>");
-            return;
-        }
 
-        String nationName = args[2];
-        Nation nation = plugin.getNationManager().getNationByName(nationName);
-        if (nation == null) {
-            MessageUtils.send(sender, "<red>Nation '" + nationName + "' not found.</red>");
-            return;
-        }
-
-        String orderName = args[3].toUpperCase();
-        try {
-            id.nationcore.models.ExecutiveOrder.ExecutiveOrderType type = id.nationcore.models.ExecutiveOrder.ExecutiveOrderType.valueOf(orderName);
-            boolean stopped = plugin.getExecutiveOrderManager().stopOrder(nation, type);
-            if (stopped) {
-                MessageUtils.send(sender, "admin.stoporder_success", "order", type.getDisplayName());
-                MessageUtils.sendToNation(nation, "<yellow>Executive order <gold>" + type.getDisplayName() + "</gold> was stopped by an administrator.</yellow>");
-            } else {
-                MessageUtils.send(sender, "admin.stoporder_not_active");
-            }
-        } catch (IllegalArgumentException e) {
-            MessageUtils.send(sender, "admin.stoporder_invalid");
-        }
-    }
-
-    // === TAX ===
-
-    private void handleTax(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            MessageUtils.send(sender, "general.player_only");
-            return;
-        }
-
-        if (args.length < 2) {
-            plugin.getGUIListener().openTaxGUI(player);
-            return;
-        }
-
-        String subCommand = args[1].toLowerCase();
-
-        switch (subCommand) {
-            case "info":
-            case "status":
-                showTaxInfo(player);
-                break;
-            case "pay":
-                plugin.getTaxManager().payDebt(player);
-                break;
-            case "gui":
-                plugin.getGUIListener().openTaxGUI(player);
-                break;
-            case "admin":
-                if (!player.hasPermission("nation.admin")) {
-                    MessageUtils.send(player, "general.no_permission");
-                    return;
-                }
-                handleTaxAdmin(player, args);
-                break;
-            default:
-                MessageUtils.send(player,
-                        "<red>Unknown tax command. Use <yellow>/dc tax</yellow> to open the tax menu.");
-                break;
-        }
-    }
-
-    private void showTaxInfo(Player player) {
-        var taxManager = plugin.getTaxManager();
-        var record = taxManager.getTaxRecord();
-        String uuidStr = player.getUniqueId().toString();
-        var taxData = record.getPlayerTaxData(uuidStr);
-
-        MessageUtils.send(player, "tax.header");
-        MessageUtils.send(player, "tax.title");
-        MessageUtils.send(player, "tax.footer");
-
-        if (taxManager.isEnabled()) {
-            MessageUtils.send(player, "tax.status_enabled");
-        } else {
-            MessageUtils.send(player, "tax.status_disabled");
-        }
-
-        MessageUtils.send(player, "<gray>Tax Amount: <gold>$" + MessageUtils.formatNumber(taxManager.getTaxAmount()));
-        MessageUtils.send(player, "<gray>Collection Interval: <white>24 Minecraft Hours (20 mins)");
-
-        long remaining = taxManager.getTimeUntilNextCollection();
-        if (remaining > 0) {
-            MessageUtils.send(player, "<gray>Next Collection: <white>" + MessageUtils.formatTime(remaining));
-        } else {
-            MessageUtils.send(player, "<gray>Next Collection: <yellow>Pending...");
-        }
-
-        MessageUtils.send(player,
-                "<gray>Total Collected: <green>$" + MessageUtils.formatNumber(record.getTotalTaxCollected()));
-        MessageUtils.send(player, "<gray>Collection Cycles: <white>" + record.getTotalCollectionCycles());
-
-        if (taxData != null && taxData.getOutstandingDebt() > 0) {
-            MessageUtils.send(player,
-                    "<red>Your Debt: <gold>$" + MessageUtils.formatNumber(taxData.getOutstandingDebt()));
-            MessageUtils.send(player, "<gray>Use <white>/dc tax pay <gray>to pay your debt.");
-        } else {
-            MessageUtils.send(player, "<green>Your Debt: $0 (Good standing!)");
-        }
-
-        MessageUtils.send(player, "tax.footer");
-    }
-
-    private void handleTaxAdmin(Player player, String[] args) {
-        if (args.length < 3) {
-            MessageUtils.send(player, "<gold>═══ TAX ADMIN COMMANDS ═══");
-            MessageUtils.send(player, "<white>/dc tax admin collect <gray>- Force tax collection");
-            MessageUtils.send(player, "<white>/dc tax admin enable/disable <gray>- Toggle tax system");
-            MessageUtils.send(player, "<white>/dc tax admin exempt <player> <gray>- Exempt player");
-            MessageUtils.send(player, "<white>/dc tax admin unexempt <player> <gray>- Remove exemption");
-            MessageUtils.send(player, "<white>/dc tax admin forgive <player> <gray>- Forgive player's debt");
-            MessageUtils.send(player, "<white>/dc tax admin setamount <amount> <gray>- Set tax amount");
-            return;
-        }
-
-        String adminSub = args[2].toLowerCase();
-
-        switch (adminSub) {
-            case "collect":
-                plugin.getTaxManager().collectTaxes();
-                MessageUtils.send(player, "tax.admin_collect");
-                break;
-            case "enable":
-                plugin.getTaxManager().getTaxRecord().setEnabled(true);
-                MessageUtils.send(player, "tax.admin_enable");
-                break;
-            case "disable":
-                plugin.getTaxManager().getTaxRecord().setEnabled(false);
-                MessageUtils.send(player, "tax.admin_disable");
-                break;
-            case "exempt":
-                if (args.length < 4) {
-                    MessageUtils.send(player, "<red>Usage: /dc tax admin exempt <player>");
-                    return;
-                }
-                Player targetExempt = Bukkit.getPlayer(args[3]);
-                if (targetExempt == null) {
-                    MessageUtils.send(player, "general.player_not_found");
-                    return;
-                }
-                plugin.getTaxManager().setExempt(targetExempt.getUniqueId(), targetExempt.getName(), true);
-                MessageUtils.send(player, "<green>" + targetExempt.getName() + " is now tax exempt.");
-                break;
-            case "unexempt":
-                if (args.length < 4) {
-                    MessageUtils.send(player, "<red>Usage: /dc tax admin unexempt <player>");
-                    return;
-                }
-                Player targetUnexempt = Bukkit.getPlayer(args[3]);
-                if (targetUnexempt == null) {
-                    MessageUtils.send(player, "general.player_not_found");
-                    return;
-                }
-                plugin.getTaxManager().setExempt(targetUnexempt.getUniqueId(), targetUnexempt.getName(), false);
-                MessageUtils.send(player, "<green>" + targetUnexempt.getName() + " is no longer tax exempt.");
-                break;
-            case "forgive":
-                if (args.length < 4) {
-                    MessageUtils.send(player, "<red>Usage: /dc tax admin forgive <player>");
-                    return;
-                }
-                Player targetForgive = Bukkit.getPlayer(args[3]);
-                if (targetForgive == null) {
-                    MessageUtils.send(player, "general.player_not_found");
-                    return;
-                }
-                plugin.getTaxManager().forgiveDebt(targetForgive.getUniqueId(), targetForgive.getName());
-                MessageUtils.send(player, "<green>Forgave " + targetForgive.getName() + "'s tax debt.");
-                break;
-            case "setamount":
-                MessageUtils.send(player, "<red>Tax amount is currently hardcoded to $50.00 and cannot be changed dynamically.");
-                break;
-            default:
-                MessageUtils.send(player, "<red>Unknown tax admin command.");
-                break;
-        }
-    }
 
     private void handleDiplomacy(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -1123,7 +913,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             completions.addAll(Arrays.asList(
-                    "menu", "help", "info", "treasury", "recall", "stats", "tax", "hub", "create", 
+                    "menu", "help", "info", "treasury", "stats", "hub", "create", 
                     "nation", "leave", "disband", "confirm", "capital", "diplomacy"));
             if (sender.hasPermission("nation.admin")) {
                 completions.add("admin");
@@ -1140,18 +930,11 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                 case "admin":
                     if (sender.hasPermission("nation.admin")) {
                         completions.addAll(Arrays.asList(
-                                "set", "remove", "startelection", "skipelection", "endarena",
-                                "endelection", "addtreasury", "reload", "reset", "stoporder", "confirm", "action"));
+                                "set", "remove", "addtreasury", "reload", "reset", "confirm", "action", "npc"));
                     }
                     break;
                 case "treasury":
                     completions.add("donate");
-                    break;
-                case "tax":
-                    completions.addAll(Arrays.asList("info", "pay", "gui"));
-                    if (sender.hasPermission("nation.admin")) {
-                        completions.add("admin");
-                    }
                     break;
                 case "create":
                     completions.addAll(Arrays.asList("republic", "communist"));
@@ -1164,22 +947,12 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                 case "capital":
                     completions.addAll(Arrays.asList("info", "claim", "tp", "spawn"));
                     break;
-                case "recall":
-                    completions.addAll(Arrays.asList("start", "sign", "vote", "status"));
-                    break;
             }
         } else if (args.length == 3) {
             String sub = args[0].toLowerCase();
             String sub2 = args[1].toLowerCase();
 
-            if (sub.equals("tax") && sub2.equals("admin")) {
-                if (sender.hasPermission("nation.admin")) {
-                    completions.addAll(Arrays.asList("collect", "enable", "disable",
-                            "exempt", "unexempt", "forgive", "setamount"));
-                }
-            } else if (sub.equals("recall") && sub2.equals("vote")) {
-                completions.addAll(Arrays.asList("yes", "no", "remove", "keep"));
-            } else if (sub.equals("admin")) {
+            if (sub.equals("admin")) {
                 if (sub2.equals("set") || sub2.equals("remove")) {
                     completions.add("president");
                 } else if (sub2.equals("reset")) {
@@ -1190,19 +963,19 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                             completions.add(action.getConfigKey());
                         }
                     }
+                } else if (sub2.equals("addtreasury")) {
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getId() != null) completions.add(n.getId());
+                    }
+                } else if (sub2.equals("npc")) {
+                    completions.addAll(Arrays.asList("invite", "kick", "role", "list"));
                 }
             }
         } else if (args.length == 4) {
             String sub = args[0].toLowerCase();
             String sub2 = args[1].toLowerCase();
 
-            if (sub.equals("tax") && sub2.equals("admin") &&
-                    (args[2].equalsIgnoreCase("exempt") || args[2].equalsIgnoreCase("unexempt")
-                            || args[2].equalsIgnoreCase("forgive"))) {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    completions.add(p.getName());
-                }
-            } else if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("president")) {
+            if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("president")) {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     completions.add(p.getName());
                 }
@@ -1212,6 +985,35 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                         completions.add(p.getName());
                     }
                 }
+            } else if (sub.equals("admin") && sub2.equals("npc") && sender.hasPermission("nation.admin")) {
+                // args[3] = nation_id
+                for (Nation n : plugin.getNationManager().getAllNations()) {
+                    if (n.getId() != null) completions.add(n.getId());
+                }
+            }
+        } else if (args.length == 5) {
+            String sub  = args[0].toLowerCase();
+            String sub2 = args[1].toLowerCase();
+            String sub3 = args[2].toLowerCase();
+
+            if (sub.equals("admin") && sub2.equals("npc") && sender.hasPermission("nation.admin")) {
+                // args[4] = npc name  (kick / role / list need the name)
+                String nationId = args[3];
+                Nation targetNation = plugin.getNationManager().getNation(nationId);
+                if (targetNation != null) {
+                    for (id.nationcore.models.FakeMember npc : targetNation.getAllFakeMembers()) {
+                        completions.add(npc.getName());
+                    }
+                }
+            }
+        } else if (args.length == 6) {
+            String sub  = args[0].toLowerCase();
+            String sub2 = args[1].toLowerCase();
+            String sub3 = args[2].toLowerCase();
+
+            if (sub.equals("admin") && sub2.equals("npc") && sub3.equals("role")
+                    && sender.hasPermission("nation.admin")) {
+                completions.addAll(Arrays.asList("CITIZEN", "OFFICER"));
             }
         }
 

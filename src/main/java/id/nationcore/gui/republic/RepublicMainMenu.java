@@ -27,7 +27,7 @@ import id.nationcore.models.RecallPetition;
  */
 public class RepublicMainMenu extends NationMenuBase {
 
-    public static final String TITLE = "§9§l⚖ §b§lRepublic Council";
+    public static final String TITLE = "§8§lRepublic Council";
 
     // Layout slots
     private static final int SLOT_NATION = 4;

@@ -20,6 +20,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 import id.nationcore.NationCore;
 import id.nationcore.models.ArenaSession;
 import id.nationcore.models.Government;
+import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
 
 /**
@@ -80,28 +81,29 @@ public class RepublicArenaGUI {
     public void openArenaMenu(Player player) {
         Inventory inv = Bukkit.createInventory(null, INVENTORY_SIZE, ARENA_MENU_TITLE);
 
-        boolean isActive = plugin.getArenaManager().isArenaActive();
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        boolean isActive = plugin.getArenaManager().isArenaActive(nation);
         boolean isInArena = plugin.getArenaManager().isInArena(player.getUniqueId());
-        boolean isPresident = isPresidentOf(player);
+        boolean isPresident = isPresidentOf(player, nation);
 
-        ArenaSession session = plugin.getArenaManager().getCurrentSession();
+        ArenaSession session = nation != null ? nation.getArenaSession() : null;
 
         // ── Row 0: Header ─────────────────────────────────────────────────
         inv.setItem(4, buildSessionStatusItem(isActive, session));
 
         // ── Row 1: Main info panels ────────────────────────────────────────
-        inv.setItem(10, buildSessionInfoItem(isActive, session));
+        inv.setItem(10, buildSessionInfoItem(isActive, session, nation));
         inv.setItem(12, buildEconomyInfoItem());
         inv.setItem(14, buildKillstreakInfoItem());
         inv.setItem(16, buildRewardsInfoItem());
 
         // ── Row 2: Player stats + leaderboard + kit ────────────────────────
-        inv.setItem(19, buildMyStatsItem(player, session));
-        inv.setItem(22, buildLeaderboardShortItem(session));
+        inv.setItem(19, buildMyStatsItem(player, session, nation));
+        inv.setItem(22, buildLeaderboardShortItem(session, nation));
         inv.setItem(25, buildKitInfoItem());
 
         // ── Row 3: Action buttons ──────────────────────────────────────────
-        buildActionButtons(inv, player, isActive, isInArena, isPresident, session);
+        buildActionButtons(inv, player, isActive, isInArena, isPresident, session, nation);
 
         // ── Row 4: Navigation ─────────────────────────────────────────────
         inv.setItem(45, createItem(Material.ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
@@ -117,7 +119,8 @@ public class RepublicArenaGUI {
      */
     public void openLeaderboard(Player player) {
         Inventory inv = Bukkit.createInventory(null, INVENTORY_SIZE, ARENA_LEADERBOARD_TITLE);
-        ArenaSession session = plugin.getArenaManager().getCurrentSession();
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        ArenaSession session = nation != null ? nation.getArenaSession() : null;
 
         // Header
         boolean isActive = session != null && !session.isExpired();
@@ -143,7 +146,7 @@ public class RepublicArenaGUI {
                     "§7or no one has participated yet.",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
         } else {
-            List<Map.Entry<UUID, ArenaSession.ArenaStats>> top = plugin.getArenaManager().getLeaderboard(10);
+            List<Map.Entry<UUID, ArenaSession.ArenaStats>> top = plugin.getArenaManager().getLeaderboard(nation, 10);
 
             for (int i = 0; i < top.size() && i < lbSlots.length; i++) {
                 Map.Entry<UUID, ArenaSession.ArenaStats> entry = top.get(i);
@@ -258,13 +261,13 @@ public class RepublicArenaGUI {
                 "§aSession is live! Join now!");
     }
 
-    private ItemStack buildSessionInfoItem(boolean isActive, ArenaSession session) {
+    private ItemStack buildSessionInfoItem(boolean isActive, ArenaSession session, Nation nation) {
         if (!isActive) {
             int maxGames = plugin.getConfig().getInt("arena.max-games-per-term", 2);
-            int gamesUsed = plugin.getDataManager().getGamesThisTerm();
+            int gamesUsed = nation != null ? nation.getGamesThisTerm() : 0;
             int startCost = plugin.getConfig().getInt("arena.start-cost", 100000);
             int duration = (int) plugin.getConfig().getLong("arena.duration-days", 7);
-            boolean canStart = plugin.getArenaManager().canStartArena();
+            boolean canStart = plugin.getArenaManager().canStartArena(nation);
 
             return createItem(Material.CAMPFIRE,
                     "§e§l📋 Session Information",
@@ -345,7 +348,7 @@ public class RepublicArenaGUI {
     // Item Builders — Player Stats
     // ─────────────────────────────────────────────────────────────────────────
 
-    private ItemStack buildMyStatsItem(Player player, ArenaSession session) {
+    private ItemStack buildMyStatsItem(Player player, ArenaSession session, Nation nation) {
         int kills = 0;
         int deaths = 0;
         int bestStreak = 0;
@@ -368,7 +371,7 @@ public class RepublicArenaGUI {
         String rankStr = "§7—";
         if (session != null && kills > 0) {
             List<Map.Entry<UUID, ArenaSession.ArenaStats>> lb = plugin.getArenaManager()
-                    .getLeaderboard(session.getPlayerStats().size());
+                    .getLeaderboard(nation, session.getPlayerStats().size());
             for (int i = 0; i < lb.size(); i++) {
                 if (lb.get(i).getKey().equals(player.getUniqueId())) {
                     rankStr = "§f#" + (i + 1);
@@ -402,14 +405,14 @@ public class RepublicArenaGUI {
         return head;
     }
 
-    private ItemStack buildLeaderboardShortItem(ArenaSession session) {
+    private ItemStack buildLeaderboardShortItem(ArenaSession session, Nation nation) {
         List<String> lore = new ArrayList<>();
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
         if (session == null || session.getPlayerStats().isEmpty()) {
             lore.add("§7No participants yet.");
         } else {
-            List<Map.Entry<UUID, ArenaSession.ArenaStats>> top = plugin.getArenaManager().getLeaderboard(5);
+            List<Map.Entry<UUID, ArenaSession.ArenaStats>> top = plugin.getArenaManager().getLeaderboard(nation, 5);
             String[] medals = { "🥇", "🥈", "🥉", "#4", "#5" };
             for (int i = 0; i < top.size(); i++) {
                 ArenaSession.ArenaStats s = top.get(i).getValue();
@@ -444,7 +447,7 @@ public class RepublicArenaGUI {
 
     private void buildActionButtons(Inventory inv, Player player,
             boolean isActive, boolean isInArena,
-            boolean isPresident, ArenaSession session) {
+            boolean isPresident, ArenaSession session, Nation nation) {
 
         // JOIN button (slot 37)
         if (isActive && !isInArena) {
@@ -484,11 +487,11 @@ public class RepublicArenaGUI {
                 "§aClick to open."));
 
         // PRESIDENT-ONLY CONTROLS (slot 43)
-        if (isPresident) {
+        if (isPresident && nation != null) {
             if (!isActive) {
-                boolean canStart = plugin.getArenaManager().canStartArena();
+                boolean canStart = plugin.getArenaManager().canStartArena(nation);
                 int startCost = plugin.getConfig().getInt("arena.start-cost", 100000);
-                double treasury = plugin.getDataManager().getTreasury().getBalance();
+                double treasury = nation.getTreasury().getBalance();
 
                 if (canStart) {
                     inv.setItem(43, createItem(Material.BEACON,
@@ -501,7 +504,7 @@ public class RepublicArenaGUI {
                             "§eClick to launch the arena."));
                 } else {
                     int maxGames = plugin.getConfig().getInt("arena.max-games-per-term", 2);
-                    int gamesUsed = plugin.getDataManager().getGamesThisTerm();
+                    int gamesUsed = nation.getGamesThisTerm();
                     inv.setItem(43, createItem(Material.BARRIER,
                             "§c§l✗ CANNOT START ARENA §8[PRESIDENT]",
                             "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
@@ -603,11 +606,16 @@ public class RepublicArenaGUI {
     // Utilities
     // ─────────────────────────────────────────────────────────────────────────
 
-    private boolean isPresidentOf(Player player) {
-        Government gov = plugin.getDataManager().getGovernment();
+    private boolean isPresidentOf(Player player, Nation nation) {
+        if (nation == null) return false;
+        Government gov = nation.getRepublicGovernment();
         return gov != null && gov.hasPresident()
                 && gov.getPresidentUUID().equals(player.getUniqueId());
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utilities
+    // ─────────────────────────────────────────────────────────────────────────
 
     private String formatDuration(long millis) {
         if (millis <= 0)

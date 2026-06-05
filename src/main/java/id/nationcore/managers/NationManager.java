@@ -160,6 +160,19 @@ public class NationManager {
     }
 
     /**
+     * Mencari nation tempat sebuah NPC (fake member) terdaftar.
+     * Menggunakan data langsung di fakeMembers map pada setiap nation.
+     *
+     * @return Nation yang memiliki NPC ini, atau null jika tidak ditemukan
+     */
+    public Nation getNationOfNpc(UUID npcUUID) {
+        for (Nation nation : nations.values()) {
+            if (nation.isFakeMember(npcUUID)) return nation;
+        }
+        return null;
+    }
+
+    /**
      * @return The player's nation treasury if it exists, or the global legacy treasury
      *         (old data before the multi-nation system) as a fallback.
      */
