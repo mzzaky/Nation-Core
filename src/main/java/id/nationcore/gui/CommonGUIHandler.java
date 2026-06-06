@@ -194,30 +194,59 @@ public class CommonGUIHandler {
      *
      * @param isCommunist true if this is the Communist treasury menu.
      */
-    public void handleTreasuryGUI(Player player, ItemStack clicked, boolean isCommunist) {
-        if (clicked.getType() == Material.ARROW) {
+    public void handleTreasuryGUI(Player player, ItemStack clicked, int slot, boolean isCommunist) {
+        // Ignore filler clicks
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE) {
+            return;
+        }
+
+        // Slot 43: Back → main menu
+        if (slot == 43 && clicked.getType() == Material.SPECTRAL_ARROW) {
             gui.mainMenuRouter.openFor(player);
             return;
         }
 
-        if (clicked.getType() == Material.HOPPER) {
+        // Slot 23: Donate → chat input
+        if (slot == 23 && clicked.getType() == Material.WRITABLE_BOOK) {
             player.closeInventory();
-            MessageUtils.send(player, "<yellow>Use: <white>/nc treasury donate <amount>");
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation == null) {
+                MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
+                return;
+            }
+            id.nationcore.listeners.ChatListener.pendingTreasuryDonations.put(player.getUniqueId(), nation);
+            MessageUtils.send(player, "");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+            MessageUtils.send(player, "<yellow><b>💰 Treasury Donation</b></yellow>");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+            MessageUtils.send(player, "<gray>Current Treasury Balance: <green>$"
+                    + MessageUtils.formatNumber(nation.getTreasury().getBalance()) + "</green></gray>");
+            MessageUtils.send(player, "<gray>Type the amount you wish to donate, or</gray>");
+            MessageUtils.send(player, "<gray>type <white>cancel</white> to abort.</gray>");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
             return;
         }
 
-        if (clicked.getType() == Material.BOOK) {
+        // Slot 32: Transaction Logs
+        if (slot == 32 && clicked.getType() == Material.KNOWLEDGE_BOOK) {
             if (isCommunist) {
                 gui.communistTreasuryMenu.openTransactions(player,
                         plugin.getNationManager().getNationOf(player.getUniqueId()));
             } else {
                 gui.republicTreasuryMenu.openTransactions(player);
             }
+            return;
         }
     }
 
+    public void handleTreasuryGUI(Player player, ItemStack clicked, boolean isCommunist) {
+        // Legacy overload without slot — route to slot-aware version with slot=-1
+        handleTreasuryGUI(player, clicked, -1, isCommunist);
+    }
+
     public void handleTreasuryTransactionsGUI(Player player, ItemStack clicked, boolean isCommunist) {
-        if (clicked.getType() == Material.ARROW) {
+        // Slot 49: Back arrow from transaction logs
+        if (clicked.getType() == Material.SPECTRAL_ARROW) {
             if (isCommunist) {
                 gui.communistTreasuryMenu.open(player, plugin.getNationManager().getNationOf(player.getUniqueId()));
             } else {
@@ -443,35 +472,46 @@ public class CommonGUIHandler {
     }
 
     public void handleTaxMenuGUI(Player player, ItemStack clicked, int slot) {
-        if (clicked.getType() == Material.BARRIER) {
+        // Ignore filler clicks
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE) {
+            return;
+        }
+
+        // Slot 43: Back → open main nation menu
+        if (slot == 43 && clicked.getType() == Material.SPECTRAL_ARROW) {
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation != null) {
+                gui.mainMenuRouter.openFor(player);
+            } else {
+                player.closeInventory();
+            }
+            return;
+        }
+
+        // Slot 23: Donate → close inventory and prompt chat input
+        if (slot == 23 && clicked.getType() == Material.WRITABLE_BOOK) {
             player.closeInventory();
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation == null) {
+                MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
+                return;
+            }
+            id.nationcore.listeners.ChatListener.pendingTreasuryDonations.put(player.getUniqueId(), nation);
+            MessageUtils.send(player, "");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+            MessageUtils.send(player, "<yellow><b>💰 Treasury Donation</b></yellow>");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+            MessageUtils.send(player, "<gray>Current Treasury Balance: <green>$"
+                    + MessageUtils.formatNumber(nation.getTreasury().getBalance()) + "</green></gray>");
+            MessageUtils.send(player, "<gray>Type the amount you wish to donate, or</gray>");
+            MessageUtils.send(player, "<gray>type <white>cancel</white> to abort.</gray>");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
             return;
         }
 
-        if (clicked.getType() == Material.ARROW) {
-            gui.mainMenuRouter.openFor(player);
-            return;
-        }
-
-        if (clicked.getType() == Material.CLOCK) {
-            gui.taxGUI.openTaxMenu(player);
-            return;
-        }
-
-        if (slot == 30 && clicked.getType() == Material.EMERALD_BLOCK) {
-            player.closeInventory();
-            plugin.getTaxManager().payDebt(player);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> gui.taxGUI.openTaxMenu(player), 10L);
-            return;
-        }
-
-        if (slot == 24 && clicked.getType() == Material.BOOK) {
+        // Slot 32: Transaction Logs → open treasury transaction history
+        if (slot == 32 && clicked.getType() == Material.KNOWLEDGE_BOOK) {
             gui.taxGUI.openTaxHistory(player);
-            return;
-        }
-
-        if (slot == 32 && clicked.getType() == Material.SKELETON_SKULL) {
-            gui.taxGUI.openDebtorList(player);
             return;
         }
     }

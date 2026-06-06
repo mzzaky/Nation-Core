@@ -171,7 +171,7 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
         inv.setItem(4, buildNationProfile(nation, gov));
 
         // 2. Back button
-        inv.setItem(SLOT_BACK, buildIcon(Material.SPECTRAL_ARROW, "&e&l⮜ Back", "&7Return to main menu"));
+        inv.setItem(SLOT_BACK, buildIcon(Material.SPECTRAL_ARROW, "&e&l⮜ Back", "&7Back to government menu"));
 
         // Navigation Menu Session
         for (RepublicOrderTab tab : RepublicOrderTab.values()) {

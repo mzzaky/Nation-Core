@@ -26,14 +26,17 @@ public class RepublicMemberManagementGUI {
     public static final String TITLE = "§6§lMEMBER MANAGEMENT";
     public static final String ACTION_TITLE_PREFIX = "§6§l[ACTION] §f";
 
-    private static final int MEMBERS_PER_PAGE = 28;
+    private static final int MEMBERS_PER_PAGE = 27;
     private static final int[] MEMBER_SLOTS;
 
     static {
         List<Integer> slots = new ArrayList<>();
         for (int row = 1; row <= 4; row++) {
             for (int col = 1; col <= 7; col++) {
-                slots.add(row * 9 + col);
+                int slot = row * 9 + col;
+                if (slot != 43) {
+                    slots.add(slot);
+                }
             }
         }
         MEMBER_SLOTS = slots.stream().mapToInt(Integer::intValue).toArray();
@@ -63,8 +66,9 @@ public class RepublicMemberManagementGUI {
 
         // Glass border (uses light blue or gold for republic style)
         ItemStack border = createItem(Material.LIGHT_BLUE_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 54; i++) {
-            inv.setItem(i, border);
+        int[] borderSlots = {0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
+        for (int slot : borderSlots) {
+            inv.setItem(slot, border);
         }
 
         // Header info
@@ -87,7 +91,7 @@ public class RepublicMemberManagementGUI {
 
         // Navigation
         if (page > 0) {
-            inv.setItem(45, createItem(Material.ARROW,
+            inv.setItem(48, createItem(Material.ARROW,
                     "§e§l← Previous Page",
                     "§7Page " + page + " / " + totalPages));
         }
@@ -97,12 +101,12 @@ public class RepublicMemberManagementGUI {
                 "§7" + members.size() + " members total"));
 
         if (page < totalPages - 1) {
-            inv.setItem(53, createItem(Material.ARROW,
+            inv.setItem(50, createItem(Material.ARROW,
                     "§e§lNext Page →",
                     "§7Page " + (page + 2) + " / " + totalPages));
         }
 
-        inv.setItem(47, createItem(Material.SPECTRAL_ARROW,
+        inv.setItem(43, createItem(Material.SPECTRAL_ARROW,
                 "§6§l← Back",
                 "§7Return to Government Menu"));
 
@@ -129,24 +133,34 @@ public class RepublicMemberManagementGUI {
         String name = member.getName();
         String title = ACTION_TITLE_PREFIX + name;
 
-        Inventory inv = Bukkit.createInventory(null, 27, title);
+        Inventory inv = Bukkit.createInventory(null, 54, title);
 
+        // Filler border
         ItemStack border = createItem(Material.LIGHT_BLUE_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) inv.setItem(i, border);
+        int[] borderSlots = {0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
+        for (int slot : borderSlots) inv.setItem(slot, border);
 
         boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(targetUUID);
         boolean isLeader = nation.getLeaderUUID() != null && nation.getLeaderUUID().equals(targetUUID);
-        boolean isOfficer = member.getRole() == NationRole.OFFICER;
 
+        // Slot 4 — Player Head with profile info
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skull = (SkullMeta) head.getItemMeta();
         skull.setOwningPlayer(Bukkit.getOfflinePlayer(targetUUID));
         skull.setDisplayName("§e§l" + name);
 
+        // Current cabinet position (if any)
+        String cabinetPosText = "§7None";
+        if (gov != null) {
+            Government.CabinetPosition pos = gov.getPositionByUUID(targetUUID);
+            if (pos != null) cabinetPosText = "§6" + pos.getDisplayName();
+        }
+
         List<String> profileLore = new ArrayList<>();
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         profileLore.add("§7Nation Role  : " + formatRole(member.getRole()));
         profileLore.add("§7President    : " + (isPresident ? "§a✔ Yes" : "§c✘ No"));
+        profileLore.add("§7Cabinet Pos  : " + cabinetPosText);
         if (isNpc) {
             FakeMember npc = nation.getFakeMember(targetUUID);
             if (npc != null) {
@@ -160,49 +174,82 @@ public class RepublicMemberManagementGUI {
         head.setItemMeta(skull);
         inv.setItem(4, head);
 
-        // Actions:
-        // 1. Kick (slot 11) - disabled for leader/president
+        // Slot 21 — Warn (Coming Soon)
+        inv.setItem(21, createItem(Material.KNOWLEDGE_BOOK,
+                "§e§l⚠ Warn Member",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Issue a formal warning to §f" + name + "§7.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§d⏳ Coming Soon!"));
+
+        // Slot 22 — Send Message (1-hour cooldown per target)
+        inv.setItem(22, createItem(Material.WRITABLE_BOOK,
+                "§b§l✉ Send Message",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Send a presidential message to §f" + name + "§7.",
+                "§7The message will be prefixed with your",
+                "§7presidential title.",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§e⏰ Cooldown: §f1 hour per member",
+                "§bClick to compose message."));
+
+        // Slot 23 — Kick Member
         if (!isLeader && !isPresident) {
-            inv.setItem(11, createItem(Material.RED_CONCRETE,
-                    "§c§l✖ Kick from Nation",
+            inv.setItem(23, createItem(Material.BOOK,
+                    "§c§l✖ Kick Member",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                     "§7Remove §f" + name + " §7from the nation.",
                     "§c⚠ This action cannot be undone!",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§cClick to kick this player."));
+                    "§cClick to kick this member."));
         } else {
-            inv.setItem(11, createItem(Material.BARRIER,
+            inv.setItem(23, createItem(Material.BARRIER,
                     "§7§l✖ Kick Unavailable",
-                    "§7Cannot kick the nation leader / President."));
+                    "§7Cannot kick the nation leader or President."));
         }
 
-        // 2. Promote/Demote (slot 15)
-        if (!isLeader && !isPresident) {
-            if (!isOfficer) {
-                inv.setItem(15, createItem(Material.LIME_CONCRETE,
-                        "§a§l★ Promote to Officer",
-                        "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                        "§7Promote §f" + name + " §7to Officer.",
-                        "§7Officers can help manage the nation.",
-                        "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                        "§aClick to promote."));
-            } else {
-                inv.setItem(15, createItem(Material.ORANGE_CONCRETE,
-                        "§c§lDemote to Citizen",
-                        "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                        "§7Demote §f" + name + " §7to Citizen.",
-                        "§7They will lose officer privileges.",
-                        "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                        "§cClick to demote."));
-            }
-        } else {
-            inv.setItem(15, createItem(Material.BARRIER,
-                    "§7§l★ Role Permanent",
-                    "§7This member holds a permanent/highest role."));
-        }
+        // Helper: get current holder name for a cabinet position
+        java.util.function.Function<Government.CabinetPosition, String> currentHolder = (pos) -> {
+            if (gov == null) return "§7None";
+            UUID holderUUID = gov.getCabinetMember(pos);
+            if (holderUUID == null) return "§7None";
+            String holderName = org.bukkit.Bukkit.getOfflinePlayer(holderUUID).getName();
+            return holderName != null ? "§f" + holderName : "§7Unknown";
+        };
 
-        inv.setItem(22, createItem(Material.SPECTRAL_ARROW,
-                "§c§l← Back",
+        // Slot 30 — Appoint as Minister of Treasury
+        inv.setItem(30, createItem(Material.WRITTEN_BOOK,
+                "§6§l💰 Appoint as Minister of Treasury",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Appoint §f" + name,
+                "§7as the §6Minister of Treasury§7.",
+                "§7Current: " + currentHolder.apply(Government.CabinetPosition.TREASURY),
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to appoint."));
+
+        // Slot 31 — Appoint as Minister of Defense
+        inv.setItem(31, createItem(Material.WRITTEN_BOOK,
+                "§c§l🛡 Appoint as Minister of Defense",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Appoint §f" + name,
+                "§7as the §cMinister of Defense§7.",
+                "§7Current: " + currentHolder.apply(Government.CabinetPosition.DEFENSE),
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to appoint."));
+
+        // Slot 32 — Appoint as Minister of Health
+        inv.setItem(32, createItem(Material.WRITTEN_BOOK,
+                "§d§l💉 Appoint as Minister of Health",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Appoint §f" + name,
+                "§7as the §dMinister of Health§7.",
+                "§7Current: " + currentHolder.apply(Government.CabinetPosition.HEALTH),
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to appoint."));
+
+        // Slot 43 — Back
+        inv.setItem(43, createItem(Material.SPECTRAL_ARROW,
+                "§6§l← Back",
                 "§7Return to member list."));
 
         viewer.openInventory(inv);

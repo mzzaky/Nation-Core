@@ -488,32 +488,7 @@ public class RepublicArenaGUI {
 
         // PRESIDENT-ONLY CONTROLS (slot 43)
         if (isPresident && nation != null) {
-            if (!isActive) {
-                boolean canStart = plugin.getArenaManager().canStartArena(nation);
-                int startCost = plugin.getConfig().getInt("arena.start-cost", 100000);
-                double treasury = nation.getTreasury().getBalance();
-
-                if (canStart) {
-                    inv.setItem(43, createItem(Material.BEACON,
-                            "§a§l★ START ARENA §8[PRESIDENT]",
-                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                            "§7Cost: §6$" + MessageUtils.formatNumber(startCost),
-                            "§7Treasury: §6$" + MessageUtils.formatNumber((long) treasury),
-                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                            "§aAll conditions met!",
-                            "§eClick to launch the arena."));
-                } else {
-                    int maxGames = plugin.getConfig().getInt("arena.max-games-per-term", 2);
-                    int gamesUsed = nation.getGamesThisTerm();
-                    inv.setItem(43, createItem(Material.BARRIER,
-                            "§c§l✗ CANNOT START ARENA §8[PRESIDENT]",
-                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                            gamesUsed >= maxGames ? "§c✗ Game limit reached (" + gamesUsed + "/" + maxGames + ")" : "",
-                            treasury < startCost ? "§c✗ Insufficient treasury funds" : "",
-                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                            "§7Fix the above issues first."));
-                }
-            } else {
+            if (isActive) {
                 // Active — show end arena button
                 inv.setItem(43, createItem(Material.TNT,
                         "§4§l💥 END ARENA §8[PRESIDENT]",

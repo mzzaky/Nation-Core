@@ -47,114 +47,232 @@ public class TaxGUI {
 
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
 
-        // === ROW 1: Tax System Overview ===
-
-        // Tax System Status (Slot 4)
-        ItemStack statusItem = createStatusItem(record, nation);
-        inv.setItem(4, statusItem);
-
-        // === ROW 2: Tax Info ===
-
-        // Tax Rate Info (Slot 10)
-        ItemStack rateItem = createTaxRateItem(nation);
-        inv.setItem(10, rateItem);
-
-        // Treasury Income (Slot 12)
-        ItemStack incomeItem = createTreasuryIncomeItem(record, nation);
-        inv.setItem(12, incomeItem);
-
-        // Next Collection (Slot 14)
-        ItemStack nextItem = createNextCollectionItem(nation);
-        inv.setItem(14, nextItem);
-
-        // Collection Stats (Slot 16)
-        ItemStack statsItem = createCollectionStatsItem(record, nation);
-        inv.setItem(16, statsItem);
-
-        // === ROW 4: Executive Order Status ===
-
-        // Executive Order Tax Banner (Slot 28)
-        ItemStack eoItem = createExecutiveOrderTaxItem(nation);
-        inv.setItem(28, eoItem);
-
-        // === ROW 3: Player Tax Info ===
-
-        // Player Head - My Tax Status (Slot 20)
-        ItemStack playerHead = createPlayerTaxHead(player, playerTax);
-        inv.setItem(20, playerHead);
-
-        // Debt Status (Slot 22)
-        ItemStack debtItem = createDebtItem(playerTax);
-        inv.setItem(22, debtItem);
-
-        // Payment History (Slot 24)
-        ItemStack historyItem = createItem(Material.BOOK, "§5§l📜 TAX HISTORY",
-                "§8▬§m------------------",
-                "§7View recent tax transactions",
-                "§7and collection history",
-                "§8▬§m------------------",
-                "§aClick to view history");
-        inv.setItem(24, historyItem);
-
-        // === ROW 4: Actions ===
-
-        // Pay Debt Button (Slot 30) - Only show if player has debt
-        if (playerTax.getOutstandingDebt() > 0) {
-            ItemStack payItem = new ItemStack(Material.EMERALD_BLOCK);
-            ItemMeta payMeta = payItem.getItemMeta();
-            payMeta.setDisplayName("§a§l§d PAY TAX DEBT");
-            List<String> payLore = new ArrayList<>();
-            payLore.add("§8▬§m------------------");
-            payLore.add("§7Outstanding Debt: §c$" + MessageUtils.formatNumber(playerTax.getOutstandingDebt()));
-            payLore.add("§7Your Balance: §6$" + MessageUtils.formatNumber(
-                    plugin.getVaultHook().getBalance(player.getUniqueId())));
-            payLore.add("§8▬§m------------------");
-            payLore.add("§e⚠ Click to pay your debt!");
-            payMeta.setLore(payLore);
-            payItem.setItemMeta(payMeta);
-            addGlow(payItem);
-            inv.setItem(30, payItem);
+        // ── FILLER ──────────────────────────────────────────────────────────
+        ItemStack filler = new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        ItemMeta fillerMeta = filler.getItemMeta();
+        fillerMeta.setDisplayName(" ");
+        filler.setItemMeta(fillerMeta);
+        int[] fillerSlots = {0,1,2,3,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53};
+        for (int s : fillerSlots) {
+            inv.setItem(s, filler);
         }
 
-        // Debtor List (Slot 32) - Show list of players with debts
-        int nationDebtors = 0;
-        double nationTotalDebt = 0;
-        if (nation != null) {
-            for (UUID memberUUID : nation.getMembers().keySet()) {
-                PlayerTaxData memberTax = record.getPlayerTaxData(memberUUID.toString());
-                if (memberTax != null && memberTax.getOutstandingDebt() > 0) {
-                    nationDebtors++;
-                    nationTotalDebt += memberTax.getOutstandingDebt();
-                }
+        // ── SLOT 4: Balance / Treasury Overview ─────────────────────────────
+        inv.setItem(4, buildBalanceInfoItem(nation));
+
+        // ── SLOT 21: Total Income ────────────────────────────────────────────
+        inv.setItem(21, buildTotalIncomeItem(nation));
+
+        // ── SLOT 30: Total Expenses ──────────────────────────────────────────
+        inv.setItem(30, buildTotalExpensesItem(nation));
+
+        // ── SLOT 23: Donate ──────────────────────────────────────────────────
+        inv.setItem(23, buildDonateItem(nation));
+
+        // ── SLOT 32: Transaction Logs ────────────────────────────────────────
+        inv.setItem(32, buildTransactionLogsItem());
+
+        // ── SLOT 43: Back ────────────────────────────────────────────────────
+        ItemStack backItem = new ItemStack(Material.SPECTRAL_ARROW);
+        ItemMeta backMeta = backItem.getItemMeta();
+        backMeta.setDisplayName("§e§l⚐ Back to Nation Hub");
+        List<String> backLore = new ArrayList<>();
+        backLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        backLore.add("§7Return to the main Republic");
+        backLore.add("§7council menu.");
+        backLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        backLore.add("§eClick §7→ Main Menu");
+        backMeta.setLore(backLore);
+        backItem.setItemMeta(backMeta);
+        inv.setItem(43, backItem);
+
+        player.openInventory(inv);
+    }
+
+    // ── New item builders for the redesigned menu ────────────────────────────
+
+    private ItemStack buildBalanceInfoItem(Nation nation) {
+        ItemStack item = new ItemStack(Material.GLOW_ITEM_FRAME);
+        ItemMeta meta = item.getItemMeta();
+
+        if (nation == null) {
+            meta.setDisplayName("§c§lTreasury Unavailable");
+            List<String> lore = new ArrayList<>();
+            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            lore.add("§7You are not a member of any nation.");
+            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+            return item;
+        }
+
+        double balance = nation.getTreasury().getBalance();
+        double totalIncome = nation.getTreasury().getTotalIncome();
+        double totalExpenses = nation.getTreasury().getTotalExpenses();
+
+        // Try to get president name
+        String presidentName = "§cVacant";
+        if (nation.getRepublicGovernment() != null && nation.getRepublicGovernment().hasPresident()) {
+            String pName = nation.getRepublicGovernment().getPresidentName();
+            presidentName = "§f" + (pName != null ? pName : "Unknown");
+        }
+
+        meta.setDisplayName("§b§l" + nation.getName() + " §8— §7State Treasury");
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7 Nation§8: §f" + nation.getName() + " §8[§f" + nation.getTag() + "§8]");
+        lore.add("§7 Members§8: §f" + nation.getMemberCount());
+        lore.add("§7 President§8: " + presidentName);
+        lore.add("");
+        lore.add("§6 Treasury Balance§8: §a$" + MessageUtils.formatNumber(balance));
+        lore.add("§7 Total Income§8:    §a$" + MessageUtils.formatNumber(totalIncome));
+        lore.add("§7 Total Expenses§8:  §c$" + MessageUtils.formatNumber(totalExpenses));
+        lore.add("");
+        lore.add("§7 System§8: §fOpen Democracy");
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        addGlow(item);
+        return item;
+    }
+
+    private ItemStack buildTotalIncomeItem(Nation nation) {
+        ItemStack item = new ItemStack(Material.WARPED_WART_BLOCK);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§a§l📈 Total Income");
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        if (nation == null) {
+            lore.add("§7No nation data available.");
+            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+            return item;
+        }
+
+        double totalTaxIncome = nation.getTreasury().getTransactions().stream()
+                .filter(t -> t.getType() == TransactionType.TAX_INCOME
+                        || t.getType() == TransactionType.GLOBAL_TAX_INCOME
+                        || t.getType() == TransactionType.TAX_PENALTY_INCOME
+                        || t.getType() == TransactionType.FINE_INCOME
+                        || t.getType() == TransactionType.DONATION)
+                .mapToDouble(t -> Math.max(0, t.getAmount()))
+                .sum();
+
+        lore.add("§7 Source§8: §fNation Tax & Donations");
+        lore.add("§7 Cumulative Revenue§8:");
+        lore.add("§8  └ §a$" + MessageUtils.formatNumber(totalTaxIncome));
+        lore.add("");
+        lore.add("§7 Last 3 Income Entries§8:");
+
+        List<Transaction> incomeTransactions = nation.getTreasury().getTransactions().stream()
+                .filter(t -> t.getAmount() > 0)
+                .collect(java.util.stream.Collectors.toList());
+
+        int start = Math.max(0, incomeTransactions.size() - 3);
+        List<Transaction> recent = incomeTransactions.subList(start, incomeTransactions.size());
+        java.util.Collections.reverse(recent);
+
+        if (recent.isEmpty()) {
+            lore.add("§8  └ §7No recent income recorded.");
+        } else {
+            for (Transaction tx : recent) {
+                lore.add("§8  └ §a+$" + MessageUtils.formatNumber(tx.getAmount())
+                        + " §8• §7" + tx.getType().getDisplayName());
             }
         }
 
-        ItemStack debtorsItem = createItem(Material.SKELETON_SKULL, "§c§l⚠ TAX DEBTORS",
-                "§8▬§m------------------",
-                "§7Nation Debtors: §c" + nationDebtors,
-                "§7Total Nation Debt: §c$" + MessageUtils.formatNumber(nationTotalDebt),
-                "§8▬§m------------------",
-                "§aClick to view debtors");
-        inv.setItem(32, debtorsItem);
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
 
-        // === ROW 6: Navigation ===
+    private ItemStack buildTotalExpensesItem(Nation nation) {
+        ItemStack item = new ItemStack(Material.NETHER_WART_BLOCK);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§c§l📉 Total Expenses");
 
-        // Back to Main Menu
-        ItemStack backItem = createItem(Material.ARROW, "§e← Back to Main Menu");
-        inv.setItem(45, backItem);
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
-        // Refresh
-        ItemStack refreshItem = createItem(Material.CLOCK, "§a↻ Refresh");
-        inv.setItem(49, refreshItem);
+        if (nation == null) {
+            lore.add("§7No nation data available.");
+            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+            return item;
+        }
 
-        // Close
-        ItemStack closeItem = createItem(Material.BARRIER, "§c§lClose Menu", "§7Click to close");
-        inv.setItem(53, closeItem);
+        lore.add("§7 Sources§8: §fSalaries, Executive Orders,");
+        lore.add("§7         §fPresidential Game, etc.");
+        lore.add("§7 Total Spent§8:");
+        lore.add("§8  └ §c$" + MessageUtils.formatNumber(nation.getTreasury().getTotalExpenses()));
+        lore.add("");
+        lore.add("§7 Last 3 Expense Entries§8:");
 
-        // Fill empty slots
-        fillGlass(inv);
+        List<Transaction> expenseTransactions = nation.getTreasury().getTransactions().stream()
+                .filter(t -> t.getAmount() < 0)
+                .collect(java.util.stream.Collectors.toList());
 
-        player.openInventory(inv);
+        int start = Math.max(0, expenseTransactions.size() - 3);
+        List<Transaction> recent = expenseTransactions.subList(start, expenseTransactions.size());
+        java.util.Collections.reverse(recent);
+
+        if (recent.isEmpty()) {
+            lore.add("§8  └ §7No recent expenses recorded.");
+        } else {
+            for (Transaction tx : recent) {
+                lore.add("§8  └ §c-$" + MessageUtils.formatNumber(Math.abs(tx.getAmount()))
+                        + " §8• §7" + tx.getType().getDisplayName());
+            }
+        }
+
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildDonateItem(Nation nation) {
+        ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§e§l❤ Donate to Treasury");
+
+        double balance = nation != null ? nation.getTreasury().getBalance() : 0;
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7Contribute your own funds to");
+        lore.add("§7the nation's state treasury.");
+        lore.add("");
+        lore.add("§7 Treasury Balance§8: §a$" + MessageUtils.formatNumber(balance));
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§eClick §7→ Enter donation amount");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        addGlow(item);
+        return item;
+    }
+
+    private ItemStack buildTransactionLogsItem() {
+        ItemStack item = new ItemStack(Material.KNOWLEDGE_BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§d§l📋 Transaction Logs");
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7Browse the full history of");
+        lore.add("§7treasury transactions including");
+        lore.add("§7income, expenses, and donations.");
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§eClick §7→ Open logs");
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
 
     /**

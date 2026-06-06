@@ -94,6 +94,9 @@ public class GUIListener implements Listener {
     public final Map<UUID, UUID> viewingPlayerStats = new HashMap<>();
     public final Map<UUID, UUID> viewingManagedMember = new HashMap<>();
     public final Map<UUID, Integer> memberListPage = new HashMap<>();
+    /** Cooldown tracking for "Send Message to Member" action: presidentUUID → (targetUUID → lastSentTimestamp) */
+    public final Map<UUID, Map<UUID, Long>> memberMessageCooldowns = new HashMap<>();
+
 
     // Per-nation and common handlers.
     private final RepublicGUIHandler republic;
@@ -266,14 +269,14 @@ public class GUIListener implements Listener {
             common.handleCabinetDecisionsGUI(player, clicked);
         } else if (title.equals(RepublicTreasuryMenu.TITLE)) {
             event.setCancelled(true);
-            common.handleTreasuryGUI(player, clicked, false);
+            common.handleTreasuryGUI(player, clicked, event.getSlot(), false);
         } else if (title.equals(CommunistTreasuryMenu.TITLE)) {
             event.setCancelled(true);
-            common.handleTreasuryGUI(player, clicked, true);
+            common.handleTreasuryGUI(player, clicked, event.getSlot(), true);
         } else if (title.contains("TREASURY") && !title.contains("LOGS")) {
             // Legacy fallback (global treasury)
             event.setCancelled(true);
-            common.handleTreasuryGUI(player, clicked, false);
+            common.handleTreasuryGUI(player, clicked, event.getSlot(), false);
         } else if (title.equals(RepublicTreasuryMenu.LOGS_TITLE)) {
             event.setCancelled(true);
             common.handleTreasuryTransactionsGUI(player, clicked, false);

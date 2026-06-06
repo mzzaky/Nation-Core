@@ -1,0 +1,79 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#23
+====================================================
+Configured the Republic Member Management GUI layouts, repositioned navigation buttons, defined player action sub-menu rules, and resolved legacy color parsing crashes.
+
+[REPUBLIC MEMBER MANAGEMENT GUI LAYOUT]
+- RepublicMemberManagementGUI.java:
+  → Configured the main member management menu filler slots (light_blue_stained_glass_pane) to slots 0-3, 5-9, 17, 18, 26, 27, 35, 36, and 44-53 (leaving the remaining slots empty as Material.AIR).
+  → Relocated the Back button (spectral_arrow) to slot 43.
+
+[PLAYER ACTION SUB-MENU CONFIGURATION]
+- RepublicMemberManagementGUI.java:
+  → Structured the Action Sub-Menu layout and item components:
+    - Filler (light_blue_stained_glass_pane) on slots 0-3, 5-9, 17, 18, 26, 27, 35, 36, and 44-53.
+    - Player Head (player_head displaying the target player's skin) on slot 4 to show the member's current role.
+    - Back button (spectral_arrow) on slot 43.
+    - Warn button (knowledge_book) on slot 21 (currently static and showing "Coming Soon").
+    - Send Message button (writable_book) on slot 22 with president prefix routing and 1-hour cooldown constraint.
+    - Kick Member button (book) on slot 23 to evict members from the nation.
+    - Minister of Treasury appointment button (written_book) on slot 30.
+    - Minister of Defense appointment button (written_book) on slot 31.
+
+[LEGACY COLOR CODE PARSING RESOLUTION]
+- RepublicGUIHandler.java:
+  → Fixed a Java compiler warning and runtime MiniMessage exception during cabinet appointments.
+  → Replaced the legacy section sign formatting code (§c) in the NPC cabinet appointment exception message with MiniMessage-native XML tag formatting (<red>...</red>).
+
+[REPUBLIC COUNCILS & GOVERNMENT MENU STRUCTURAL RE-ALIGNMENT]
+- RepublicArenaGUI.java:
+  → Removed the "Start Arena" controls from the President-only slot 43 when the arena is inactive.
+  → Preserved the "End Arena" button on slot 43 if the arena session is active.
+- RepublicGovernmentGUI.java:
+  → Declared the 'isPresident' variable outside the government null-safety blocks so it is globally accessible inside the inventory rendering.
+  → Updated Slot 21 from "Minister Management" to "Executive Order".
+  → Updated Slot 31 ("Presidential Games") to display dynamically based on the current arena status:
+    - If active: shows active session status and links to the Arena Menu.
+    - If inactive (and viewed by President): renders as a start controller (using Material.PRIZE_POTTERY_SHERD) detailing start costs, treasury funds, and consecutive term limits.
+    - If inactive (and viewed by others): displays as a barrier indicating restricted access.
+- RepublicGUIHandler.java:
+  → Updated Slot 11 ("Executive Orders") click behavior in the Main Menu to be a no-op.
+  → Updated Slot 21 click behavior in the Government GUI to route players to the Executive Orders Menu instead of the Cabinet GUI.
+  → Updated the back button click behavior in the Executive Orders Menu to return players to the Government GUI.
+  → Wired Slot 31 click behavior in the Government GUI to prompt a confirmation screen (ConfirmActionGUI) before initiating the Arena Game event.
+- RepublicExecutiveOrdersMenu.java:
+  → Refactored the back button (Slot 43) display text and lore to indicate navigation to the Government GUI.
+
+[CONTEXT-AWARE REPUBLIC SALARY SYSTEM]
+- RepublicSalaryMenu.java:
+  → Refactored the local Government data lookup to retrieve the player's specific nation-level government.
+- GovernmentManager.java:
+  → Refactored getSalaryCooldown(), claimDailySalary(), givePresidentDailyRewards(), and giveCabinetDailyRewards() to dynamically resolve the player's context-aware nation-level government and treasury balance instead of using the legacy global single government.
+  → Modified treasury withdrawals to affect the specific nation's balance.
+
+
+[TAX & TREASURY GUI REDESIGN & CHAT DONATION SYSTEM]
+- TaxGUI.java:
+  → Redesigned the main menu using a 54-slot layout:
+    - Filler (light_blue_stained_glass_pane) placed on slots 0-3, 5-9, 17, 18, 26, 27, 35, 36, and 44-53.
+    - Balance Information (glow_item_frame) on slot 4, showing nation details, treasury balance, president, and members.
+    - Total Income (warped_wart_block) on slot 21, displaying total nation income and the last 3 transaction records.
+    - Donate button (writable_book) on slot 23 to trigger a chat-based donation process.
+    - Total Expenses (nether_wart_block) on slot 30, displaying total nation expenses and the last 3 transaction records.
+    - Transaction Logs (knowledge_book) on slot 32 to open the tax transaction history.
+    - Back button (spectral_arrow) on slot 43 to return to the Republic Main Menu.
+  → Added helper methods: buildBalanceInfoItem, buildTotalIncomeItem, buildTotalExpensesItem, buildDonateItem, and buildTransactionLogsItem.
+  → Cleaned up legacy items (tax rate, debt status, pay debt button, debtors list, etc.).
+- RepublicTreasuryMenu.java:
+  → Redesigned both standard and legacy treasury menus using the same 54-slot layout and components (slots 4, 21, 23, 30, 32, and 43) as TaxGUI.
+  → Redesigned the transaction logs layout to a 54-slot view, placing the Back button (spectral_arrow) on slot 49.
+  → Improved fillTransactionSlots() to display transaction entries in chronological order (most recent first) with clean, modern lore styling.
+- ChatListener.java:
+  → Introduced `pendingTreasuryDonations` Map to track players currently entering a donation amount.
+  → Implemented a chat-based donation flow inside onChat(): validates numeric inputs, withdraws funds via VaultHook, deposits them to the nation treasury under TransactionType.DONATION, updates/saves the nation database, and alerts members. Supports cancellation via "cancel" or "batal".
+- CommonGUIHandler.java:
+  → Updated handleTaxMenuGUI() to support the new 54-slot item interactions (Back, Donate chat trigger, and Logs).
+  → Added a slot-aware overload for handleTreasuryGUI() to properly handle slots 43 (Back), 23 (Donate), and 32 (Logs).
+  → Updated handleTreasuryTransactionsGUI() to handle navigation back via spectral_arrow instead of regular arrow.
+- GUIListener.java:
+  → Updated the calls to CommonGUIHandler.handleTreasuryGUI() to pass the clicked event slot.

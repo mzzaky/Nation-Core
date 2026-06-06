@@ -46,12 +46,13 @@ public class RepublicGovernmentGUI {
         int term = 0;
         long termEndTime = 0;
         boolean isAuthorized = false;
+        boolean isPresident = false;
 
         if (gov != null) {
             leaderUUID = gov.getPresidentUUID();
             term = gov.getCurrentTerm();
             termEndTime = gov.getTermEndTime();
-            boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
             boolean isMinister = gov.getCabinetMemberByUUID(player.getUniqueId()) != null;
             if (isPresident || isMinister) isAuthorized = true;
         }
@@ -133,9 +134,9 @@ public class RepublicGovernmentGUI {
                 "",
                 "§cClick to disband"));
 
-        // 7. Minister Management (Slot 21)
-        inv.setItem(21, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lMinister Management",
-                "§7Manage your cabinet members & decisions",
+        // 7. Executive Order (Slot 21)
+        inv.setItem(21, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lExecutive Order",
+                "§7Manage executive orders for the nation",
                 "",
                 "§eClick to open"));
 
@@ -171,11 +172,60 @@ public class RepublicGovernmentGUI {
                 "§7Coming Soon"));
 
         // 12. Presidential Games (Slot 31)
-        inv.setItem(31, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD, "§c§lPresidential Games",
-                "§7Start a new arena game!",
-                "",
-                "§cOnly President can start",
-                "§aClick to start"));
+        if (nation != null) {
+            boolean isActive = plugin.getArenaManager().isArenaActive(nation);
+            if (isActive) {
+                inv.setItem(31, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD, "§c§lPresidential Games",
+                        "§7Arena game is currently active!",
+                        "",
+                        "§aClick to view Arena Menu"));
+            } else {
+                if (isPresident) {
+                    boolean canStart = plugin.getArenaManager().canStartArena(nation);
+                    int startCost = plugin.getConfig().getInt("arena.start-cost", 100000);
+                    double treasury = nation.getTreasury().getBalance();
+
+                    if (canStart) {
+                        inv.setItem(31, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD,
+                                "§a§l★ START ARENA §8[PRESIDENT]",
+                                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                                "§7Cost: §6$" + MessageUtils.formatNumber(startCost),
+                                "§7Treasury: §6$" + MessageUtils.formatNumber((long) treasury),
+                                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                                "§aAll conditions met!",
+                                "§eClick to launch the arena."));
+                    } else {
+                        int maxGames = plugin.getConfig().getInt("arena.max-games-per-term", 2);
+                        int gamesUsed = nation.getGamesThisTerm();
+                        List<String> loreList = new ArrayList<>();
+                        loreList.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                        if (gamesUsed >= maxGames) {
+                            loreList.add("§c✗ Game limit reached (" + gamesUsed + "/" + maxGames + ")");
+                        }
+                        if (treasury < startCost) {
+                            loreList.add("§c✗ Insufficient treasury funds");
+                        }
+                        loreList.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                        loreList.add("§7Fix the above issues first.");
+
+                        inv.setItem(31, GovernmentGUIUtils.createItem(Material.BARRIER,
+                                "§c§l✗ CANNOT START ARENA §8[PRESIDENT]",
+                                loreList.toArray(new String[0])));
+                    }
+                } else {
+                    inv.setItem(31, GovernmentGUIUtils.createItem(Material.BARRIER, "§c§l✗ CANNOT START ARENA",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                            "§c✗ Only the President can start",
+                            "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+                }
+            }
+        } else {
+            inv.setItem(31, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD, "§c§lPresidential Games",
+                    "§7Start a new arena game!",
+                    "",
+                    "§cOnly President can start",
+                    "§aClick to start"));
+        }
 
         // 13. Diplomacy Management (Slot 32)
         inv.setItem(32, GovernmentGUIUtils.createItem(Material.SKULL_POTTERY_SHERD, "§e§lDiplomacy Management",

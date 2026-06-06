@@ -165,13 +165,21 @@ public class RepublicMainMenu extends NationMenuBase {
     }
 
     private ItemStack buildExecOrderCard(Nation nation, Player player) {
-        int activeCount = nation.getActiveOrders().size();
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        List<id.nationcore.models.ExecutiveOrder> active = nation.getActiveOrders();
+        if (active.isEmpty()) {
+            lore.add("&7No active executive orders.");
+        } else {
+            for (id.nationcore.models.ExecutiveOrder order : active) {
+                String timeStr = formatRemaining(order.getRemainingTime());
+                lore.add("&7• &d" + order.getType().getDisplayName() + " &7(&a" + timeStr + "&7)");
+            }
+        }
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         return buildIcon(Material.ENCHANTED_BOOK,
                 "&d&lExecutive Orders",
-                "&7Active executive orders: &f" + activeCount,
-                "&7Only the President can issue orders.",
-                "",
-                "&eClick &7→ View active orders");
+                lore);
     }
 
     private ItemStack buildPresidentCard(Government gov, Nation nation) {

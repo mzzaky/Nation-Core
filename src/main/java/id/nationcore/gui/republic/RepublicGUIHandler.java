@@ -59,7 +59,6 @@ public class RepublicGUIHandler {
             return;
         }
         if (slot == RepublicMainMenu.getSlot("EXEC_ORDER")) {
-            gui.openOrdersGUI(player);
             return;
         }
         if (slot == RepublicMainMenu.getSlot("ARENA")) {
@@ -192,13 +191,30 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 31 || clicked.getType() == Material.PRIZE_POTTERY_SHERD) {
-            gui.arenaGUI.openArenaMenu(player);
+        if (slot == 31) {
+            boolean isActive = plugin.getArenaManager().isArenaActive(nation);
+            if (isActive) {
+                gui.arenaGUI.openArenaMenu(player);
+            } else {
+                Government gov = nation.getRepublicGovernment();
+                boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+                if (isPresident && clicked.getType() == Material.PRIZE_POTTERY_SHERD) {
+                    gui.confirmActionGUI.open(player, "Start Arena Game", () -> {
+                        if (!plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
+                            MessageUtils.send(player, "<red>Cannot start arena! Check requirements.</red>");
+                        } else {
+                            gui.arenaGUI.openArenaMenu(player);
+                        }
+                    });
+                } else {
+                    MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                }
+            }
             return;
         }
 
         if (slot == 21 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
-            gui.openCabinetGUI(player);
+            gui.openOrdersGUI(player);
             return;
         }
 
@@ -239,7 +255,7 @@ public class RepublicGUIHandler {
             return;
         }
         if (RepublicExecutiveOrdersMenu.SLOT_BACK == slot || clicked.getType() == Material.SPECTRAL_ARROW || clicked.getType() == Material.ARROW) {
-            gui.mainMenuRouter.openFor(player);
+            gui.openGovernmentGUI(player);
             return;
         }
 
@@ -312,7 +328,7 @@ public class RepublicGUIHandler {
 
         int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
 
-        if (slot == 47) {
+        if (slot == 43) {
             gui.memberListPage.remove(player.getUniqueId());
             gui.republicGovernmentGUI.open(player, nation);
             return;
@@ -359,7 +375,8 @@ public class RepublicGUIHandler {
         Government gov = nation.getRepublicGovernment();
         UUID targetUUID = gui.viewingManagedMember.get(player.getUniqueId());
 
-        if (slot == 22 || clicked.getType() == Material.SPECTRAL_ARROW) {
+        // Slot 43 — Back to member list
+        if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
             gui.republicMemberManagementGUI.open(player, nation, page);
             return;
@@ -367,6 +384,12 @@ public class RepublicGUIHandler {
 
         if (targetUUID == null) {
             player.closeInventory();
+            return;
+        }
+
+        // Slot 21 — Warn (Coming Soon)
+        if (slot == 21) {
+            MessageUtils.send(player, "§d⏳ The Warn feature is coming soon!");
             return;
         }
 
@@ -378,7 +401,40 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 11 && clicked.getType() == Material.RED_CONCRETE) {
+        // Slot 22 — Send Message (1-hour cooldown per target member)
+        if (slot == 22 && clicked.getType() == Material.WRITABLE_BOOK) {
+            // Check cooldown: key = presidentUUID, value = map<targetUUID, timestamp>
+            long now = System.currentTimeMillis();
+            long cooldownMs = 60L * 60 * 1000; // 1 hour
+            java.util.Map<UUID, Long> cooldowns = gui.memberMessageCooldowns
+                    .computeIfAbsent(player.getUniqueId(), k -> new java.util.HashMap<>());
+            Long lastSent = cooldowns.get(targetUUID);
+            if (lastSent != null && (now - lastSent) < cooldownMs) {
+                long remaining = cooldownMs - (now - lastSent);
+                MessageUtils.send(player, "§c⏰ You must wait §f"
+                        + MessageUtils.formatTime(remaining) + " §cbefore messaging this member again.");
+                return;
+            }
+
+            // Get target name for the pending chat map
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (targetName == null) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                targetName = (npc != null) ? npc.getName() : "Unknown";
+            }
+
+            player.closeInventory();
+            final String finalTargetName = targetName;
+            id.nationcore.listeners.ChatListener.pendingMemberMessages.put(
+                    player.getUniqueId(),
+                    new id.nationcore.listeners.ChatListener.PendingMemberMessage(nation, targetUUID, finalTargetName));
+            MessageUtils.send(player, "§bType your presidential message to §f" + finalTargetName
+                    + "§b in chat. Type §fcanceled§b to abort.");
+            return;
+        }
+
+        // Slot 23 — Kick Member
+        if (slot == 23 && clicked.getType() == Material.BOOK) {
             String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
             if (targetName == null && FakeMember.isNpcUUID(targetUUID)) {
                 FakeMember npc = nation.getFakeMember(targetUUID);
@@ -417,33 +473,30 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 15) {
+        // Slot 30/31/32 — Appoint Cabinet Minister
+        Government.CabinetPosition appointPos = switch (slot) {
+            case 30 -> Government.CabinetPosition.TREASURY;
+            case 31 -> Government.CabinetPosition.DEFENSE;
+            case 32 -> Government.CabinetPosition.HEALTH;
+            default -> null;
+        };
+
+        if (appointPos != null && clicked.getType() == Material.WRITTEN_BOOK) {
             if (FakeMember.isNpcUUID(targetUUID)) {
-                FakeMember npc = nation.getFakeMember(targetUUID);
-                if (npc == null) return;
-                NationRole newRole = npc.getRole() == NationRole.OFFICER ? NationRole.CITIZEN : NationRole.OFFICER;
-                var result = plugin.getFakeMemberManager().setNpcRole(nation.getId(), npc.getName(), newRole);
-                if (result.isSuccess()) {
-                    MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
-                } else {
-                    MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
-                }
-                gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                MessageUtils.send(player, "<red>Fake members (NPCs) cannot be appointed to cabinet positions.</red>");
                 return;
             }
+            final Government.CabinetPosition finalPos = appointPos;
+            String memberName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            final String finalMemberName = memberName != null ? memberName : "Unknown";
 
-            NationMember targetMember = nation.getMember(targetUUID);
-            if (targetMember == null) return;
-            if (targetMember.getRole() == NationRole.OFFICER) {
-                targetMember.setRole(NationRole.CITIZEN);
-                plugin.getDataManager().saveNations();
-                MessageUtils.send(player, "<green>" + targetMember.getName() + " has been demoted to Citizen.</green>");
-            } else {
-                targetMember.setRole(NationRole.OFFICER);
-                plugin.getDataManager().saveNations();
-                MessageUtils.send(player, "<green>" + targetMember.getName() + " has been promoted to Officer.</green>");
-            }
-            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+            gui.confirmActionGUI.open(player,
+                    "Appoint " + finalMemberName + " as " + finalPos.getDisplayName(),
+                    () -> {
+                        plugin.getGovernmentManager().appointCabinet(nation, finalPos, targetUUID, finalMemberName);
+                        plugin.getDataManager().saveNations();
+                        gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                    });
         }
     }
 }

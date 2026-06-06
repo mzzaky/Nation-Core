@@ -25,11 +25,14 @@ public class RepublicSalaryMenu {
 
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, "§2§l💰 SALARY & REWARDS 💰");
-        Government gov = plugin.getDataManager().getGovernment();
+        id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        Government gov = nation != null && nation.getType() == id.nationcore.models.GovernmentType.REPUBLIC
+                ? nation.getRepublicGovernment()
+                : plugin.getDataManager().getGovernment();
 
         long cooldown = plugin.getGovernmentManager().getSalaryCooldown(player);
-        boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
-        Government.CabinetMember cabinetMember = gov.getCabinetMemberByUUID(player.getUniqueId());
+        boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+        Government.CabinetMember cabinetMember = gov != null ? gov.getCabinetMemberByUUID(player.getUniqueId()) : null;
 
         ItemStack claimItem;
         if (cooldown == 0) {

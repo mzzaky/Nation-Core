@@ -30,6 +30,13 @@ public class ChatListener implements Listener {
     public static final java.util.Set<UUID> pendingBroadcasts = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public static final java.util.Map<UUID, Nation> pendingNationBroadcasts = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Pending treasury donations: playerUUID → target Nation */
+    public static final java.util.Map<UUID, Nation> pendingTreasuryDonations = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Holds a pending presidential direct-message to a specific nation member. */
+    public record PendingMemberMessage(Nation nation, UUID targetUUID, String targetName) {}
+    public static final java.util.Map<UUID, PendingMemberMessage> pendingMemberMessages = new java.util.concurrent.ConcurrentHashMap<>();
+
     public ChatListener(NationCore plugin) {
         this.plugin = plugin;
     }
@@ -142,6 +149,73 @@ public class ChatListener implements Listener {
             return;
         }
 
+        // Handle treasury donation chat input
+        if (pendingTreasuryDonations.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation donateNation = pendingTreasuryDonations.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<yellow>Donation cancelled.</yellow>"));
+                return;
+            }
+
+            double amount;
+            try {
+                amount = Double.parseDouble(input.replace(",", ""));
+            } catch (NumberFormatException e) {
+                pendingTreasuryDonations.put(uuid, donateNation); // re-queue
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<red>Invalid amount. Please enter a number, or type 'cancel' to abort.</red>"));
+                return;
+            }
+
+            if (amount <= 0) {
+                pendingTreasuryDonations.put(uuid, donateNation);
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<red>Amount must be greater than zero. Try again or type 'cancel'.</red>"));
+                return;
+            }
+
+            final double finalAmount = amount;
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                double playerBalance = plugin.getVaultHook().getBalance(uuid);
+                if (playerBalance < finalAmount) {
+                    MessageUtils.send(player, "<red>Insufficient funds. You have $"
+                            + MessageUtils.formatNumber(playerBalance) + " but tried to donate $"
+                            + MessageUtils.formatNumber(finalAmount) + ".</red>");
+                    return;
+                }
+                plugin.getVaultHook().withdraw(uuid, finalAmount);
+                donateNation.getTreasury().deposit(
+                        id.nationcore.models.Treasury.TransactionType.DONATION,
+                        finalAmount,
+                        "Donation from " + player.getName(),
+                        uuid);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "");
+                MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+                MessageUtils.send(player, "<green><b>✔ Donation Successful!</b></green>");
+                MessageUtils.send(player, "<gray>You donated <green>$" + MessageUtils.formatNumber(finalAmount)
+                        + "</green> to the treasury of <yellow>" + donateNation.getName() + "</yellow>.</gray>");
+                MessageUtils.send(player, "<gray>New Treasury Balance: <green>$"
+                        + MessageUtils.formatNumber(donateNation.getTreasury().getBalance()) + "</green></gray>");
+                MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+                // Notify online nation members
+                for (UUID memberUUID : donateNation.getMembers().keySet()) {
+                    Player member = org.bukkit.Bukkit.getPlayer(memberUUID);
+                    if (member != null && !member.getUniqueId().equals(uuid)) {
+                        MessageUtils.send(member, "<gold>[Treasury] <yellow>" + player.getName()
+                                + " donated $" + MessageUtils.formatNumber(finalAmount)
+                                + " to the nation treasury!</yellow></gold>");
+                    }
+                }
+            });
+            return;
+        }
+
         if (pendingNationBroadcasts.containsKey(uuid)) {
             event.setCancelled(true);
             Nation nation = pendingNationBroadcasts.remove(uuid);
@@ -170,6 +244,48 @@ public class ChatListener implements Listener {
                         MessageUtils.send(onlinePlayer, "<gold>═══════════════════════════════════════</gold>");
                         onlinePlayer.playSound(onlinePlayer.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 1.5f);
                     }
+                }
+            });
+            return;
+        }
+
+        // Presidential direct message to a specific nation member
+        if (pendingMemberMessages.containsKey(uuid)) {
+            event.setCancelled(true);
+            PendingMemberMessage pending = pendingMemberMessages.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("canceled") || input.equalsIgnoreCase("cancel")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<yellow>Message cancelled.</yellow>"));
+                return;
+            }
+
+            id.nationcore.models.Government gov = pending.nation().getRepublicGovernment();
+            String presidentName = gov != null && gov.hasPresident() ? gov.getPresidentName() : player.getName();
+
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                // Deliver to target if online
+                Player target = org.bukkit.Bukkit.getPlayer(pending.targetUUID());
+                if (target != null) {
+                    MessageUtils.send(target, "");
+                    MessageUtils.send(target, "<gold>════════ [PRESIDENTIAL MESSAGE] ════════</gold>");
+                    MessageUtils.send(target, "<gold>👑 [President]</gold> <yellow>" + input + "</yellow>");
+                    MessageUtils.send(target, "<gray>— From President " + presidentName + "</gray>");
+                    MessageUtils.send(target, "<gold>═══════════════════════════════════════</gold>");
+                    target.playSound(target.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+                    MessageUtils.send(player, "<green>Message sent to " + pending.targetName() + ".</green>");
+                } else {
+                    MessageUtils.send(player, "<red>" + pending.targetName() + " is currently offline. Message not delivered.</red>");
+                }
+
+                // Record cooldown via GUIListener
+                id.nationcore.NationCore nc = (id.nationcore.NationCore) org.bukkit.Bukkit.getPluginManager().getPlugin("NationCore");
+                if (nc != null && nc.getGUIListener() != null) {
+                    nc.getGUIListener().memberMessageCooldowns
+                            .computeIfAbsent(uuid, k -> new java.util.HashMap<>())
+                            .put(pending.targetUUID(), System.currentTimeMillis());
                 }
             });
             return;

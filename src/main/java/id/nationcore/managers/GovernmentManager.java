@@ -264,7 +264,8 @@ public class GovernmentManager {
     }
 
     public long getSalaryCooldown(Player player) {
-        Government gov = getGovernment();
+        Government gov = getGovernment(player.getUniqueId());
+        if (gov == null) return -1;
         if (gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId())) {
             long now = System.currentTimeMillis();
             long dayMillis = 24 * 60 * 60 * 1000L;
@@ -283,7 +284,11 @@ public class GovernmentManager {
     }
 
     public void claimDailySalary(Player player) {
-        Government gov = getGovernment();
+        Government gov = getGovernment(player.getUniqueId());
+        if (gov == null) {
+            MessageUtils.send(player, "<red>No active government!</red>");
+            return;
+        }
         if (!gov.hasPresident()) {
             MessageUtils.send(player, "<red>No active government!</red>");
             return;
@@ -303,7 +308,7 @@ public class GovernmentManager {
 
         // President daily rewards
         if (gov.getPresidentUUID().equals(player.getUniqueId())) {
-            givePresidentDailyRewards(player);
+            givePresidentDailyRewards(player, gov);
             gov.setLastDailyReward(now);
             return;
         }
@@ -311,7 +316,7 @@ public class GovernmentManager {
         // Cabinet daily rewards
         CabinetMember member = gov.getCabinetMemberByUUID(player.getUniqueId());
         if (member != null) {
-            giveCabinetDailyRewards(player, member.getPosition());
+            giveCabinetDailyRewards(player, member.getPosition(), gov);
             member.setLastDailyReward(now);
         }
     }
@@ -356,18 +361,20 @@ public class GovernmentManager {
      * }
      */
 
-    private void givePresidentDailyRewards(Player president) {
+    private void givePresidentDailyRewards(Player president, Government gov) {
         double vaultPoints = plugin.getConfig().getDouble("president.daily-rewards.vault-points", 50000);
         int diamondBlocks = plugin.getConfig().getInt("president.daily-rewards.diamond-blocks", 5);
         int netheriteIngots = plugin.getConfig().getInt("president.daily-rewards.netherite-ingots", 3);
         int goldenApples = plugin.getConfig().getInt("president.daily-rewards.enchanted-golden-apples", 10);
 
+        Nation nation = plugin.getNationManager().getNationOf(president.getUniqueId());
+
         // Salary payment from Treasury
-        if (plugin.getTreasuryManager().canAfford(vaultPoints)) {
-            plugin.getTreasuryManager().withdraw(TransactionType.PRESIDENT_SALARY, vaultPoints,
+        if (plugin.getTreasuryManager().canAfford(nation, vaultPoints)) {
+            plugin.getTreasuryManager().withdraw(nation, TransactionType.PRESIDENT_SALARY, vaultPoints,
                     "Daily salary for President " + president.getName(), president.getUniqueId());
             plugin.getVaultHook().deposit(president.getUniqueId(), vaultPoints);
-            getGovernment().addSalaryPayout(vaultPoints); // Track payout
+            gov.addSalaryPayout(vaultPoints); // Track payout
             MessageUtils.send(president, "managers.government.daily_reward");
         } else {
             MessageUtils.send(president, "<red>The Treasury cannot afford your daily salary!</red>");
@@ -377,12 +384,10 @@ public class GovernmentManager {
         president.getInventory().addItem(new ItemStack(Material.NETHERITE_INGOT, netheriteIngots));
         president.getInventory().addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, goldenApples));
 
-        // MessageUtils.send(president, "managers.government.daily_reward"); // Moved
-        // inside success block
         MessageUtils.playSound(president, Sound.ENTITY_PLAYER_LEVELUP);
     }
 
-    private void giveCabinetDailyRewards(Player player, CabinetPosition position) {
+    private void giveCabinetDailyRewards(Player player, CabinetPosition position, Government gov) {
         String configPath = switch (position) {
             case DEFENSE -> "cabinet.defense.daily-vault";
             case TREASURY -> "cabinet.treasury-minister.daily-vault";
@@ -393,12 +398,14 @@ public class GovernmentManager {
         double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
         double totalPay = vaultPoints + salary;
 
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+
         // Pay cabinet salary from treasury
-        if (plugin.getTreasuryManager().canAfford(totalPay)) {
-            plugin.getTreasuryManager().withdraw(TransactionType.CABINET_SALARY, totalPay,
+        if (plugin.getTreasuryManager().canAfford(nation, totalPay)) {
+            plugin.getTreasuryManager().withdraw(nation, TransactionType.CABINET_SALARY, totalPay,
                     "Daily salary for " + position.getDisplayName(), player.getUniqueId());
             plugin.getVaultHook().deposit(player.getUniqueId(), totalPay);
-            getGovernment().addSalaryPayout(totalPay); // Track payout
+            gov.addSalaryPayout(totalPay); // Track payout
             MessageUtils.send(player, "managers.government.cabinet_daily");
         } else {
             MessageUtils.send(player, "<red>The Treasury cannot afford your daily salary!</red>");
