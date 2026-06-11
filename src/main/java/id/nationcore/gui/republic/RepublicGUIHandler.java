@@ -146,6 +146,16 @@ public class RepublicGUIHandler {
             return;
         }
 
+        if (slot == 32) {
+            gui.republicDiplomacyMenu.openManagement(player, nation);
+            return;
+        }
+
+        if (slot == 30) {
+            gui.republicBorderMenu.open(player, nation);
+            return;
+        }
+
         if (slot == 37 || clicked.getType() == Material.EMERALD) {
             gui.salaryMenu.open(player);
             return;

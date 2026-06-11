@@ -34,6 +34,16 @@ public class MessageUtils {
         }
     }
 
+    /**
+     * Renders a string using ONLY legacy ampersand colour codes. Use this for
+     * player-provided content (e.g. nation welcome messages) so MiniMessage tags
+     * embedded in user input are treated as literal text instead of being
+     * interpreted — preventing tag injection.
+     */
+    public static Component parseLegacy(String message) {
+        return legacy.deserialize(message == null ? "" : message);
+    }
+
     public static Component prefix() {
         return parse(NationCore.getInstance().getPrefix() + " ");
     }

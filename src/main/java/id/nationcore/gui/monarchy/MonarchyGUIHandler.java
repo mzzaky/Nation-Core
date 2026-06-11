@@ -90,6 +90,16 @@ public class MonarchyGUIHandler {
             return;
         }
 
+        if (slot == 32) {
+            gui.monarchyDiplomacyMenu.openManagement(player, nation);
+            return;
+        }
+
+        if (slot == 30) {
+            gui.monarchyBorderMenu.open(player, nation);
+            return;
+        }
+
         if (slot == 13) {
             gui.openOrdersGUI(player);
             return;

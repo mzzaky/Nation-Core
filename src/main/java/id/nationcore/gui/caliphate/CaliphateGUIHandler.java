@@ -88,6 +88,16 @@ public class CaliphateGUIHandler {
             return;
         }
 
+        if (slot == 32) {
+            gui.caliphateDiplomacyMenu.openManagement(player, nation);
+            return;
+        }
+
+        if (slot == 30) {
+            gui.caliphateBorderMenu.open(player, nation);
+            return;
+        }
+
         if (slot == 13) {
             gui.openOrdersGUI(player);
             return;

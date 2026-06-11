@@ -32,6 +32,19 @@ nation:
     claim-cost: 0
 
   # ============================================================
+  # Border Management — territory expansion & capital relocation
+  # ============================================================
+  # Mengatur fitur Border Management (menu per-jenis nation). Semua
+  # biaya di bawah ditarik dari saldo Vault PEMIMPIN, bukan kas nation.
+  territory:
+    # Biaya klaim satu chunk teritori baru (ditarik dari Vault pemimpin).
+    claim-cost: 25000
+    # Biaya memindahkan ibukota ke chunk yang sudah dimiliki.
+    capital-relocate-cost: 50000
+    # Cooldown real-time (jam) antar pemindahan ibukota.
+    capital-relocate-cooldown-hours: 24
+
+  # ============================================================
   # Komunis-specific settings (sejak v1.5)
   # ============================================================
   communist:

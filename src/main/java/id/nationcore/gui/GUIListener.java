@@ -31,6 +31,14 @@ import id.nationcore.gui.republic.RepublicRecallGUI;
 import id.nationcore.gui.republic.RepublicArenaGUI;
 import id.nationcore.gui.republic.RepublicMemberManagementGUI;
 import id.nationcore.gui.republic.RepublicSalaryMenu;
+import id.nationcore.gui.caliphate.CaliphateDiplomacyMenu;
+import id.nationcore.gui.communist.CommunistDiplomacyMenu;
+import id.nationcore.gui.monarchy.MonarchyDiplomacyMenu;
+import id.nationcore.gui.republic.RepublicDiplomacyMenu;
+import id.nationcore.gui.caliphate.CaliphateBorderMenu;
+import id.nationcore.gui.communist.CommunistBorderMenu;
+import id.nationcore.gui.monarchy.MonarchyBorderMenu;
+import id.nationcore.gui.republic.RepublicBorderMenu;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -86,6 +94,14 @@ public class GUIListener implements Listener {
     public final CommunistMemberManagementGUI communistMemberManagementGUI;
     public final CommunistSharedStorageGUI communistSharedStorageGUI;
     public final RepublicMemberManagementGUI republicMemberManagementGUI;
+    public final CaliphateDiplomacyMenu caliphateDiplomacyMenu;
+    public final CommunistDiplomacyMenu communistDiplomacyMenu;
+    public final MonarchyDiplomacyMenu monarchyDiplomacyMenu;
+    public final RepublicDiplomacyMenu republicDiplomacyMenu;
+    public final CaliphateBorderMenu caliphateBorderMenu;
+    public final CommunistBorderMenu communistBorderMenu;
+    public final MonarchyBorderMenu monarchyBorderMenu;
+    public final RepublicBorderMenu republicBorderMenu;
 
     // Shared per-player state.
     public final Map<UUID, UUID> viewingCandidate = new HashMap<>();
@@ -94,6 +110,8 @@ public class GUIListener implements Listener {
     public final Map<UUID, UUID> viewingPlayerStats = new HashMap<>();
     public final Map<UUID, UUID> viewingManagedMember = new HashMap<>();
     public final Map<UUID, Integer> memberListPage = new HashMap<>();
+    /** Diplomacy Sub Menu Select state: viewer player → target nation id currently opened. */
+    public final Map<UUID, String> viewingDiplomacyTarget = new HashMap<>();
     /** Cooldown tracking for "Send Message to Member" action: presidentUUID → (targetUUID → lastSentTimestamp) */
     public final Map<UUID, Map<UUID, Long>> memberMessageCooldowns = new HashMap<>();
 
@@ -132,6 +150,14 @@ public class GUIListener implements Listener {
         this.communistMemberManagementGUI = new CommunistMemberManagementGUI(plugin);
         this.communistSharedStorageGUI = new CommunistSharedStorageGUI(plugin);
         this.republicMemberManagementGUI = new RepublicMemberManagementGUI(plugin);
+        this.caliphateDiplomacyMenu = new CaliphateDiplomacyMenu(plugin);
+        this.communistDiplomacyMenu = new CommunistDiplomacyMenu(plugin);
+        this.monarchyDiplomacyMenu = new MonarchyDiplomacyMenu(plugin);
+        this.republicDiplomacyMenu = new RepublicDiplomacyMenu(plugin);
+        this.caliphateBorderMenu = new CaliphateBorderMenu(plugin);
+        this.communistBorderMenu = new CommunistBorderMenu(plugin);
+        this.monarchyBorderMenu = new MonarchyBorderMenu(plugin);
+        this.republicBorderMenu = new RepublicBorderMenu(plugin);
 
         this.republic = new RepublicGUIHandler(plugin, this);
         this.communist = new CommunistGUIHandler(plugin, this);
@@ -166,6 +192,20 @@ public class GUIListener implements Listener {
         // (for depositing items).
         if (CommunistSharedStorageGUI.isStorageTitle(title)) {
             communist.handleSharedStorage(event, player, clicked, event.getRawSlot());
+            return;
+        }
+
+        // ── Border Management GUIs (per-nation) ─────────────────────────
+        // Handled before the generic AIR early-return so that clicks on the
+        // intentionally-empty frame slots are still cancelled (preventing item
+        // insertion / loss). Raw slots ignore the player's own inventory, and the
+        // ClickType lets the Welcome Message button tell left (set) from right
+        // (clear).
+        AbstractBorderMenu borderMenu = borderMenuFor(title);
+        if (borderMenu != null) {
+            event.setCancelled(true);
+            if (clicked == null || clicked.getType() == Material.AIR) return;
+            borderMenu.handleClick(this, player, clicked, event.getRawSlot(), event.getClick());
             return;
         }
 
@@ -253,6 +293,34 @@ public class GUIListener implements Listener {
         } else if (title.equals(CaliphateTreasuryMenu.LOGS_TITLE)) {
             event.setCancelled(true);
             caliphate.handleTreasuryLogsGUI(player, clicked);
+
+        // ── Diplomacy GUIs (per-nation) ─────────────────────────────────
+        // Raw slots are used so clicks inside the player's own inventory
+        // (which never overlap the top inventory's raw indices) are ignored.
+        } else if (title.equals(RepublicDiplomacyMenu.MANAGEMENT_TITLE)) {
+            event.setCancelled(true);
+            republicDiplomacyMenu.handleManagementClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(RepublicDiplomacyMenu.SELECT_TITLE)) {
+            event.setCancelled(true);
+            republicDiplomacyMenu.handleSelectClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(CommunistDiplomacyMenu.MANAGEMENT_TITLE)) {
+            event.setCancelled(true);
+            communistDiplomacyMenu.handleManagementClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(CommunistDiplomacyMenu.SELECT_TITLE)) {
+            event.setCancelled(true);
+            communistDiplomacyMenu.handleSelectClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(MonarchyDiplomacyMenu.MANAGEMENT_TITLE)) {
+            event.setCancelled(true);
+            monarchyDiplomacyMenu.handleManagementClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(MonarchyDiplomacyMenu.SELECT_TITLE)) {
+            event.setCancelled(true);
+            monarchyDiplomacyMenu.handleSelectClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(CaliphateDiplomacyMenu.MANAGEMENT_TITLE)) {
+            event.setCancelled(true);
+            caliphateDiplomacyMenu.handleManagementClick(this, player, clicked, event.getRawSlot());
+        } else if (title.equals(CaliphateDiplomacyMenu.SELECT_TITLE)) {
+            event.setCancelled(true);
+            caliphateDiplomacyMenu.handleSelectClick(this, player, clicked, event.getRawSlot());
 
         // ── Common / cross-nation GUIs ──────────────────────────────────
         } else if (title.equals("§2§l💰 SALARY & REWARDS 💰")) {
@@ -353,6 +421,15 @@ public class GUIListener implements Listener {
         }
     }
 
+    /** @return the per-nation Border Management menu matching this title, or null. */
+    private AbstractBorderMenu borderMenuFor(String title) {
+        if (RepublicBorderMenu.TITLE.equals(title)) return republicBorderMenu;
+        if (CommunistBorderMenu.TITLE.equals(title)) return communistBorderMenu;
+        if (MonarchyBorderMenu.TITLE.equals(title)) return monarchyBorderMenu;
+        if (CaliphateBorderMenu.TITLE.equals(title)) return caliphateBorderMenu;
+        return null;
+    }
+
     @EventHandler
     @SuppressWarnings("deprecation")
     public void onInventoryDrag(InventoryDragEvent event) {
@@ -384,6 +461,18 @@ public class GUIListener implements Listener {
                 title.equals(CommunistTreasuryMenu.LOGS_TITLE) ||
                 title.equals(MonarchyTreasuryMenu.LOGS_TITLE) ||
                 title.equals(CaliphateTreasuryMenu.LOGS_TITLE) ||
+                title.equals(RepublicDiplomacyMenu.MANAGEMENT_TITLE) ||
+                title.equals(RepublicDiplomacyMenu.SELECT_TITLE) ||
+                title.equals(CommunistDiplomacyMenu.MANAGEMENT_TITLE) ||
+                title.equals(CommunistDiplomacyMenu.SELECT_TITLE) ||
+                title.equals(MonarchyDiplomacyMenu.MANAGEMENT_TITLE) ||
+                title.equals(MonarchyDiplomacyMenu.SELECT_TITLE) ||
+                title.equals(CaliphateDiplomacyMenu.MANAGEMENT_TITLE) ||
+                title.equals(CaliphateDiplomacyMenu.SELECT_TITLE) ||
+                title.equals(RepublicBorderMenu.TITLE) ||
+                title.equals(CommunistBorderMenu.TITLE) ||
+                title.equals(MonarchyBorderMenu.TITLE) ||
+                title.equals(CaliphateBorderMenu.TITLE) ||
                 title.equals(RepublicPresidentHistoryGUI.HISTORY_TITLE) ||
                 title.equals(RepublicPresidentHistoryGUI.DETAIL_TITLE) ||
                 title.equals(PlayerStatsGUI.STATS_GUI_TITLE) ||

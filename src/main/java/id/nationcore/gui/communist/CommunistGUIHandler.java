@@ -157,6 +157,16 @@ public class CommunistGUIHandler {
             return;
         }
 
+        if (slot == 32) {
+            gui.communistDiplomacyMenu.openManagement(player, nation);
+            return;
+        }
+
+        if (slot == 30) {
+            gui.communistBorderMenu.open(player, nation);
+            return;
+        }
+
         if (slot == 48) {
             CommunistGovernment cg = nation.getCommunistGovernment();
             boolean isSekjen = cg != null && cg.hasSecretaryGeneral()

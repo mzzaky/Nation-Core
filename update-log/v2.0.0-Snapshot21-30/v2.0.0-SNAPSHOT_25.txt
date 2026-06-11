@@ -1,0 +1,117 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#25
+====================================================
+Updated the territory and capital claiming system from circular boundaries to Minecraft chunk-based claims, translated all territory and capital claim related messages to English, and implemented automatic capital chunk claiming upon nation creation.
+
+[CHUNK-BASED TERRITORY CLAIM SYSTEM]
+- TerritoryManager.java (id.nationcore.managers):
+  → Removed circular boundary math (using radius and distance calculations).
+  → Implemented chunk-based boundary check inside getNationAt and findOverlapping. A location belongs to a nation's territory if it lies inside the capital's chunk (determined by `loc.getBlockX() >> 4` and `loc.getBlockZ() >> 4`).
+  → Removed the unused radius-based checks and parameter fields.
+- CapitalLocation (Nation.java, id.nationcore.models):
+  → Maintained the radius field and serialization compatibility, but set it to 0 as boundaries are now strictly chunk-based.
+
+[AUTOMATIC CAPITAL CLAIM ON NATION ESTABLISHMENT]
+- NationManager.java (id.nationcore.managers):
+  → Modified the `createNation` workflow to automatically claim the chunk where the founder is standing as the nation's capital chunk.
+  → Introduced a check to ensure the founder's chunk is not already claimed by another nation; if it is, the nation creation fails with a descriptive error.
+  → Broadcasts the capital establishment to the server in English, showing the coordinates of the capital chunk.
+
+[LOCALISATION & MESSAGE UPDATES (ENGLISH)]
+- TerritoryManager.java:
+  → Translated all player-facing feedback messages to English.
+  → Translated capital claim broadcast and success/error status returns.
+- CapitalListener.java (id.nationcore.listeners):
+  → Translated all action bar notifications (Welcome, Entering territory, Leaving territory, Quarantine Protocol warning) and Chat warnings (Plague, PvP disabled, actions denied) to English.
+- NationCommand.java (id.nationcore.commands):
+  → Updated `/nc nation` and `/nc capital info` to display chunk coordinate coordinates `(X, Z)` instead of blocks radius.
+  → Translated help menus, execution errors, and feedback logs for `/nc capital` subcommands to English.
+
+
+====================================================
+  BORDER MANAGEMENT (PER-NATION) — TERRITORY UPDATE
+====================================================
+Promoted the placeholder "Border Management" button into a fully interactive, per-nation menu. Nations can now own MANY chunks (not just the capital), expand their borders chunk-by-chunk, relocate their capital, visualize their territory with live particles, and greet visitors with a custom welcome message. The menu and all feature text are in English, and the menu source for each government lives in that government's own UI package.
+
+[MULTI-CHUNK TERRITORY MODEL]
+- Nation.java (id.nationcore.models):
+  → Added a territory chunk set (Set<String> of "world;chunkX;chunkZ" keys); the capital chunk is always part of it.
+  → Added `welcomeMessage` (custom territory greeting), `borderVisible` (particle toggle, default OFF) and `lastCapitalRelocateAt` (relocation cooldown stamp), each with accessors. All four fields serialize automatically via Gson and lazily initialize for older save files.
+- NationManager.java (id.nationcore.managers):
+  → createNation now seeds the auto-claimed capital chunk into the territory set.
+  → loadNations migrates pre-territory save data by guaranteeing each nation's capital chunk is present in its territory set (floor-based chunk maths, so negative coordinates are handled correctly).
+- TerritoryManager.java (id.nationcore.managers):
+  → getNationAt / findOverlapping are now set-based: a location belongs to a nation when its chunk is in that nation's owned-chunk set (with a defensive capital-chunk fallback). As a result, ALL claimed chunks — not just the capital — now receive the existing anti-grief, explosion and PvP-safe-zone protection from CapitalListener.
+  → Added static chunk-key helpers (chunkKey / chunkKeyOf), capitalChunkKey, ownsChunkAt and isCapitalChunk.
+  → Added canManageTerritory (leader or nation.admin) as the single authorization gate for every border action.
+  → claimCapital now also records the capital chunk into the territory set.
+
+[NEW BORDER OPERATIONS]
+- TerritoryManager.java:
+  → claimTerritory(player, loc): claims the chunk the leader is standing in. Charges 25,000 from the leader's Vault balance (configurable), refuses chunks already owned by another nation, and only allows chunks orthogonally adjacent to existing territory (so a nation's land always stays connected).
+  → disbandTerritory(player, loc): releases the chunk the leader is standing in. The capital chunk is protected and cannot be released.
+  → reallocateCapital(player, loc): moves the capital marker to a chunk the nation already owns. Charges 50,000 from the leader's Vault balance and enforces a 24-hour real-time cooldown (both configurable). The previous capital chunk remains owned territory.
+
+[BORDER PARTICLE VISUALIZER]
+- BorderVisualizationManager.java (NEW, id.nationcore.managers):
+  → A throttled repeating task (every 10 ticks) that draws the particle outline of every nation whose borders are toggled on.
+  → Connected outline — only edges facing UNOWNED chunks are drawn, so a multi-chunk territory renders as a single continuous border (shared internal edges are skipped).
+  → Distinct capital — the capital chunk always draws its full square outline in a brighter, larger gold particle with rising END_ROD sparkles, so it stands out even when fully surrounded by owned land.
+  → Visible to everyone — particles are spawned into the world with the force flag, dense (0.5-block spacing) and two blocks tall, so all nearby players see a clear, low wall regardless of their particle settings.
+  → Lag-aware — rendering is culled to chunks within 4 chunks of an online player, never touches unloaded chunks, and clamps its terrain-height sampling inside the current chunk so boundary points never force-load a neighbour. Particle colour is themed per government (Republic blue, Communist red, Monarchy amber, Caliphate green).
+- NationCore.java:
+  → Instantiates the manager, starts its task in startScheduledTasks(), exposes getBorderVisualizationManager(), and stops it on disable.
+
+[NEW BORDER MANAGEMENT GUIS (PER-NATION)]
+- AbstractBorderMenu.java (NEW, id.nationcore.gui):
+  → Shared 54-slot base that renders the menu and centralizes all navigation, security and territory logic so behaviour is identical across every government type. Subclasses only supply theming (filler colour, accent colour, unique title) and the GovernmentType they are bound to.
+- RepublicBorderMenu.java (NEW, id.nationcore.gui.republic): Light-blue theme. Title "REPUBLIC BORDERS". Filler light_blue_stained_glass_pane.
+- CommunistBorderMenu.java (NEW, id.nationcore.gui.communist): Red theme. Title "COMMUNIST BORDERS". Filler red_stained_glass_pane.
+- MonarchyBorderMenu.java (NEW, id.nationcore.gui.monarchy): Gold theme. Title "KINGDOM BORDERS". Filler yellow_stained_glass_pane.
+- CaliphateBorderMenu.java (NEW, id.nationcore.gui.caliphate): Green theme. Title "CALIPHATE BORDERS". Filler lime_stained_glass_pane.
+
+[BORDER MANAGEMENT MENU LAYOUT (54 SLOTS)]
+- AbstractBorderMenu.java:
+  → Filler (per-nation stained_glass_pane) on slots 0-3, 5-9, 17, 18, 26, 27, 35, 36, and 44-53 (except 49), framing the menu.
+  → Territory Overview (glow_item_frame) on slot 4: nation name, government, tag, claimed-chunk count, capital chunk + world, border-display state, and whether a welcome message is set.
+  → Toggle Border (dark_oak_hanging_sign) on slot 20: enables/disables the live particle visualization (default OFF).
+  → Welcome Message (writable_book) on slot 22: left-click sets a new greeting via chat input, right-click clears it.
+  → Reallocate Capital (birch_hanging_sign) on slot 24: relocates the capital to the standing chunk; lore shows the cost, cooldown, the standing chunk's status, and the live cooldown remaining.
+  → Disband Territory (mangrove_hanging_sign) on slot 30: releases the standing chunk; lore reminds that the capital chunk cannot be released and shows the standing chunk's status.
+  → Claim Territory (pale_oak_hanging_sign) on slot 32: claims the standing chunk; lore shows the cost, adjacency/ownership rules, the standing chunk's coordinates, BIOME, and current ownership.
+  → Back (spectral_arrow) on slot 49: returns the player to their own Government menu.
+
+[CUSTOM WELCOME MESSAGE]
+- ChatListener.java (id.nationcore.listeners):
+  → Added the `pendingWelcomeMessages` map and chat-capture flow: typed text (cancellable, capped at 100 chars) becomes the nation's welcome message, with a coloured preview echoed back.
+- CapitalListener.java (id.nationcore.listeners):
+  → When a player enters a nation's territory, that nation's welcome message (if set) is shown to EVERYONE — member and non-member alike — exactly once per territory entry.
+- MessageUtils.java (id.nationcore.utils):
+  → Added parseLegacy(): renders strings using ONLY legacy ampersand colour codes. Player-provided welcome messages are rendered through it so embedded MiniMessage tags are treated as literal text (no tag injection).
+
+[GOVERNMENT MENU INTEGRATION]
+- RepublicGovernmentGUI.java / CommunistGovernmentGUI.java / MonarchyGovernmentGUI.java / CaliphateGovernmentGUI.java:
+  → Replaced the slot 30 "Border Management" placeholder ("Coming Soon" / "under development") with modern, descriptive lore and a "Click to open." call to action.
+- RepublicGUIHandler.java / CommunistGUIHandler.java / MonarchyGUIHandler.java / CaliphateGUIHandler.java:
+  → Wired slot 30 of the Government menu to open the matching per-nation Border Management menu. The menu's Back button (slot 49) routes back to the Government menu, completing the round trip.
+
+[GUI ROUTING & EVENT SECURITY]
+- GUIListener.java:
+  → Registered the four Border Management menus as instances.
+  → Routed the four menu titles in a dedicated block placed BEFORE the generic empty-slot early-return, so clicks on the intentionally-empty frame slots are cancelled too — preventing item insertion / loss into the sparse menu. Clicks dispatch on getRawSlot(), and ClickType is forwarded so the Welcome Message button can tell left-click (set) from right-click (clear).
+  → Added the four titles to onInventoryDrag so item drags are cancelled inside these menus.
+
+[SECURITY MECHANISMS]
+- AbstractBorderMenu.java:
+  → Every click re-resolves the player's nation and verifies it still matches the government type the menu is bound to; a stale or mismatched session closes the inventory with a notice.
+  → All mutating actions (toggle, welcome set/clear, claim, disband, relocate) require canManageTerritory (Leader / admin); non-leaders receive a clear "Only the <Leader title> can ..." notice.
+  → claimTerritory refuses already-owned chunks, blocks claiming over another nation, and enforces adjacency. disbandTerritory protects the capital chunk. reallocateCapital requires the destination to already be owned and enforces the relocation cooldown. All economic charges are validated against the leader's Vault balance before any state change.
+
+[CONFIGURATION]
+- config.yml:
+  → Added nation.territory.claim-cost (25000), nation.territory.capital-relocate-cost (50000) and nation.territory.capital-relocate-cooldown-hours (24). All charges are taken from the LEADER's Vault balance.
+
+[NOTES]
+- Claims use orthogonal (N/S/E/W) adjacency, guaranteeing every nation's territory remains one connected region as it grows from the capital outward.
+- The border toggle is persisted per nation, so a nation that left its borders visible keeps them visible across restarts.
+- Capital relocation keeps the old capital chunk as ordinary owned territory; only the capital marker moves.

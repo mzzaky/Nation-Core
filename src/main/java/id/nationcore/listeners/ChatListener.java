@@ -37,6 +37,9 @@ public class ChatListener implements Listener {
     public record PendingMemberMessage(Nation nation, UUID targetUUID, String targetName) {}
     public static final java.util.Map<UUID, PendingMemberMessage> pendingMemberMessages = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Leaders setting a custom territory welcome message: playerUUID → target Nation */
+    public static final java.util.Map<UUID, Nation> pendingWelcomeMessages = new java.util.concurrent.ConcurrentHashMap<>();
+
     public ChatListener(NationCore plugin) {
         this.plugin = plugin;
     }
@@ -287,6 +290,31 @@ public class ChatListener implements Listener {
                             .computeIfAbsent(uuid, k -> new java.util.HashMap<>())
                             .put(pending.targetUUID(), System.currentTimeMillis());
                 }
+            });
+            return;
+        }
+
+        // Capture a custom territory welcome message.
+        if (pendingWelcomeMessages.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation welcomeNation = pendingWelcomeMessages.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
+                        MessageUtils.send(player, "<yellow>Welcome message update cancelled.</yellow>"));
+                return;
+            }
+
+            // Cap length so the greeting stays a single, readable line.
+            final String finalInput = input.length() > 100 ? input.substring(0, 100) : input;
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                welcomeNation.setWelcomeMessage(finalInput);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "<green>Welcome message updated for "
+                        + welcomeNation.getName() + ".</green>");
+                player.sendMessage(MessageUtils.parseLegacy("&7Preview: &f" + finalInput));
             });
             return;
         }

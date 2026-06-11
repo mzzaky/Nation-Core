@@ -15,6 +15,15 @@ public class DiplomacyManager {
         this.plugin = plugin;
     }
 
+    /**
+     * Renders a status' coloured name for raw {@link Player#sendMessage} output.
+     * {@link DiplomacyStatus#getColoredName()} carries ampersand colour codes,
+     * which Bukkit does not translate automatically in raw chat.
+     */
+    private String colored(DiplomacyStatus status) {
+        return ChatColor.translateAlternateColorCodes('&', status.getColoredName());
+    }
+
     public boolean canManageDiplomacy(UUID playerUUID, Nation nation) {
         if (nation == null) return false;
 
@@ -42,25 +51,25 @@ public class DiplomacyManager {
 
     public void proposeDiplomacy(Player sender, Nation senderNation, Nation targetNation, DiplomacyStatus targetStatus) {
         if (senderNation.getId().equals(targetNation.getId())) {
-            sender.sendMessage(ChatColor.RED + "Anda tidak bisa mengajukan diplomasi ke nation sendiri.");
+            sender.sendMessage(ChatColor.RED + "You cannot propose diplomacy to your own nation.");
             return;
         }
 
         if (!canManageDiplomacy(sender.getUniqueId(), senderNation)) {
-            sender.sendMessage(ChatColor.RED + "Hanya Pemimpin dan Menteri Pertahanan yang bisa mengajukan diplomasi.");
+            sender.sendMessage(ChatColor.RED + "Only the Leader and the Defense Minister may propose diplomacy.");
             return;
         }
 
         DiplomacyStatus currentStatus = senderNation.getDiplomacyStatusWith(targetNation.getId());
         if (currentStatus == targetStatus) {
-            sender.sendMessage(ChatColor.RED + "Status diplomasi dengan " + targetNation.getName() + " sudah " + targetStatus.getDisplayName() + ".");
+            sender.sendMessage(ChatColor.RED + "Your relation with " + targetNation.getName() + " is already " + colored(targetStatus) + ChatColor.RED + ".");
             return;
         }
 
-        // Cek jika sudah ada request yang menggantung
+        // Block if there is already a pending outgoing request to this target
         DiplomacyRequest existingRequest = targetNation.getDiplomacyRequest(senderNation.getId());
         if (existingRequest != null) {
-            sender.sendMessage(ChatColor.RED + "Nation Anda sudah mengajukan diplomasi ke " + targetNation.getName() + ". Menunggu respon.");
+            sender.sendMessage(ChatColor.RED + "Your nation already has a pending proposal to " + targetNation.getName() + ". Awaiting their response.");
             return;
         }
 
@@ -73,59 +82,24 @@ public class DiplomacyManager {
 
         targetNation.addDiplomacyRequest(newRequest);
 
-        sender.sendMessage(ChatColor.GREEN + "Berhasil mengajukan status " + targetStatus.getColoredName() + ChatColor.GREEN + " kepada " + targetNation.getName() + ".");
+        sender.sendMessage(ChatColor.GREEN + "Successfully proposed " + colored(targetStatus) + ChatColor.GREEN + " status to " + targetNation.getName() + ".");
 
-        // Broadcast to target nation's leaders (implikasi)
+        // Notify the target nation's leader so they can respond
         Player targetLeader = plugin.getServer().getPlayer(targetNation.getLeaderUUID());
         if (targetLeader != null && targetLeader.isOnline()) {
-            targetLeader.sendMessage(ChatColor.YELLOW + "[DIPLOMASI] " + senderNation.getName() + " mengajukan status " + targetStatus.getColoredName() + ChatColor.YELLOW + ". Gunakan menu diplomasi untuk merespon.");
+            targetLeader.sendMessage(ChatColor.YELLOW + "[DIPLOMACY] " + senderNation.getName() + " proposed " + colored(targetStatus) + ChatColor.YELLOW + " status. Use /nc diplomacy accept " + senderNation.getName() + " to respond.");
         }
     }
 
     public void acceptDiplomacy(Player responder, Nation targetNation, String senderNationId) {
         if (!canManageDiplomacy(responder.getUniqueId(), targetNation)) {
-            responder.sendMessage(ChatColor.RED + "Hanya Pemimpin dan Menteri Pertahanan yang bisa merespon diplomasi.");
+            responder.sendMessage(ChatColor.RED + "Only the Leader and the Defense Minister may respond to diplomacy.");
             return;
         }
 
         DiplomacyRequest request = targetNation.getDiplomacyRequest(senderNationId);
         if (request == null) {
-            responder.sendMessage(ChatColor.RED + "Tidak ada pengajuan diplomasi dari nation tersebut.");
-            return;
-        }
-
-        NationManager nationManager = plugin.getNationManager(); // Asumsi ada get properties ini
-        Nation senderNation = nationManager.getNation(senderNationId);
-
-        if (senderNation != null) {
-            DiplomacyStatus status = request.getRequestedStatus();
-            
-            // Set two-way
-            senderNation.setDiplomacyStatus(targetNation.getId(), status);
-            targetNation.setDiplomacyStatus(senderNation.getId(), status);
-
-            responder.sendMessage(ChatColor.GREEN + "Anda menyetujui pengajuan diplomasi. Status dengan " + senderNation.getName() + " sekarang adalah " + status.getColoredName() + ChatColor.GREEN + ".");
-            
-            Player senderPlayer = plugin.getServer().getPlayer(request.getRequestedBy());
-            if (senderPlayer != null && senderPlayer.isOnline()) {
-                senderPlayer.sendMessage(ChatColor.GREEN + "[DIPLOMASI] " + targetNation.getName() + " MENYETUJUI pengajuan diplomasi. Status sekarang: " + status.getColoredName());
-            }
-        } else {
-            responder.sendMessage(ChatColor.RED + "Nation pengaju tidak ditemukan.");
-        }
-
-        targetNation.removeDiplomacyRequest(senderNationId);
-    }
-
-    public void rejectDiplomacy(Player responder, Nation targetNation, String senderNationId) {
-        if (!canManageDiplomacy(responder.getUniqueId(), targetNation)) {
-            responder.sendMessage(ChatColor.RED + "Hanya Pemimpin dan Menteri Pertahanan yang bisa merespon diplomasi.");
-            return;
-        }
-
-        DiplomacyRequest request = targetNation.getDiplomacyRequest(senderNationId);
-        if (request == null) {
-            responder.sendMessage(ChatColor.RED + "Tidak ada pengajuan diplomasi dari nation tersebut.");
+            responder.sendMessage(ChatColor.RED + "There is no pending proposal from that nation.");
             return;
         }
 
@@ -133,11 +107,46 @@ public class DiplomacyManager {
         Nation senderNation = nationManager.getNation(senderNationId);
 
         if (senderNation != null) {
-            responder.sendMessage(ChatColor.YELLOW + "Anda MENOLAK pengajuan diplomasi dari " + senderNation.getName() + ".");
-            
+            DiplomacyStatus status = request.getRequestedStatus();
+
+            // Set two-way
+            senderNation.setDiplomacyStatus(targetNation.getId(), status);
+            targetNation.setDiplomacyStatus(senderNation.getId(), status);
+
+            responder.sendMessage(ChatColor.GREEN + "Proposal accepted. Your relation with " + senderNation.getName() + " is now " + colored(status) + ChatColor.GREEN + ".");
+
             Player senderPlayer = plugin.getServer().getPlayer(request.getRequestedBy());
             if (senderPlayer != null && senderPlayer.isOnline()) {
-                senderPlayer.sendMessage(ChatColor.RED + "[DIPLOMASI] " + targetNation.getName() + " MENOLAK pengajuan diplomasi Anda.");
+                senderPlayer.sendMessage(ChatColor.GREEN + "[DIPLOMACY] " + targetNation.getName() + " ACCEPTED your proposal. Relation is now: " + colored(status));
+            }
+        } else {
+            responder.sendMessage(ChatColor.RED + "The proposing nation could not be found.");
+        }
+
+        targetNation.removeDiplomacyRequest(senderNationId);
+    }
+
+    public void rejectDiplomacy(Player responder, Nation targetNation, String senderNationId) {
+        if (!canManageDiplomacy(responder.getUniqueId(), targetNation)) {
+            responder.sendMessage(ChatColor.RED + "Only the Leader and the Defense Minister may respond to diplomacy.");
+            return;
+        }
+
+        DiplomacyRequest request = targetNation.getDiplomacyRequest(senderNationId);
+        if (request == null) {
+            responder.sendMessage(ChatColor.RED + "There is no pending proposal from that nation.");
+            return;
+        }
+
+        NationManager nationManager = plugin.getNationManager();
+        Nation senderNation = nationManager.getNation(senderNationId);
+
+        if (senderNation != null) {
+            responder.sendMessage(ChatColor.YELLOW + "You REJECTED the proposal from " + senderNation.getName() + ".");
+
+            Player senderPlayer = plugin.getServer().getPlayer(request.getRequestedBy());
+            if (senderPlayer != null && senderPlayer.isOnline()) {
+                senderPlayer.sendMessage(ChatColor.RED + "[DIPLOMACY] " + targetNation.getName() + " REJECTED your proposal.");
             }
         }
 

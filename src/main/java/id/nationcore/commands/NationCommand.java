@@ -165,7 +165,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "<gray>Treasury Balance: <green>$" + MessageUtils.formatNumber(nation.getTreasury().getBalance()));
         if (nation.hasCapital()) {
             var cap = nation.getCapital();
-            MessageUtils.send(sender, "<gray>Capital: <white>" + cap.getWorld() + " (" + (int) cap.getX() + ", " + (int) cap.getY() + ", " + (int) cap.getZ() + ")");
+            MessageUtils.send(sender, "<gray>Capital Chunk: <white>" + cap.getWorld() + " (" + (((int) cap.getX()) >> 4) + ", " + (((int) cap.getZ()) >> 4) + ")");
         } else {
             MessageUtils.send(sender, "<gray>Capital: <yellow>Not claimed</yellow>");
         }
@@ -295,7 +295,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(player, "<gray>World: <white>" + cap.getWorld());
         MessageUtils.send(player, "<gray>Position: <white>(" +
                 (int) cap.getX() + ", " + (int) cap.getY() + ", " + (int) cap.getZ() + ")");
-        MessageUtils.send(player, "<gray>Radius: <white>" + cap.getRadius() + " blocks");
+        MessageUtils.send(player, "<gray>Chunk: <white>" + (((int) cap.getX()) >> 4) + ", " + (((int) cap.getZ()) >> 4));
     }
 
     // === HELP ===

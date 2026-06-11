@@ -1,10 +1,10 @@
 package id.nationcore.models;
 
 public enum DiplomacyStatus {
-    PEACE("Damai", "&a", "Status default, tidak bisa PvP di wilayah satu sama lain."),
-    ALLIANCE("Sekutu", "&b", "Tidak bisa saling serang dan saling membantu saat diserang."),
-    TRUCE("Gencatan Senjata", "&e", "Berhenti saling serang setelah perang untuk waktu tertentu."),
-    WAR("Perang", "&c", "PvP aktif, mengizinkan penyerangan teritori dan pencaplokan.");
+    PEACE("Peace", "&a", "Default neutral stance. No PvP within each other's territory."),
+    ALLIANCE("Alliance", "&b", "Mutual protection. You cannot attack each other and aid one another when attacked."),
+    TRUCE("Truce", "&e", "Temporary ceasefire after a war. Hostilities are paused for a set period."),
+    WAR("War", "&c", "Open hostilities. PvP is enabled and territory raids/annexation are allowed.");
 
     private final String displayName;
     private final String colorCode;

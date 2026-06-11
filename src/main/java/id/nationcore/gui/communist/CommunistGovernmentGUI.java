@@ -75,11 +75,13 @@ public class CommunistGovernmentGUI {
 
         inv.setItem(30, GovernmentGUIUtils.createItem(Material.EXPLORER_POTTERY_SHERD, "§e§lBorder Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7This feature is currently",
-                "§7under development.",
-                "",
-                "§c⚠ Coming Soon",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+                "§7Manage your nation's territory.",
+                "§7• Claim & release chunks",
+                "§7• Reallocate your capital",
+                "§7• Toggle border visualization",
+                "§7• Set a territory welcome message",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§aClick to open."));
 
         inv.setItem(31, GovernmentGUIUtils.createItem(Material.EXPLORER_POTTERY_SHERD, "§e§lEvent Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
@@ -91,11 +93,12 @@ public class CommunistGovernmentGUI {
 
         inv.setItem(32, GovernmentGUIUtils.createItem(Material.EXPLORER_POTTERY_SHERD, "§e§lDiplomacy Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7This feature is currently",
-                "§7under development.",
-                "",
-                "§c⚠ Coming Soon",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+                "§7Manage your foreign relations",
+                "§7with every other nation.",
+                "§7• Review each nation's current status",
+                "§7• Propose Peace, Alliance, Truce or War",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§aClick to open."));
 
         inv.setItem(43, GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§c§lBack",
                 "§7Return to previous menu"));

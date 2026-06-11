@@ -19,6 +19,7 @@ import id.nationcore.listeners.DamageListener;
 import id.nationcore.listeners.EconomyListener;
 import id.nationcore.listeners.PlayerListener;
 import id.nationcore.managers.ArenaManager;
+import id.nationcore.managers.BorderVisualizationManager;
 import id.nationcore.managers.BuffManager;
 import id.nationcore.managers.CabinetManager;
 import id.nationcore.managers.CommunistManager;
@@ -54,6 +55,7 @@ public class NationCore extends JavaPlugin {
     private TaxManager taxManager;
     private NationManager nationManager;
     private TerritoryManager territoryManager;
+    private BorderVisualizationManager borderVisualizationManager;
     private CommunistManager communistManager;
     private MonarchyManager monarchyManager;
     private CaliphateManager caliphateManager;
@@ -97,6 +99,7 @@ public class NationCore extends JavaPlugin {
         taxManager = new TaxManager(this);
         nationManager = new NationManager(this);
         territoryManager = new TerritoryManager(this);
+        borderVisualizationManager = new BorderVisualizationManager(this);
         communistManager = new CommunistManager(this);
         monarchyManager = new MonarchyManager(this);
         caliphateManager = new CaliphateManager(this);
@@ -127,6 +130,9 @@ public class NationCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (borderVisualizationManager != null) {
+            borderVisualizationManager.stop();
+        }
         if (dataManager != null) {
             dataManager.saveAll();
         }
@@ -279,6 +285,10 @@ public class NationCore extends JavaPlugin {
 
         // Start global tax collection scheduler
         taxManager.startTaxScheduler();
+
+        // Start the nation border particle visualizer (renders only nations whose
+        // borders are toggled on, and only near online players).
+        borderVisualizationManager.start();
     }
 
     public static NationCore getInstance() {
@@ -331,6 +341,10 @@ public class NationCore extends JavaPlugin {
 
     public TerritoryManager getTerritoryManager() {
         return territoryManager;
+    }
+
+    public BorderVisualizationManager getBorderVisualizationManager() {
+        return borderVisualizationManager;
     }
 
     public CommunistManager getCommunistManager() {

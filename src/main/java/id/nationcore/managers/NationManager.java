@@ -112,6 +112,14 @@ public class NationManager {
         if (loaded == null) return;
         for (Nation n : loaded) {
             if (n == null || n.getId() == null) continue;
+            // Migrate pre-territory save data: guarantee the capital chunk is part
+            // of the owned-chunk set so the chunk-based lookups remain accurate.
+            if (n.hasCapital()) {
+                Nation.CapitalLocation cap = n.getCapital();
+                int cx = ((int) Math.floor(cap.getX())) >> 4;
+                int cz = ((int) Math.floor(cap.getZ())) >> 4;
+                n.getTerritory().add(TerritoryManager.chunkKey(cap.getWorld(), cx, cz));
+            }
             nations.put(n.getId(), n);
         }
     }
@@ -219,6 +227,13 @@ public class NationManager {
             return Result.fail("You are already in a nation. Leave first to create a new one.");
         }
 
+        // Check if the current chunk is already claimed by another nation
+        org.bukkit.Location loc = founder.getLocation();
+        Nation atLoc = plugin.getTerritoryManager().getNationAt(loc);
+        if (atLoc != null) {
+            return Result.fail("The chunk you are standing on is already claimed by nation '" + atLoc.getName() + "'.");
+        }
+
         // Check vault requirements
         double cost = plugin.getConfig().getDouble("nation.creation.cost", 1_000_000);
         if (plugin.getVaultHook().getBalance(founderUUID) < cost) {
@@ -241,6 +256,13 @@ public class NationManager {
         String id = UUID.randomUUID().toString();
         Nation nation = new Nation(id, desiredName.trim(), type, founderUUID, founder.getName());
 
+        // Auto-claim the capital chunk
+        Nation.CapitalLocation capital = new Nation.CapitalLocation(
+                loc.getWorld().getName(), loc.getX(), loc.getY(), loc.getZ(),
+                loc.getYaw(), loc.getPitch(), 0);
+        nation.setCapital(capital);
+        nation.getTerritory().add(TerritoryManager.chunkKeyOf(loc));
+
         // Starting fund for nation treasury (calculated as percentage of creation cost).
         // Nilai diambil dari config sebagai persentase (0-100), lalu dikalikan dengan cost.
         double startingTreasuryPercent = plugin.getConfig().getDouble("nation.creation.starting-treasury-percent", 0);
@@ -259,6 +281,11 @@ public class NationManager {
 
         plugin.getDataManager().saveNations();
         plugin.getDataManager().savePlayerData();
+
+        int chunkX = loc.getBlockX() >> 4;
+        int chunkZ = loc.getBlockZ() >> 4;
+        Bukkit.broadcastMessage("§eCapital of §6" + nation.getName() +
+                "§e has been established at chunk §f(" + chunkX + ", " + chunkZ + ")§e in world §f" + loc.getWorld().getName() + "§e.");
 
         return Result.ok("Nation '" + nation.getName() + "' has been successfully established!", nation);
     }

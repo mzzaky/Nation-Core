@@ -1,0 +1,68 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#24
+====================================================
+Promoted the command-based diplomacy system into a fully interactive GUI. Added a dedicated Diplomacy Management menu and a Diplomatic Envoy (Sub Menu Select) panel for all four government types, wired the previously non-functional "Diplomacy Management" buttons, and translated the remaining diplomacy text to English.
+
+[NEW DIPLOMACY MANAGEMENT GUIS (PER-NATION)]
+- AbstractDiplomacyMenu.java (NEW, id.nationcore.gui):
+  → Introduced a shared base that renders BOTH diplomacy screens and centralizes all navigation, security and proposal logic so behaviour is identical across every government type.
+  → Subclasses only supply theming (filler colour, accent colour, unique titles) and the GovernmentType they are bound to.
+- CaliphateDiplomacyMenu.java (NEW, id.nationcore.gui.caliphate):
+  → Lime theme. Titles: "CALIPHATE DIPLOMACY" / "DIPLOMATIC ENVOY". Filler: lime_stained_glass_pane.
+- CommunistDiplomacyMenu.java (NEW, id.nationcore.gui.communist):
+  → Red theme. Titles: "COMMUNIST DIPLOMACY" / "DIPLOMATIC ENVOY". Filler: red_stained_glass_pane.
+- MonarchyDiplomacyMenu.java (NEW, id.nationcore.gui.monarchy):
+  → Gold theme. Titles: "MONARCHY DIPLOMACY" / "DIPLOMATIC ENVOY". Filler: yellow_stained_glass_pane.
+- RepublicDiplomacyMenu.java (NEW, id.nationcore.gui.republic):
+  → Light-blue theme. Titles: "REPUBLIC DIPLOMACY" / "DIPLOMATIC ENVOY". Filler: light_blue_stained_glass_pane.
+
+[DIPLOMACY MANAGEMENT MENU LAYOUT (54 SLOTS)]
+- AbstractDiplomacyMenu.java:
+  → Filler (per-nation stained_glass_pane) on slots 0-3, 5-9, 17, 18, 26, 27, 35, 36, 44-48, and 50-53.
+  → Diplomacy Statistics (glow_item_frame) on slot 4: shows the number of registered nations and a breakdown of Peace / Alliance / Truce / War relations, plus incoming and outgoing proposal counts.
+  → Back button (spectral_arrow) on slot 49: returns the player to their own Government menu.
+  → Nation List on slots 10-16, 19-25, 28-34, and 37-43 (28 slots): lists every other registered nation, ordered by member count, each showing government type, tag, leader, member count, the current relation, and any pending proposal. The target nation's government icon is used as the item, and the name is coloured by the current relation. Clicking an entry opens the Diplomatic Envoy panel for that nation.
+  → When no other nations exist, a single informational item (map) is shown in the first list slot.
+
+[SUB MENU SELECT / DIPLOMATIC ENVOY LAYOUT (27 SLOTS)]
+- AbstractDiplomacyMenu.java:
+  → Filler (per-nation stained_glass_pane) on slots 0-3, 5-9, 17-21, and 23-26.
+  → Target Information (glow_item_frame) on slot 4: a short dossier of the selected nation (government, tag, leader, members, current relation, and any pending proposal, with a hint to accept incoming proposals via command).
+  → Propose Peace (writable_book) on slot 10.
+  → Propose Alliance (writable_book) on slot 12.
+  → Propose Truce (writable_book) on slot 14.
+  → Propose War (writable_book) on slot 16.
+  → Back button (spectral_arrow) on slot 22: returns the player to the Diplomacy Management menu.
+  → Each proposal button explains the chosen relation, flags it when it is already the active relation, and shows a clear "not authorized" notice for players who lack permission.
+
+[GOVERNMENT MENU INTEGRATION]
+- CaliphateGovernmentGUI.java / MonarchyGovernmentGUI.java / CommunistGovernmentGUI.java / RepublicGovernmentGUI.java:
+  → Replaced the slot 32 "Diplomacy Management" placeholder ("Coming Soon") with modern, descriptive lore and a "Click to open." call to action.
+- CaliphateGUIHandler.java / MonarchyGUIHandler.java / CommunistGUIHandler.java / RepublicGUIHandler.java:
+  → Wired slot 32 of the Government menu to open the matching per-nation Diplomacy Management menu.
+- The Diplomacy Management Back button (slot 49) routes back to the Government menu, completing the round trip Government ⇄ Diplomacy.
+
+[GUI ROUTING & EVENT SECURITY]
+- GUIListener.java:
+  → Registered the four Diplomacy Management menus as instances and routed all eight new inventory titles (management + envoy) in onInventoryClick.
+  → Added the eight titles to onInventoryDrag so item drags are cancelled inside these menus.
+  → Introduced the `viewingDiplomacyTarget` map (player UUID → target nation id) to track which nation the envoy panel is operating on.
+  → Diplomacy menu clicks are dispatched using getRawSlot() instead of getSlot(); clicks inside the player's own inventory fall outside the top inventory's raw indices and are therefore ignored.
+
+[SECURITY MECHANISMS]
+- AbstractDiplomacyMenu.java:
+  → Every click re-resolves the player's nation and verifies it still matches the government type the menu is bound to; a stale or mismatched session closes the inventory with a notice.
+  → Filler panes are click-guarded, and the target nation is re-fetched by id on each action (never trusting a cached reference).
+  → Status proposals defer to DiplomacyManager#proposeDiplomacy, which enforces authorization (Leader / Defense Minister), blocks self-targeting, rejects duplicate statuses, and prevents stacking a second pending proposal.
+
+[DIPLOMACY SYSTEM LOCALISATION (ENGLISH)]
+- DiplomacyStatus.java:
+  → Translated the display names and descriptions of PEACE, ALLIANCE, TRUCE and WAR to English. Enum constant names are unchanged, so existing saved data remains compatible. Indonesian aliases are still accepted by fromString().
+- DiplomacyManager.java:
+  → Translated all player-facing propose/accept/reject messages to English.
+  → Added a colored() helper that converts a status' ampersand colour codes to section signs so coloured status names render correctly in raw chat output (previously displayed literally, e.g. "&aPeace").
+
+[NOTES]
+- The third relation is labelled "Truce" in the GUI and maps to the existing DiplomacyStatus.TRUCE; no new status was introduced.
+- All four relations (including War) use the existing propose → accept flow from DiplomacyManager. Incoming proposals are surfaced in the envoy dossier and can be accepted/rejected via "/nc diplomacy accept|reject <nation>".
+- The nation list renders up to 28 nations (the available roster slots). Larger servers will display the first 28 ordered by member count.

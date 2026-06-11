@@ -206,7 +206,7 @@ public class CapitalListener implements Listener {
         // Default Phase 3: PvP di teritori dilarang TANPA pengecualian.
         // Phase 5 (Diplomacy/War) akan override aturan ini bila status WAR.
         event.setCancelled(true);
-        MessageUtils.send(attacker, "<red>PvP dilarang di teritori " + atLoc.getName() + ".</red>");
+        MessageUtils.send(attacker, "<red>PvP is disabled in the territory of " + atLoc.getName() + ".</red>");
     }
 
     private Player resolveAttacker(Entity damager) {
@@ -248,7 +248,7 @@ public class CapitalListener implements Listener {
                 if (cg != null && cg.isQuarantineActive()) {
                     event.setCancelled(true);
                     player.sendActionBar(Component.text(
-                            "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
+                            "🚧 Quarantine Protocol — access to " + atLoc.getName() + " is closed",
                             NamedTextColor.RED));
                     return;
                 }
@@ -256,7 +256,7 @@ public class CapitalListener implements Listener {
                 if (plugin.getCabinetManager().isDecisionActive(atLoc, id.nationcore.models.CabinetDecision.DecisionType.QUARANTINE_PROTOCOL)) {
                     event.setCancelled(true);
                     player.sendActionBar(Component.text(
-                            "🚧 Quarantine Protocol — akses ke " + atLoc.getName() + " ditutup",
+                            "🚧 Quarantine Protocol — access to " + atLoc.getName() + " is closed",
                             NamedTextColor.RED));
                     return;
                 }
@@ -265,15 +265,20 @@ public class CapitalListener implements Listener {
 
         if (atLoc != null) {
             String label = atLoc.isMember(player.getUniqueId())
-                    ? "Selamat datang di " + atLoc.getName()
-                    : "Memasuki teritori " + atLoc.getName() + " — anda non-anggota";
+                    ? "Welcome to " + atLoc.getName()
+                    : "Entering the territory of " + atLoc.getName() + " — you are a non-member";
             NamedTextColor color = atLoc.isMember(player.getUniqueId())
                     ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
             player.sendActionBar(Component.text(label, color));
 
+            // Custom welcome message — shown to anyone (member or not) on entry.
+            if (atLoc.hasWelcomeMessage()) {
+                player.sendMessage(MessageUtils.parseLegacy(atLoc.getWelcomeMessage()));
+            }
+
             applyPlagueTrigger(atLoc, player);
         } else if (previousId != null) {
-            player.sendActionBar(Component.text("Meninggalkan teritori nation",
+            player.sendActionBar(Component.text("Leaving nation territory",
                     NamedTextColor.GRAY));
         }
     }
@@ -312,7 +317,7 @@ public class CapitalListener implements Listener {
         int duration = 30 * 20; // 30 detik dalam ticks
         player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, duration, 1, false, true, true));
         player.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, duration, 0, false, true, true));
-        MessageUtils.send(player, "<dark_red>☠ Plague! Anda terinfeksi di teritori " +
+        MessageUtils.send(player, "<dark_red>☠ Plague! You have been infected in the territory of " +
                 atLoc.getName() + ".</dark_red>");
     }
 
@@ -332,8 +337,8 @@ public class CapitalListener implements Listener {
 
         Nation atLoc = plugin.getTerritoryManager().getNationAt(loc);
         if (atLoc != null) {
-            MessageUtils.send(player, "<red>Anda tidak bisa beraksi di teritori " +
-                    atLoc.getName() + " (anggota saja).</red>");
+            MessageUtils.send(player, "<red>You cannot perform actions in the territory of " +
+                    atLoc.getName() + " (members only).</red>");
         }
     }
 }

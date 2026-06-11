@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -164,6 +166,31 @@ public class Nation {
     /** Communal item storage accessible by all nation members; lazily initialized. */
     private SharedStorageData sharedStorageData;
 
+    // === Territory State (Phase 3 — Border Management) ===
+    /**
+     * Every chunk this nation owns, stored as "world;chunkX;chunkZ" keys.
+     * The capital chunk is always part of this set (seeded on creation and on
+     * load-time migration of pre-territory save data).
+     */
+    private Set<String> territory;
+
+    /**
+     * Custom greeting shown to ANY player — member or not — who steps into this
+     * nation's territory. {@code null}/blank means no welcome message is set.
+     * May contain ampersand ({@code &}) colour codes.
+     */
+    private String welcomeMessage;
+
+    /**
+     * Whether this nation's borders are currently being visualized with world
+     * particles. Defaults to {@code false} (off) and is toggled from the
+     * Border Management menu.
+     */
+    private boolean borderVisible;
+
+    /** Epoch millis of the last capital relocation — used to enforce cooldown. */
+    private long lastCapitalRelocateAt;
+
     public Nation() {
         this.members = new HashMap<>();
         this.fakeMembers = new HashMap<>();
@@ -172,6 +199,7 @@ public class Nation {
         this.activeDecisions = new ArrayList<>();
         this.diplomacyRelations = new HashMap<>();
         this.diplomacyRequests = new ArrayList<>();
+        this.territory = new LinkedHashSet<>();
     }
 
     public Nation(String id, String name, GovernmentType type, UUID founderUUID, String founderName) {
@@ -353,6 +381,54 @@ public class Nation {
 
     public void setCapital(CapitalLocation capital) {
         this.capital = capital;
+    }
+
+    // === Territory API (Phase 3 — Border Management) ===
+
+    /**
+     * Owned chunk keys ("world;chunkX;chunkZ"). Lazily initialized so save data
+     * created before the territory system loads without a manual migration.
+     */
+    public Set<String> getTerritory() {
+        if (territory == null) territory = new LinkedHashSet<>();
+        return territory;
+    }
+
+    public void setTerritory(Set<String> territory) {
+        this.territory = territory;
+    }
+
+    /** Number of chunks currently claimed by this nation. */
+    public int getTerritorySize() {
+        return getTerritory().size();
+    }
+
+    public String getWelcomeMessage() {
+        return welcomeMessage;
+    }
+
+    public void setWelcomeMessage(String welcomeMessage) {
+        this.welcomeMessage = welcomeMessage;
+    }
+
+    public boolean hasWelcomeMessage() {
+        return welcomeMessage != null && !welcomeMessage.isBlank();
+    }
+
+    public boolean isBorderVisible() {
+        return borderVisible;
+    }
+
+    public void setBorderVisible(boolean borderVisible) {
+        this.borderVisible = borderVisible;
+    }
+
+    public long getLastCapitalRelocateAt() {
+        return lastCapitalRelocateAt;
+    }
+
+    public void setLastCapitalRelocateAt(long lastCapitalRelocateAt) {
+        this.lastCapitalRelocateAt = lastCapitalRelocateAt;
     }
 
     // === Treasury API ===
