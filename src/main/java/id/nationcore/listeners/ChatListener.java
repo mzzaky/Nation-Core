@@ -34,11 +34,18 @@ public class ChatListener implements Listener {
     public static final java.util.Map<UUID, Nation> pendingTreasuryDonations = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** Holds a pending presidential direct-message to a specific nation member. */
-    public record PendingMemberMessage(Nation nation, UUID targetUUID, String targetName) {}
+    public record PendingMemberMessage(Nation nation, UUID targetUUID, String targetName) {
+    }
+
     public static final java.util.Map<UUID, PendingMemberMessage> pendingMemberMessages = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Leaders setting a custom territory welcome message: playerUUID → target Nation */
+    /**
+     * Leaders setting a custom territory welcome message: playerUUID → target
+     * Nation
+     */
     public static final java.util.Map<UUID, Nation> pendingWelcomeMessages = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static final java.util.Map<UUID, Nation> pendingAnnouncementMessages = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ChatListener(NationCore plugin) {
         this.plugin = plugin;
@@ -89,15 +96,15 @@ public class ChatListener implements Listener {
 
             if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
                 nationMgr.consumePendingCreation(uuid);
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Nation creation cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Nation creation cancelled.</yellow>"));
                 return;
             }
 
             String validation = NationManager.validateNationName(input);
             if (validation != null) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<red>" + validation + " Try again or type 'cancel'.</red>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<red>" + validation + " Try again or type 'cancel'.</red>"));
                 return;
             }
 
@@ -129,15 +136,15 @@ public class ChatListener implements Listener {
 
             if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
                 nationMgr.consumePendingRename(uuid);
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Nation rename cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Nation rename cancelled.</yellow>"));
                 return;
             }
 
             String validation = NationManager.validateNationName(input);
             if (validation != null) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<red>" + validation + " Try again or type 'cancel'.</red>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<red>" + validation + " Try again or type 'cancel'.</red>"));
                 return;
             }
 
@@ -147,7 +154,8 @@ public class ChatListener implements Listener {
                 nation.setName(input);
                 plugin.getDataManager().saveNations();
                 MessageUtils.send(player, "<green>Nation name successfully changed to '" + input + "'.</green>");
-                org.bukkit.Bukkit.broadcastMessage("§eNation §6" + oldName + " §ehas changed name to §6" + input + "§e.");
+                org.bukkit.Bukkit
+                        .broadcastMessage("§eNation §6" + oldName + " §ehas changed name to §6" + input + "§e.");
             });
             return;
         }
@@ -160,8 +168,8 @@ public class ChatListener implements Listener {
                     .serialize(event.message()).trim();
 
             if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Donation cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Donation cancelled.</yellow>"));
                 return;
             }
 
@@ -170,15 +178,15 @@ public class ChatListener implements Listener {
                 amount = Double.parseDouble(input.replace(",", ""));
             } catch (NumberFormatException e) {
                 pendingTreasuryDonations.put(uuid, donateNation); // re-queue
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<red>Invalid amount. Please enter a number, or type 'cancel' to abort.</red>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> MessageUtils.send(player,
+                        "<red>Invalid amount. Please enter a number, or type 'cancel' to abort.</red>"));
                 return;
             }
 
             if (amount <= 0) {
                 pendingTreasuryDonations.put(uuid, donateNation);
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<red>Amount must be greater than zero. Try again or type 'cancel'.</red>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> MessageUtils.send(player,
+                        "<red>Amount must be greater than zero. Try again or type 'cancel'.</red>"));
                 return;
             }
 
@@ -226,8 +234,8 @@ public class ChatListener implements Listener {
                     .serialize(event.message()).trim();
 
             if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Nation broadcast cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Nation broadcast cancelled.</yellow>"));
                 return;
             }
 
@@ -245,7 +253,8 @@ public class ChatListener implements Listener {
                         MessageUtils.send(onlinePlayer, "<gold>════════ [NATION BROADCAST] ════════</gold>");
                         MessageUtils.send(onlinePlayer, "<yellow>" + input + "</yellow>");
                         MessageUtils.send(onlinePlayer, "<gold>═══════════════════════════════════════</gold>");
-                        onlinePlayer.playSound(onlinePlayer.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 1.5f);
+                        onlinePlayer.playSound(onlinePlayer.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL,
+                                0.5f, 1.5f);
                     }
                 }
             });
@@ -260,8 +269,8 @@ public class ChatListener implements Listener {
                     .serialize(event.message()).trim();
 
             if (input.equalsIgnoreCase("canceled") || input.equalsIgnoreCase("cancel")) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Message cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Message cancelled.</yellow>"));
                 return;
             }
 
@@ -280,11 +289,13 @@ public class ChatListener implements Listener {
                     target.playSound(target.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
                     MessageUtils.send(player, "<green>Message sent to " + pending.targetName() + ".</green>");
                 } else {
-                    MessageUtils.send(player, "<red>" + pending.targetName() + " is currently offline. Message not delivered.</red>");
+                    MessageUtils.send(player,
+                            "<red>" + pending.targetName() + " is currently offline. Message not delivered.</red>");
                 }
 
                 // Record cooldown via GUIListener
-                id.nationcore.NationCore nc = (id.nationcore.NationCore) org.bukkit.Bukkit.getPluginManager().getPlugin("NationCore");
+                id.nationcore.NationCore nc = (id.nationcore.NationCore) org.bukkit.Bukkit.getPluginManager()
+                        .getPlugin("NationCore");
                 if (nc != null && nc.getGUIListener() != null) {
                     nc.getGUIListener().memberMessageCooldowns
                             .computeIfAbsent(uuid, k -> new java.util.HashMap<>())
@@ -302,8 +313,8 @@ public class ChatListener implements Listener {
                     .serialize(event.message()).trim();
 
             if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
-                org.bukkit.Bukkit.getScheduler().runTask(plugin, () ->
-                        MessageUtils.send(player, "<yellow>Welcome message update cancelled.</yellow>"));
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Welcome message update cancelled.</yellow>"));
                 return;
             }
 
@@ -315,6 +326,30 @@ public class ChatListener implements Listener {
                 MessageUtils.send(player, "<green>Welcome message updated for "
                         + welcomeNation.getName() + ".</green>");
                 player.sendMessage(MessageUtils.parseLegacy("&7Preview: &f" + finalInput));
+            });
+            return;
+        }
+
+        // Capture a custom announcement message.
+        if (pendingAnnouncementMessages.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation annNation = pendingAnnouncementMessages.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Announcement message update cancelled.</yellow>"));
+                return;
+            }
+
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                annNation.setAnnouncementMessage(input);
+                annNation.setAnnouncementCreatedAt(System.currentTimeMillis());
+                annNation.setLastAnnouncementTime(System.currentTimeMillis());
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "<green>Announcement message updated successfully.</green>");
+                player.sendMessage(MessageUtils.parseLegacy("&7Preview: &f" + input));
             });
             return;
         }
@@ -371,7 +406,8 @@ public class ChatListener implements Listener {
     }
 
     private Component getGovernmentPrefix(UUID uuid, Government gov, Nation nation) {
-        if (gov == null) return getArenaOrFallback(uuid);
+        if (gov == null)
+            return getArenaOrFallback(uuid);
 
         // Nation name suffix for president/ministers within the nation.
         String nationSuffix = nation != null ? " " + nation.getName() : "";
@@ -402,7 +438,8 @@ public class ChatListener implements Listener {
      */
     private Component getCommunistPrefix(UUID uuid, Nation nation) {
         CommunistGovernment cg = nation.getCommunistGovernment();
-        if (cg == null) return getArenaOrFallback(uuid);
+        if (cg == null)
+            return getArenaOrFallback(uuid);
 
         String suffix = " " + nation.getName();
 
@@ -418,15 +455,15 @@ public class ChatListener implements Listener {
         if (pos != null) {
             NamedTextColor color = switch (pos) {
                 case PROPAGANDA -> NamedTextColor.LIGHT_PURPLE;
-                case DEFENSE    -> NamedTextColor.RED;
-                case TREASURY   -> NamedTextColor.GOLD;
-                case HEALTH     -> NamedTextColor.GREEN;
+                case DEFENSE -> NamedTextColor.RED;
+                case TREASURY -> NamedTextColor.GOLD;
+                case HEALTH -> NamedTextColor.GREEN;
             };
             String icon = switch (pos) {
                 case PROPAGANDA -> "📢";
-                case DEFENSE    -> "🛡";
-                case TREASURY   -> "💰";
-                case HEALTH     -> "💉";
+                case DEFENSE -> "🛡";
+                case TREASURY -> "💰";
+                case HEALTH -> "💉";
             };
             return Component.text(icon, color)
                     .append(Component.text("[", NamedTextColor.GRAY))
@@ -443,7 +480,8 @@ public class ChatListener implements Listener {
      */
     private Component getMonarchyPrefix(UUID uuid, Nation nation) {
         MonarchyGovernment mg = nation.getMonarchyGovernment();
-        if (mg == null) return getArenaOrFallback(uuid);
+        if (mg == null)
+            return getArenaOrFallback(uuid);
 
         String suffix = " " + nation.getName();
 
@@ -458,16 +496,16 @@ public class ChatListener implements Listener {
         HighCouncilPosition pos = mg.getPositionByUUID(uuid);
         if (pos != null) {
             NamedTextColor color = switch (pos) {
-                case HERALD     -> NamedTextColor.LIGHT_PURPLE;
-                case MARSHAL    -> NamedTextColor.RED;
+                case HERALD -> NamedTextColor.LIGHT_PURPLE;
+                case MARSHAL -> NamedTextColor.RED;
                 case CHANCELLOR -> NamedTextColor.GOLD;
-                case SAINT      -> NamedTextColor.GREEN;
+                case SAINT -> NamedTextColor.GREEN;
             };
             String icon = switch (pos) {
-                case HERALD     -> "📜";
-                case MARSHAL    -> "⚔";
+                case HERALD -> "📜";
+                case MARSHAL -> "⚔";
                 case CHANCELLOR -> "💰";
-                case SAINT      -> "✚";
+                case SAINT -> "✚";
             };
             return Component.text(icon, color)
                     .append(Component.text("[", NamedTextColor.GRAY))
@@ -484,7 +522,8 @@ public class ChatListener implements Listener {
      */
     private Component getCaliphatePrefix(UUID uuid, Nation nation) {
         CaliphateGovernment cg = nation.getCaliphateGovernment();
-        if (cg == null) return getArenaOrFallback(uuid);
+        if (cg == null)
+            return getArenaOrFallback(uuid);
 
         String suffix = " " + nation.getName();
 

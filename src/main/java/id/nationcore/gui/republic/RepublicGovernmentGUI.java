@@ -54,7 +54,8 @@ public class RepublicGovernmentGUI {
             termEndTime = gov.getTermEndTime();
             isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
             boolean isMinister = gov.getCabinetMemberByUUID(player.getUniqueId()) != null;
-            if (isPresident || isMinister) isAuthorized = true;
+            if (isPresident || isMinister)
+                isAuthorized = true;
         }
 
         if (!isAuthorized) {
@@ -87,7 +88,8 @@ public class RepublicGovernmentGUI {
         combinedLore.add("§6§lPresidential Status:");
         if (leaderUUID != null) {
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(leaderUUID);
-            combinedLore.add("§7President: §f" + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
+            combinedLore
+                    .add("§7President: §f" + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
         } else {
             combinedLore.add("§7President: §cNone (Election active)");
         }
@@ -106,8 +108,40 @@ public class RepublicGovernmentGUI {
                 "§a§lActive Effects: §f" + totalActive,
                 combinedLore.toArray(new String[0])));
 
+        // Announcement Button (Slot 10)
+        List<String> announcementLore = new ArrayList<>();
+        announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        announcementLore.add("§7Update the announcement message");
+        announcementLore.add("§7shown on the main menu.");
+        announcementLore.add("");
+        announcementLore.add("§7Cooldown: §f12 hours");
+
+        long lastAnn = nation != null ? nation.getLastAnnouncementTime() : 0;
+        long timeSinceLastAnn = System.currentTimeMillis() - lastAnn;
+        long cooldownDurationAnn = 12L * 60 * 60 * 1000; // 12 hours
+        boolean onCooldownAnn = timeSinceLastAnn < cooldownDurationAnn;
+
+        if (!isPresident) {
+            announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            announcementLore.add("§cOnly the President can use this.");
+        } else if (onCooldownAnn) {
+            long remainingAnn = cooldownDurationAnn - timeSinceLastAnn;
+            announcementLore.add("§7Status: §cOn Cooldown");
+            announcementLore.add("§7Remaining: §f" + MessageUtils.formatTime(remainingAnn));
+            announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            announcementLore.add("§cThis action is on cooldown.");
+        } else {
+            announcementLore.add("§7Status: §aReady");
+            announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+            announcementLore.add("§eClick to update message");
+        }
+
+        inv.setItem(10, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lSet Announcement Message",
+                announcementLore.toArray(new String[0])));
+
         // 2. BACK (Slot 43)
-        inv.setItem(43, GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
+        inv.setItem(43,
+                GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
 
         // 3. Salary (Slot 37)
         inv.setItem(37, GovernmentGUIUtils.createItem(Material.EMERALD, "§a§lSalary Claim",

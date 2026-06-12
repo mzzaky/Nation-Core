@@ -191,6 +191,10 @@ public class Nation {
     /** Epoch millis of the last capital relocation — used to enforce cooldown. */
     private long lastCapitalRelocateAt;
 
+    private String announcementMessage;
+    private long announcementCreatedAt;
+    private long lastAnnouncementTime;
+
     public Nation() {
         this.members = new HashMap<>();
         this.fakeMembers = new HashMap<>();
@@ -630,5 +634,31 @@ public class Nation {
 
     public void setSharedStorageData(SharedStorageData sharedStorageData) {
         this.sharedStorageData = sharedStorageData;
+    }
+
+    // === Announcement API ===
+
+    public String getAnnouncementMessage() {
+        return announcementMessage;
+    }
+
+    public void setAnnouncementMessage(String announcementMessage) {
+        this.announcementMessage = announcementMessage;
+    }
+
+    public long getAnnouncementCreatedAt() {
+        return announcementCreatedAt;
+    }
+
+    public void setAnnouncementCreatedAt(long announcementCreatedAt) {
+        this.announcementCreatedAt = announcementCreatedAt;
+    }
+
+    public long getLastAnnouncementTime() {
+        return lastAnnouncementTime;
+    }
+
+    public void setLastAnnouncementTime(long lastAnnouncementTime) {
+        this.lastAnnouncementTime = lastAnnouncementTime;
     }
 }

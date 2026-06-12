@@ -22,7 +22,11 @@ import id.nationcore.gui.republic.RepublicGovernmentGUI;
 import id.nationcore.gui.republic.RepublicGUIHandler;
 import id.nationcore.gui.republic.RepublicCabinetGUI;
 import id.nationcore.gui.republic.RepublicMainMenu;
+import id.nationcore.gui.republic.RepublicTaxMenu;
 import id.nationcore.gui.republic.RepublicTreasuryMenu;
+import id.nationcore.gui.caliphate.CaliphateZakahMenu;
+import id.nationcore.gui.communist.CommunistTaxMenu;
+import id.nationcore.gui.monarchy.MonarchyTaxMenu;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -84,7 +88,10 @@ public class GUIListener implements Listener {
     public final PlayerStatsGUI playerStatsGUI;
     public final HelpGUI helpGUI;
     public final RepublicRecallGUI recallGUI;
-    public final TaxGUI taxGUI;
+    public final RepublicTaxMenu republicTaxMenu;
+    public final CommunistTaxMenu communistTaxMenu;
+    public final MonarchyTaxMenu monarchyTaxMenu;
+    public final CaliphateZakahMenu caliphateZakahMenu;
     public final RepublicPresidentHistoryGUI presidentHistoryGUI;
     public final RepublicArenaGUI arenaGUI;
     public final HubGUI hubGUI;
@@ -110,11 +117,21 @@ public class GUIListener implements Listener {
     public final Map<UUID, UUID> viewingPlayerStats = new HashMap<>();
     public final Map<UUID, UUID> viewingManagedMember = new HashMap<>();
     public final Map<UUID, Integer> memberListPage = new HashMap<>();
-    /** Diplomacy Sub Menu Select state: viewer player → target nation id currently opened. */
+    /**
+     * Diplomacy Sub Menu Select state: viewer player → target nation id currently
+     * opened.
+     */
     public final Map<UUID, String> viewingDiplomacyTarget = new HashMap<>();
-    /** Cooldown tracking for "Send Message to Member" action: presidentUUID → (targetUUID → lastSentTimestamp) */
+    /**
+     * Cooldown tracking for "Send Message to Member" action: presidentUUID →
+     * (targetUUID → lastSentTimestamp)
+     */
     public final Map<UUID, Map<UUID, Long>> memberMessageCooldowns = new HashMap<>();
-
+    /**
+     * Cooldown tracking for Capital Teleport action: playerUUID →
+     * lastTeleportTimestamp
+     */
+    public final Map<UUID, Long> capitalTeleportCooldowns = new HashMap<>();
 
     // Per-nation and common handlers.
     private final RepublicGUIHandler republic;
@@ -140,7 +157,10 @@ public class GUIListener implements Listener {
         this.playerStatsGUI = new PlayerStatsGUI(plugin);
         this.helpGUI = new HelpGUI(plugin);
         this.recallGUI = new RepublicRecallGUI(plugin);
-        this.taxGUI = new TaxGUI(plugin);
+        this.republicTaxMenu = new RepublicTaxMenu(plugin);
+        this.communistTaxMenu = new CommunistTaxMenu(plugin);
+        this.monarchyTaxMenu = new MonarchyTaxMenu(plugin);
+        this.caliphateZakahMenu = new CaliphateZakahMenu(plugin);
         this.presidentHistoryGUI = new RepublicPresidentHistoryGUI(plugin);
         this.arenaGUI = new RepublicArenaGUI(plugin);
         this.hubGUI = new HubGUI(plugin);
@@ -204,8 +224,19 @@ public class GUIListener implements Listener {
         AbstractBorderMenu borderMenu = borderMenuFor(title);
         if (borderMenu != null) {
             event.setCancelled(true);
-            if (clicked == null || clicked.getType() == Material.AIR) return;
+            if (clicked == null || clicked.getType() == Material.AIR)
+                return;
             borderMenu.handleClick(this, player, clicked, event.getRawSlot(), event.getClick());
+            return;
+        }
+
+        // ── Tax / Zakah menus (per-nation) ───────────────────────────────
+        // Routed before the generic AIR early-return so clicks on empty
+        // frame slots are always cancelled (preventing item insertion).
+        AbstractTaxMenu taxMenu = taxMenuFor(title);
+        if (taxMenu != null) {
+            event.setCancelled(true);
+            taxMenu.handleClick(this, player, clicked, event.getRawSlot());
             return;
         }
 
@@ -240,7 +271,7 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             republic.handleMemberActionGUI(player, clicked, event.getSlot(), title);
 
-        // ── Communist GUIs ──────────────────────────────────────────────
+            // ── Communist GUIs ──────────────────────────────────────────────
         } else if (title.equals(CommunistMainMenu.TITLE)) {
             event.setCancelled(true);
             communist.handleMainMenu(player, clicked, event.getSlot());
@@ -260,7 +291,7 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             communist.handlePolitburoPickerGUI(player, clicked, event.getSlot(), title);
 
-        // ── Monarchy GUIs ───────────────────────────────────────────────
+            // ── Monarchy GUIs ───────────────────────────────────────────────
         } else if (title.equals(MonarchyMainMenu.TITLE)) {
             event.setCancelled(true);
             monarchy.handleMainMenu(player, clicked, event.getSlot());
@@ -277,7 +308,7 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             monarchy.handleTreasuryLogsGUI(player, clicked);
 
-        // ── Caliphate GUIs ──────────────────────────────────────────────
+            // ── Caliphate GUIs ──────────────────────────────────────────────
         } else if (title.equals(CaliphateMainMenu.TITLE)) {
             event.setCancelled(true);
             caliphate.handleMainMenu(player, clicked, event.getSlot());
@@ -294,9 +325,9 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             caliphate.handleTreasuryLogsGUI(player, clicked);
 
-        // ── Diplomacy GUIs (per-nation) ─────────────────────────────────
-        // Raw slots are used so clicks inside the player's own inventory
-        // (which never overlap the top inventory's raw indices) are ignored.
+            // ── Diplomacy GUIs (per-nation) ─────────────────────────────────
+            // Raw slots are used so clicks inside the player's own inventory
+            // (which never overlap the top inventory's raw indices) are ignored.
         } else if (title.equals(RepublicDiplomacyMenu.MANAGEMENT_TITLE)) {
             event.setCancelled(true);
             republicDiplomacyMenu.handleManagementClick(this, player, clicked, event.getRawSlot());
@@ -322,7 +353,7 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             caliphateDiplomacyMenu.handleSelectClick(this, player, clicked, event.getRawSlot());
 
-        // ── Common / cross-nation GUIs ──────────────────────────────────
+            // ── Common / cross-nation GUIs ──────────────────────────────────
         } else if (title.equals("§2§l💰 SALARY & REWARDS 💰")) {
             event.setCancelled(true);
             common.handleSalaryGUI(player, clicked);
@@ -384,15 +415,6 @@ public class GUIListener implements Listener {
         } else if (title.equals(RepublicRecallGUI.RECALL_VOTE_TITLE)) {
             event.setCancelled(true);
             common.handleRecallVoteGUI(player, clicked);
-        } else if (title.equals(TaxGUI.TAX_MENU_TITLE)) {
-            event.setCancelled(true);
-            common.handleTaxMenuGUI(player, clicked, event.getSlot());
-        } else if (title.equals(TaxGUI.TAX_HISTORY_TITLE)) {
-            event.setCancelled(true);
-            common.handleTaxHistoryGUI(player, clicked);
-        } else if (title.equals(TaxGUI.TAX_DEBTORS_TITLE)) {
-            event.setCancelled(true);
-            common.handleTaxDebtorsGUI(player, clicked);
         } else if (title.equals(RepublicArenaGUI.ARENA_MENU_TITLE)) {
             event.setCancelled(true);
             common.handleArenaGUI(player, clicked, event.getSlot());
@@ -421,12 +443,33 @@ public class GUIListener implements Listener {
         }
     }
 
-    /** @return the per-nation Border Management menu matching this title, or null. */
+    /**
+     * @return the per-nation Tax/Zakah menu matching this title, or null.
+     */
+    private AbstractTaxMenu taxMenuFor(String title) {
+        if (RepublicTaxMenu.TITLE.equals(title))
+            return republicTaxMenu;
+        if (CommunistTaxMenu.TITLE.equals(title))
+            return communistTaxMenu;
+        if (MonarchyTaxMenu.TITLE.equals(title))
+            return monarchyTaxMenu;
+        if (CaliphateZakahMenu.TITLE.equals(title))
+            return caliphateZakahMenu;
+        return null;
+    }
+
+    /**
+     * @return the per-nation Border Management menu matching this title, or null.
+     */
     private AbstractBorderMenu borderMenuFor(String title) {
-        if (RepublicBorderMenu.TITLE.equals(title)) return republicBorderMenu;
-        if (CommunistBorderMenu.TITLE.equals(title)) return communistBorderMenu;
-        if (MonarchyBorderMenu.TITLE.equals(title)) return monarchyBorderMenu;
-        if (CaliphateBorderMenu.TITLE.equals(title)) return caliphateBorderMenu;
+        if (RepublicBorderMenu.TITLE.equals(title))
+            return republicBorderMenu;
+        if (CommunistBorderMenu.TITLE.equals(title))
+            return communistBorderMenu;
+        if (MonarchyBorderMenu.TITLE.equals(title))
+            return monarchyBorderMenu;
+        if (CaliphateBorderMenu.TITLE.equals(title))
+            return caliphateBorderMenu;
         return null;
     }
 
@@ -482,9 +525,10 @@ public class GUIListener implements Listener {
                 title.equals(RepublicRecallGUI.RECALL_MENU_TITLE) ||
                 title.equals(RepublicRecallGUI.RECALL_CONFIRM_TITLE) ||
                 title.equals(RepublicRecallGUI.RECALL_VOTE_TITLE) ||
-                title.equals(TaxGUI.TAX_MENU_TITLE) ||
-                title.equals(TaxGUI.TAX_HISTORY_TITLE) ||
-                title.equals(TaxGUI.TAX_DEBTORS_TITLE) ||
+                title.equals(RepublicTaxMenu.TITLE) ||
+                title.equals(CommunistTaxMenu.TITLE) ||
+                title.equals(MonarchyTaxMenu.TITLE) ||
+                title.equals(CaliphateZakahMenu.TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_MENU_TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_LEADERBOARD_TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_KIT_TITLE) ||
@@ -576,8 +620,6 @@ public class GUIListener implements Listener {
         playerStatsGUI.openPlayerStats(player, targetUUID);
     }
 
-
-
     public void openHelpGUI(Player player) {
         helpGUI.openHelpMenu(player);
     }
@@ -587,7 +629,16 @@ public class GUIListener implements Listener {
     }
 
     public void openTaxGUI(Player player) {
-        taxGUI.openTaxMenu(player);
+        Nation n = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (n != null && n.getType() == GovernmentType.MONARCHY) {
+            monarchyTaxMenu.open(player);
+        } else if (n != null && n.getType() == GovernmentType.COMMUNIST) {
+            communistTaxMenu.open(player);
+        } else if (n != null && n.getType() == GovernmentType.CALIPHATE) {
+            caliphateZakahMenu.open(player);
+        } else {
+            republicTaxMenu.open(player);
+        }
     }
 
     public void openArenaGUI(Player player) {
@@ -646,7 +697,7 @@ public class GUIListener implements Listener {
                 helpGUI.openHelpMenu(player);
                 break;
             case OPEN_GUI_TAX:
-                taxGUI.openTaxMenu(player);
+                openTaxGUI(player);
                 break;
             case OPEN_GUI_ARENA:
                 arenaGUI.openArenaMenu(player);
@@ -688,27 +739,25 @@ public class GUIListener implements Listener {
                 plugin.getArenaManager().joinArena(player);
                 break;
             case ACTION_ARENA_START:
-                player.closeInventory();
-                {
-                    id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-                    if (nation == null || !plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
-                        MessageUtils.send(player, "<red>Cannot start arena! Check requirements.");
-                    } else {
-                        arenaGUI.openArenaMenu(player);
-                    }
+                player.closeInventory(); {
+                id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+                if (nation == null || !plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
+                    MessageUtils.send(player, "<red>Cannot start arena! Check requirements.");
+                } else {
+                    arenaGUI.openArenaMenu(player);
                 }
+            }
                 break;
             case ACTION_ARENA_END:
-                player.closeInventory();
-                {
-                    id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-                    if (nation != null) {
-                        plugin.getArenaManager().endArena(nation);
-                        MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
-                    } else {
-                        MessageUtils.send(player, "<red>You do not belong to a nation.");
-                    }
+                player.closeInventory(); {
+                id.nationcore.models.Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+                if (nation != null) {
+                    plugin.getArenaManager().endArena(nation);
+                    MessageUtils.send(player, "<gold>Arena ended. Final rewards distributed.");
+                } else {
+                    MessageUtils.send(player, "<red>You do not belong to a nation.");
                 }
+            }
                 break;
             case ACTION_ARENA_LEAVE:
                 player.closeInventory();
@@ -741,8 +790,8 @@ public class GUIListener implements Listener {
 
                     } else if (currentGUI.equals(HelpGUI.HELP_MENU_TITLE)) {
                         helpGUI.openHelpMenu(player);
-                    } else if (currentGUI.equals(TaxGUI.TAX_MENU_TITLE)) {
-                        taxGUI.openTaxMenu(player);
+                    } else if (taxMenuFor(currentGUI) != null) {
+                        openTaxGUI(player);
                     }
                 }, 1L);
                 break;

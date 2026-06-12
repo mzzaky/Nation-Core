@@ -104,14 +104,24 @@ public class PlayerListener implements Listener {
                     "<red>⚔ <yellow>Presidential Arena Games are active! Open the Presidential Arena menu from your nation menu to participate!");
         }
 
-        // Check for outstanding tax debt
+        // Invoice-based tax: enforce national debt seizure, then remind about bills
         if (plugin.getTaxManager().isEnabled()) {
-            TaxRecord.PlayerTaxData taxData = plugin.getTaxManager().getTaxRecord()
-                    .getPlayerTaxData(player.getUniqueId().toString());
-            if (taxData != null && taxData.getOutstandingDebt() > 0) {
-                MessageUtils.send(player, "<red>💲 You have an outstanding tax debt of <gold>$" +
-                         MessageUtils.formatNumber(taxData.getOutstandingDebt()) +
-                        "</gold>! <red>Use <white>/dc tax pay <red>to settle your debt.");
+            plugin.getTaxManager().collectNationalDebt(player.getUniqueId());
+
+            TaxRecord.PlayerTaxProfile taxProfile = plugin.getTaxManager().getProfile(player.getUniqueId());
+            if (taxProfile != null) {
+                double nationalDebt = taxProfile.getNationalDebtRemaining();
+                int openInvoices = taxProfile.getOutstandingInvoices().size();
+                if (nationalDebt > 0) {
+                    MessageUtils.send(player, "<dark_red>⚖ You carry a national debt of <gold>$" +
+                            MessageUtils.formatNumber(nationalDebt) +
+                            "</gold>! <red>The state seizes any balance you hold until it is settled.");
+                } else if (openInvoices > 0) {
+                    MessageUtils.send(player, "<yellow>📑 You have <white>" + openInvoices +
+                            "</white> unpaid tax invoice(s) totaling <gold>$" +
+                            MessageUtils.formatNumber(taxProfile.getOutstandingTotal()) +
+                            "</gold>. <yellow>Open your nation's tax menu to settle them.");
+                }
             }
         }
 

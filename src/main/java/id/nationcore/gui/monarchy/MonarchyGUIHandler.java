@@ -1,6 +1,7 @@
 package id.nationcore.gui.monarchy;
 
 import id.nationcore.gui.GUIListener;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -58,12 +59,77 @@ public class MonarchyGUIHandler {
         }
 
         if (slot == MonarchyMainMenu.getSlot("TAX")) {
-            gui.taxGUI.openTaxMenu(player);
+            gui.monarchyTaxMenu.open(player);
             return;
         }
 
         if (slot == MonarchyMainMenu.getSlot("RESEARCH")) {
             gui.researchGUI.openMain(player);
+            return;
+        }
+
+        if (slot == MonarchyMainMenu.getSlot("CAPITAL_CITY")) {
+            if (nation == null) {
+                MessageUtils.send(player, "<red>You are not in a nation.</red>");
+                player.closeInventory();
+                return;
+            }
+            if (!nation.hasCapital()) {
+                MessageUtils.send(player, "<red>Your nation has not established a capital yet.</red>");
+                player.closeInventory();
+                return;
+            }
+
+            long now = System.currentTimeMillis();
+            long cooldownMs = 15L * 60 * 1000;
+            Long lastTeleport = gui.capitalTeleportCooldowns.get(player.getUniqueId());
+            if (lastTeleport != null && (now - lastTeleport) < cooldownMs && !player.hasPermission("nation.admin")) {
+                long remaining = cooldownMs - (now - lastTeleport);
+                MessageUtils.send(player, "<red>Capital teleport is on cooldown. Remaining: <white>"
+                        + MessageUtils.formatTime(remaining) + "</white></red>");
+                player.closeInventory();
+                return;
+            }
+
+            double cost = 100.0;
+            if (!plugin.getVaultHook().has(player.getUniqueId(), cost) && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player,
+                        "<red>You do not have enough money to teleport. Cost: <gold>$" + cost + "</gold></red>");
+                player.closeInventory();
+                return;
+            }
+
+            // Calculate chunk middle
+            Nation.CapitalLocation cap = nation.getCapital();
+            org.bukkit.World world = Bukkit.getWorld(cap.getWorld());
+            if (world == null) {
+                MessageUtils.send(player, "<red>Could not find the Capital world. Is it loaded?</red>");
+                player.closeInventory();
+                return;
+            }
+
+            // Charge Vault balance (except for admins/permission bypass)
+            if (!player.hasPermission("nation.admin")) {
+                plugin.getVaultHook().withdraw(player.getUniqueId(), cost);
+            }
+
+            int chunkX = ((int) Math.floor(cap.getX())) >> 4;
+            int chunkZ = ((int) Math.floor(cap.getZ())) >> 4;
+            double midX = (chunkX * 16) + 8.5;
+            double midZ = (chunkZ * 16) + 8.5;
+            double y = cap.getY();
+
+            org.bukkit.Location targetLoc = new org.bukkit.Location(world, midX, y, midZ, cap.getYaw(), cap.getPitch());
+
+            player.closeInventory();
+            player.teleport(targetLoc);
+
+            // Set cooldown
+            gui.capitalTeleportCooldowns.put(player.getUniqueId(), now);
+
+            MessageUtils.send(player, "<green>Teleported to the Capital of <gold>" + nation.getName()
+                    + "</gold> for <gold>$" + cost + "</gold>.</green>");
+            MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT);
             return;
         }
 
@@ -87,6 +153,30 @@ public class MonarchyGUIHandler {
 
         if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             gui.mainMenuRouter.openFor(player);
+            return;
+        }
+
+        if (slot == 10) {
+            MonarchyGovernment mg = nation.getMonarchyGovernment();
+            boolean isKing = mg != null && mg.hasKing() && mg.getKingUUID().equals(player.getUniqueId());
+            if (!isKing && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player, "<red>Only the King can set the announcement message.</red>");
+                return;
+            }
+
+            long lastAnn = nation.getLastAnnouncementTime();
+            long timeSinceLastAnn = System.currentTimeMillis() - lastAnn;
+            long cooldownDurationAnn = 12L * 60 * 60 * 1000;
+            if (timeSinceLastAnn < cooldownDurationAnn) {
+                long remainingAnn = cooldownDurationAnn - timeSinceLastAnn;
+                MessageUtils.send(player, "<red>The announcement message is on cooldown. Remaining: <white>"
+                        + MessageUtils.formatTime(remainingAnn) + "</white></red>");
+                return;
+            }
+
+            player.closeInventory();
+            id.nationcore.listeners.ChatListener.pendingAnnouncementMessages.put(player.getUniqueId(), nation);
+            MessageUtils.send(player, "<yellow>Please type the announcement message in chat. Type 'cancel' to abort.</yellow>");
             return;
         }
 

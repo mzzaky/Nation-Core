@@ -486,8 +486,10 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "set":
                 if (args.length > 2 && args[2].equalsIgnoreCase("president")) {
                     handleAdminSetPresident(sender, args);
+                } else if (args.length > 2 && args[2].equalsIgnoreCase("announcement")) {
+                    handleAdminSetAnnouncement(sender, args);
                 } else {
-                    MessageUtils.send(sender, "admin.help_setpresident");
+                    MessageUtils.send(sender, "<red>Usage: /nationcore admin set <president|announcement> ...</red>");
                 }
                 break;
             case "remove":
@@ -723,6 +725,32 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             plugin.getDataManager().saveGovernment();
             MessageUtils.send(sender, "admin.setpresident_success", "player", offlinePlayer.getName());
         }
+     }
+
+    private void handleAdminSetAnnouncement(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin set announcement <nation_id> <custom_message_value></red>");
+            return;
+        }
+
+        String nationId = args[3];
+        Nation nation = plugin.getNationManager().getNation(nationId);
+        if (nation == null) {
+            nation = plugin.getNationManager().getNationByName(nationId);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation with ID or name '" + nationId + "' not found.</red>");
+            return;
+        }
+
+        String message = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+        nation.setAnnouncementMessage(message);
+        nation.setAnnouncementCreatedAt(System.currentTimeMillis());
+        plugin.getDataManager().saveNations();
+
+        MessageUtils.send(sender, "<green>Announcement message for nation '<gold>" + nation.getName() + "</gold>' has been set manually.</green>");
+        sender.sendMessage(MessageUtils.parseLegacy("&7Preview: &f" + message));
     }
 
     private void handleAdminConfirm(CommandSender sender) {
@@ -953,7 +981,9 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             String sub2 = args[1].toLowerCase();
 
             if (sub.equals("admin")) {
-                if (sub2.equals("set") || sub2.equals("remove")) {
+                if (sub2.equals("set")) {
+                    completions.addAll(Arrays.asList("president", "announcement"));
+                } else if (sub2.equals("remove")) {
                     completions.add("president");
                 } else if (sub2.equals("reset")) {
                     completions.addAll(Arrays.asList("government", "election", "treasury", "all"));
@@ -978,6 +1008,10 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("president")) {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     completions.add(p.getName());
+                }
+            } else if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("announcement")) {
+                for (Nation n : plugin.getNationManager().getAllNations()) {
+                    if (n.getId() != null) completions.add(n.getId());
                 }
             } else if (sub.equals("admin") && sub2.equals("action")) {
                 if (sender.hasPermission("nation.admin")) {

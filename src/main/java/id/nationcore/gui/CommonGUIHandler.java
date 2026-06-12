@@ -24,7 +24,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 /**
  * Handles GUI clicks shared across all nation types:
  * cabinet, salary, treasury (republic/communist), president history, player stats,
- * leaderboard, help, recall, tax, arena, hub, create nation, research.
+ * leaderboard, help, recall, arena, hub, create nation, research.
+ * (Tax/Zakah menus are per-nation and handled by {@link AbstractTaxMenu}.)
  */
 public class CommonGUIHandler {
 
@@ -468,63 +469,6 @@ public class CommonGUIHandler {
     public void handleRecallVoteGUI(Player player, ItemStack clicked) {
         if (clicked.getType() == Material.ARROW) {
             gui.recallGUI.openRecallMenu(player);
-        }
-    }
-
-    public void handleTaxMenuGUI(Player player, ItemStack clicked, int slot) {
-        // Ignore filler clicks
-        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE) {
-            return;
-        }
-
-        // Slot 43: Back → open main nation menu
-        if (slot == 43 && clicked.getType() == Material.SPECTRAL_ARROW) {
-            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-            if (nation != null) {
-                gui.mainMenuRouter.openFor(player);
-            } else {
-                player.closeInventory();
-            }
-            return;
-        }
-
-        // Slot 23: Donate → close inventory and prompt chat input
-        if (slot == 23 && clicked.getType() == Material.WRITABLE_BOOK) {
-            player.closeInventory();
-            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-            if (nation == null) {
-                MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
-                return;
-            }
-            id.nationcore.listeners.ChatListener.pendingTreasuryDonations.put(player.getUniqueId(), nation);
-            MessageUtils.send(player, "");
-            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
-            MessageUtils.send(player, "<yellow><b>💰 Treasury Donation</b></yellow>");
-            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
-            MessageUtils.send(player, "<gray>Current Treasury Balance: <green>$"
-                    + MessageUtils.formatNumber(nation.getTreasury().getBalance()) + "</green></gray>");
-            MessageUtils.send(player, "<gray>Type the amount you wish to donate, or</gray>");
-            MessageUtils.send(player, "<gray>type <white>cancel</white> to abort.</gray>");
-            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
-            return;
-        }
-
-        // Slot 32: Transaction Logs → open treasury transaction history
-        if (slot == 32 && clicked.getType() == Material.KNOWLEDGE_BOOK) {
-            gui.taxGUI.openTaxHistory(player);
-            return;
-        }
-    }
-
-    public void handleTaxHistoryGUI(Player player, ItemStack clicked) {
-        if (clicked.getType() == Material.ARROW) {
-            gui.taxGUI.openTaxMenu(player);
-        }
-    }
-
-    public void handleTaxDebtorsGUI(Player player, ItemStack clicked) {
-        if (clicked.getType() == Material.ARROW) {
-            gui.taxGUI.openTaxMenu(player);
         }
     }
 

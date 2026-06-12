@@ -1,0 +1,112 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#26
+====================================================
+Implemented capital city teleportation feature with fee and cooldown across all government main menus, featuring dynamic lore displaying coordinates, requirements, and live player availability status.
+
+[CAPITAL CITY TELEPORTATION SYSTEM]
+- GUIListener.java (id.nationcore.gui):
+  → Added player-specific capital teleport cooldown map: `capitalTeleportCooldowns = new HashMap<>()`.
+
+[GUI MAIN MENUS UPDATES]
+- RepublicMainMenu.java (id.nationcore.gui.republic):
+- CommunistMainMenu.java (id.nationcore.gui.communist):
+- MonarchyMainMenu.java (id.nationcore.gui.monarchy):
+- CaliphateMainMenu.java (id.nationcore.gui.caliphate):
+  → Modified `buildCapitalCard` to accept `Player` and `Nation` arguments to compute player-specific stats.
+  → Updated LODESTONE "Capital City" item lore to a modern English design showing the coordinates, requirements, and status.
+  → Displays the world, chunk coordinates, and calculated middle chunk coordinates (using X/Z center offsets of 8.5).
+  → Outlines requirements ($100 Vault fee and 15-minute real-life cooldown).
+  → Renders live status: "READY", "COOLDOWN" (with remaining duration), "INSUFFICIENT FUNDS", or "Not Claimed" (for unclaimed capitals).
+  → Added yellow_stained_glass_pane filler to slot 49 in MonarchyMainMenu.
+
+
+[CLICK HANDLING & TELEPORTATION LOGIC]
+- RepublicGUIHandler.java (id.nationcore.gui.republic):
+- CommunistGUIHandler.java (id.nationcore.gui.communist):
+- MonarchyGUIHandler.java (id.nationcore.gui.monarchy):
+- CaliphateGUIHandler.java (id.nationcore.gui.caliphate):
+  → Handled slot click for the "Capital City" card.
+  → Verifies player is in a nation and that the nation has claimed a capital.
+  → Enforces a 15-minute real-life cooldown (bypassed if player has the `nation.admin` permission).
+  → Checks and withdraws the $100 Vault fee (bypassed if player has the `nation.admin` permission).
+  → Calculates the exact middle location of the capital chunk (`midX = chunkX * 16 + 8.5`, `midZ = chunkZ * 16 + 8.5`, retaining capital's Y height, yaw, and pitch).
+  → Teleports the player, sets their cooldown timestamp, plays the enderman teleport sound, and sends a success confirmation message in chat.
+
+[ADMIN SET ANNOUNCEMENT MESSAGE COMMAND]
+- NationCommand.java (id.nationcore.commands):
+  → Added admin subcommand to set the announcement message manually for any nation: `/nationcore admin set announcement <nation_id> <custom_message_value>`.
+  → Bypasses all leader requirements, checks, and cooldowns.
+  → Sets the announcement message and its creation timestamp, saving the update directly.
+  → Sends a MiniMessage confirmation and a legacy format preview to the admin.
+  → Implemented full tab-completion support for the new command path: `admin` -> `set` -> `announcement` -> lists of all nation IDs.
+
+====================================================
+  INVOICE-BASED NATION TAX SYSTEM OVERHAUL
+====================================================
+Replaced the legacy direct-deduction tax mechanism with a fully invoice-based billing system, split the centralized TaxGUI into four per-nation tax menus (including the brand-new Caliphate "Zakah"), and introduced a permanent national-debt forced-collection mechanic.
+
+[NEW INVOICE TAX MECHANISM]
+- TaxInvoice.java (id.nationcore.models) — NEW FILE:
+  → Invoice model with lifecycle ACTIVE → OVERDUE → NATIONAL_DEBT → PAID.
+  → Each invoice remembers its issuing nation (id + name), base amount ($50), paid amount, penalty flag, and timestamps.
+  → Constants: 1-day due period, 3-day national-debt deadline (counted from issue time), 2x penalty multiplier.
+- TaxRecord.java (id.nationcore.models) — REWRITTEN:
+  → Removed all legacy structures: PlayerTaxData (outstanding debt, missed payments, punishment history, exemptions) and the TaxTransaction global history.
+  → New per-player PlayerTaxProfile: invoice list, Auto Pay preference, payment log (keeps last 20), and lifetime statistics (invoices issued / paid on time / paid with penalty / defaulted, totals for tax, penalties, and debt repaid).
+  → Added sequential invoice numbering (INV-00001, ...), billing-cycle counter, and global collection totals (tax / penalties / seized debt).
+  → ensureInitialized() recreates collections missing when loading data files written by the old system.
+- TaxManager.java (id.nationcore.managers) — REWRITTEN:
+  → Billing cycle: every 1 real-life day the system generates a $50 tax invoice for every nation member (players offline 3+ days are skipped so bills do not pile up); NPC fake-member collection is preserved each cycle.
+  → Legacy collection mechanism removed entirely: no more direct balance deduction at collection time, percentage late-penalty on debt, missed-payment counters, tax-evasion punishments, exemptions, or admin debt forgiveness.
+  → Penalty mechanism (new): an invoice unpaid for 1 day after generation becomes OVERDUE — its value doubles to $100 (penalty category). Checked every minute with instant player notification.
+  → National debt mechanism (new): an invoice still unpaid 3 days after generation becomes NATIONAL_DEBT — its value is recorded permanently and the player is notified with a title warning.
+  → Forced bypass collection: every minute (and on every join) the state seizes whatever Vault balance a debtor holds — partial seizure allowed — until the debt is settled. Works while offline and even after the player leaves the issuing nation, since invoices remember their nation; future earnings keep being seized until the invoice is fully paid.
+  → Invoices belonging to dissolved nations are voided automatically (no treasury remains to receive the funds).
+  → Auto Pay: per-player toggle; while enabled, each newly issued invoice is paid instantly from the player's Vault balance.
+  → payAllInvoices(): settles every affordable outstanding invoice oldest-first; every payment is withdrawn from the player's Vault balance and deposited into the issuing nation's treasury as TAX_INCOME.
+  → Player notifications for issued / auto-paid / doubled / defaulted invoices and seizures, plus a server-wide billing summary broadcast each cycle.
+
+[PER-NATION TAX MENUS — TaxGUI REFACTOR]
+- TaxGUI.java (id.nationcore.gui) — DELETED (legacy centralized tax GUI for all nation types removed).
+- AbstractTaxMenu.java (id.nationcore.gui) — NEW FILE:
+  → Shared 54-slot layout and click logic for all per-nation tax menus (same architecture as AbstractBorderMenu); subclasses only supply theming.
+  → Filler (stained glass pane colored per nation's government-menu filler) on slots 0,1,2,3,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53.
+  → Slot 4 — GLOW_ITEM_FRAME "Tax/Zakah Statistics": citizen identity, invoices issued / paid on time / paid with penalty / turned into debt, totals paid, outstanding amount, national debt, Auto Pay status, and next billing countdown.
+  → Slot 21 — EMERALD "Pay Tax/Zakah": pays all outstanding invoices in one click; lore shows invoice count, total due, and current player balance.
+  → Slot 30 — KNOWLEDGE_BOOK "Invoice List": lore lists every active invoice with id, color-coded status, amount due, and escalation countdown ("doubles in …", "debt in …", "forced collection active").
+  → Slot 23 — REDSTONE "Auto Pay" toggle: on/off switch for automatic invoice payment; the redstone glows while enabled.
+  → Slot 32 — WRITABLE_BOOK "Transaction Log": detailed lore of the player's last 5 tax payments (amount, invoice id, payment method, relative time).
+  → Slot 43 — SPECTRAL_ARROW "Back": returns to that nation's main menu.
+  → Modern, tidy English lore styling with the divider format used across the plugin.
+- RepublicTaxMenu.java (id.nationcore.gui.republic) — NEW FILE: "State Tax Office", light-blue glass theme.
+- CommunistTaxMenu.java (id.nationcore.gui.communist) — NEW FILE: "National Tax Bureau", red glass theme.
+- MonarchyTaxMenu.java (id.nationcore.gui.monarchy) — NEW FILE: "Royal Tax Office", yellow glass theme.
+- CaliphateZakahMenu.java (id.nationcore.gui.caliphate) — NEW FILE: "Zakah Office", lime glass theme — the first tax system registered for Caliphate nations, named Zakah per specification.
+
+[GUI WIRING & CLICK HANDLING]
+- GUIListener.java (id.nationcore.gui):
+  → Replaced the single taxGUI instance with four per-nation menu instances (republicTaxMenu, communistTaxMenu, monarchyTaxMenu, caliphateZakahMenu).
+  → Added taxMenuFor(title) router; tax menu clicks are cancelled before the generic AIR early-return and dispatched with raw slots, so clicks inside the player's own inventory can never trigger menu actions.
+  → Updated the drag-cancel title list, openTaxGUI() and the OPEN_GUI_TAX / ACTION_REFRESH_GUI actions to route by government type.
+- CommonGUIHandler.java (id.nationcore.gui):
+  → Removed the legacy handlers handleTaxMenuGUI, handleTaxHistoryGUI, and handleTaxDebtorsGUI.
+- RepublicGUIHandler.java / CommunistGUIHandler.java / MonarchyGUIHandler.java:
+  → The main-menu TAX button now opens that nation's own tax menu.
+- CaliphateGUIHandler.java (id.nationcore.gui.caliphate):
+  → Added ZAKAT slot handling — opens the Zakah Office, accessible to every citizen of the caliphate.
+
+[MAIN MENU TAX BUTTONS]
+- RepublicMainMenu.java — "State Tax" (slot 31, LIGHT_BLUE_BUNDLE).
+- CommunistMainMenu.java — "National Tax" (slot 31, BUNDLE).
+- MonarchyMainMenu.java — "Royal Tax" (slot 32, CHEST).
+- CaliphateMainMenu.java — "Zakah" (slot 32, CHEST): replaced the old "Coming Soon" placeholder with a functional button wired to the new Zakah Office.
+  → All four cards now display the viewer's open invoice count and amount due with invoice-based wording.
+
+[SUPPORTING CHANGES]
+- DataManager.java (id.nationcore.managers):
+  → Normalizes legacy tax_record.json files after load (ensureInitialized) and guards against malformed JSON when reading the tax record.
+- PlayerListener.java (id.nationcore.listeners):
+  → On join the state immediately enforces national-debt seizure, then warns the player about remaining national debt or lists their unpaid invoices.
+- NationExpansion.java (id.nationcore.placeholders):
+  → Migrated all tax placeholders to the invoice system: tax_amount, tax_next_collection, tax_cycle_count, tax_outstanding_debt (now national debt), tax_penalty_rate (now "2x"), tax_status, tax_debt, tax_total_paid, tax_last_paid.
+  → New placeholders: tax_outstanding, tax_invoice_count, tax_defaulted, tax_auto_pay — replacing the removed tax_missed and tax_is_exempt.

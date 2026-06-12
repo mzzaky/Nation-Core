@@ -315,11 +315,13 @@ public class DataManager {
                 taxRecord = gson.fromJson(reader, TaxRecord.class);
                 if (taxRecord == null)
                     taxRecord = new TaxRecord();
-            } catch (IOException e) {
+            } catch (IOException | com.google.gson.JsonSyntaxException e) {
                 plugin.getLogger().warning("Failed to load tax record: " + e.getMessage());
                 taxRecord = new TaxRecord();
             }
         }
+        // Files written by the pre-invoice tax system lack the new collections.
+        taxRecord.ensureInitialized();
     }
 
     private void saveTaxRecord() {

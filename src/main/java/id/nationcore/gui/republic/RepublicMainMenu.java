@@ -21,6 +21,7 @@ import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.models.RecallPetition;
+import id.nationcore.models.TaxRecord.PlayerTaxProfile;
 
 /**
  * Main menu for REPUBLIC nations.
@@ -65,7 +66,8 @@ public class RepublicMainMenu extends NationMenuBase {
 
         // FILLER
         ItemStack filler = pane(FILLER);
-        int[] fillerSlots = {0,1,2,3,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53};
+        int[] fillerSlots = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+                53 };
         for (int slot : fillerSlots) {
             inv.setItem(slot, filler);
         }
@@ -80,14 +82,14 @@ public class RepublicMainMenu extends NationMenuBase {
         inv.setItem(SLOT_TREASURY, buildTreasuryCard(nation));
         inv.setItem(SLOT_SENATOR, buildSenatorCard());
 
-        inv.setItem(SLOT_ANNOUNCEMENT, buildAnnouncementCard());
+        inv.setItem(SLOT_ANNOUNCEMENT, buildAnnouncementCard(nation));
         inv.setItem(SLOT_RECALL, buildRecallCard(nation));
-        inv.setItem(SLOT_TAX, buildTaxCard());
+        inv.setItem(SLOT_TAX, buildTaxCard(player));
         inv.setItem(SLOT_ELECTION, buildElectionCard(election, player));
         inv.setItem(SLOT_ARENA, buildArenaCard());
 
         inv.setItem(SLOT_HELP, buildHelpCard());
-        inv.setItem(SLOT_CAPITAL, buildCapitalCard(nation));
+        inv.setItem(SLOT_CAPITAL, buildCapitalCard(player, nation));
         inv.setItem(SLOT_RESEARCH, buildResearchCard());
         inv.setItem(SLOT_HISTORY, buildHistoryCard());
         inv.setItem(SLOT_HUB, buildHubButton());
@@ -129,10 +131,10 @@ public class RepublicMainMenu extends NationMenuBase {
     private ItemStack buildCabinetCard(Government gov, Nation nation) {
         List<String> lore = new ArrayList<>();
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        
+
         int filled = 0;
         int total = Government.CabinetPosition.values().length;
-        
+
         if (gov != null) {
             for (Government.CabinetPosition pos : Government.CabinetPosition.values()) {
                 UUID ministerUUID = gov.getCabinetMember(pos);
@@ -142,23 +144,26 @@ public class RepublicMainMenu extends NationMenuBase {
                     name = "&f" + Bukkit.getOfflinePlayer(ministerUUID).getName();
                 }
                 lore.add("&7• &b" + pos.getDisplayName() + ": " + name);
-                
+
                 // Get active decisions/orders for this position
                 if (ministerUUID != null && nation != null) {
-                    List<CabinetDecision> active = plugin.getCabinetManager().getActiveDecisionsByPosition(nation, CabinetDecision.CabinetPosition.valueOf(pos.name()));
+                    List<CabinetDecision> active = plugin.getCabinetManager().getActiveDecisionsByPosition(nation,
+                            CabinetDecision.CabinetPosition.valueOf(pos.name()));
                     for (CabinetDecision decision : active) {
                         String timeStr = formatRemaining(decision.getRemainingTime());
-                        lore.add("&a  ↳ Active: &e" + plugin.getCabinetManager().getDecisionDisplayName(decision.getType()) + " &7(&a" + timeStr + "&7)");
+                        lore.add("&a  ↳ Active: &e"
+                                + plugin.getCabinetManager().getDecisionDisplayName(decision.getType()) + " &7(&a"
+                                + timeStr + "&7)");
                     }
                 }
             }
         }
-        
+
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Slots filled: &f" + filled + " &8/ &f" + total);
         lore.add("&7Appointed by the President to");
         lore.add("&7assist in policy execution.");
-        
+
         return buildIcon(Material.WARPED_HANGING_SIGN,
                 "&3&lMinister Cabinet",
                 lore);
@@ -219,10 +224,33 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&7Coming Soon!");
     }
 
-    private ItemStack buildAnnouncementCard() {
-        return buildIcon(Material.BELL,
-                "&e&lAnnouncement",
-                "&7Coming Soon!");
+    private ItemStack buildAnnouncementCard(Nation nation) {
+        String message = nation.getAnnouncementMessage();
+        if (message == null || message.isBlank()) {
+            return buildIcon(Material.BELL,
+                    "&e&lAnnouncement",
+                    "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "&7No announcement has been",
+                    "&7posted yet.",
+                    "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        }
+
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&f\"&7" + message + "&f\"");
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        String creatorName = nation.getLeaderName();
+        if (creatorName == null || creatorName.isBlank()) {
+            creatorName = "The President";
+        }
+        lore.add("&7Posted by: &e" + creatorName);
+
+        String timeStr = new java.text.SimpleDateFormat("dd MMM yyyy, HH:mm").format(new java.util.Date(nation.getAnnouncementCreatedAt()));
+        lore.add("&7Posted at: &f" + timeStr);
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        return buildIcon(Material.BELL, "&e&lAnnouncement", lore);
     }
 
     private ItemStack buildRecallCard(Nation nation) {
@@ -244,13 +272,20 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&eClick &7→ Review & sign"));
     }
 
-    private ItemStack buildTaxCard() {
+    private ItemStack buildTaxCard(Player player) {
+        var profile = plugin.getTaxManager().getProfile(player.getUniqueId());
+        int openInvoices = profile != null ? profile.getOutstandingInvoices().size() : 0;
+        double due = profile != null ? profile.getOutstandingTotal() : 0;
+
         return buildIcon(Material.LIGHT_BLUE_BUNDLE,
                 "&a&lState Tax",
-                "&7Open progressive tax system.",
-                "&7Can be audited by all citizens.",
+                "&7Invoice-based citizen taxation.",
+                "&7Settle your bills before they double.",
                 "",
-                "&eClick &7→ Open tax panel");
+                "&7Your Open Invoices : &f" + openInvoices,
+                "&7Amount Due         : " + (due > 0 ? "&c$" + formatMoney(due) : "&a$0"),
+                "",
+                "&eClick &7→ Open Tax Office");
     }
 
     private ItemStack buildElectionCard(Election election, Player player) {
@@ -277,10 +312,56 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&eClick &7→ Open guide");
     }
 
-    private ItemStack buildCapitalCard(Nation nation) {
-        return buildIcon(Material.LODESTONE,
-                "&a&lCapital City",
-                "&7Coming Soon!");
+    private ItemStack buildCapitalCard(Player player, Nation nation) {
+        if (!nation.hasCapital()) {
+            return buildIcon(Material.LODESTONE,
+                    "&a&lCapital City",
+                    "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "&7Status: &cNot Claimed",
+                    "&7The capital city of your nation",
+                    "&7has not been established yet.",
+                    "&7Use &e/nc capital claim &7in game.",
+                    "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        }
+
+        Nation.CapitalLocation cap = nation.getCapital();
+        int chunkX = ((int) Math.floor(cap.getX())) >> 4;
+        int chunkZ = ((int) Math.floor(cap.getZ())) >> 4;
+        double midX = (chunkX * 16) + 8.5;
+        double midZ = (chunkZ * 16) + 8.5;
+        double y = cap.getY();
+
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&7World: &f" + cap.getWorld());
+        lore.add("&7Coordinates: &aX: " + (int) midX + " &7| &aY: " + (int) y + " &7| &aZ: " + (int) midZ);
+        lore.add("&7Chunk: &f(" + chunkX + ", " + chunkZ + ")");
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&eRequirements:");
+        lore.add("&7• Fee: &6$100 &7(Vault)");
+        lore.add("&7• Cooldown: &f15 minutes");
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        long now = System.currentTimeMillis();
+        long cooldownMs = 15L * 60 * 1000;
+        Long lastTeleport = plugin.getGUIListener().capitalTeleportCooldowns.get(player.getUniqueId());
+
+        if (lastTeleport != null && (now - lastTeleport) < cooldownMs) {
+            long remaining = cooldownMs - (now - lastTeleport);
+            lore.add("&7Status: &cCOOLDOWN");
+            lore.add("&7Available in: &e" + formatRemaining(remaining));
+        } else {
+            double balance = plugin.getVaultHook().getBalance(player.getUniqueId());
+            if (balance < 100.0) {
+                lore.add("&7Status: &cINSUFFICIENT FUNDS");
+            } else {
+                lore.add("&7Status: &aREADY");
+                lore.add("&eClick to Teleport");
+            }
+        }
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        return buildIcon(Material.LODESTONE, "&a&lCapital City", lore);
     }
 
     private ItemStack buildResearchCard() {

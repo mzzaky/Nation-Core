@@ -12,7 +12,8 @@ import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.ExecutiveOrder.ExecutiveOrderType;
 import id.nationcore.models.Government.CabinetPosition;
-import id.nationcore.models.TaxRecord.PlayerTaxData;
+import id.nationcore.models.TaxInvoice;
+import id.nationcore.models.TaxRecord.PlayerTaxProfile;
 
 public class NationExpansion extends PlaceholderExpansion {
 
@@ -274,7 +275,7 @@ public class NationExpansion extends PlaceholderExpansion {
         }
 
         if (params.equalsIgnoreCase("tax_amount")) {
-            return String.format("%.2f", taxManager.getTaxAmount());
+            return String.format("%.2f", taxManager.getInvoiceAmount());
         }
 
         if (params.equalsIgnoreCase("tax_interval")) {
@@ -282,7 +283,7 @@ public class NationExpansion extends PlaceholderExpansion {
         }
 
         if (params.equalsIgnoreCase("tax_next_collection")) {
-            return formatTime(taxManager.getTimeUntilNextCollection());
+            return formatTime(taxManager.getTimeUntilNextCycle());
         }
 
         if (params.equalsIgnoreCase("tax_total_collected")) {
@@ -290,7 +291,7 @@ public class NationExpansion extends PlaceholderExpansion {
         }
 
         if (params.equalsIgnoreCase("tax_cycle_count")) {
-            return String.valueOf(taxRecord.getTotalCollectionCycles());
+            return String.valueOf(taxRecord.getTotalCycles());
         }
 
         if (params.equalsIgnoreCase("tax_debtor_count")) {
@@ -298,11 +299,11 @@ public class NationExpansion extends PlaceholderExpansion {
         }
 
         if (params.equalsIgnoreCase("tax_outstanding_debt")) {
-            return String.format("%.2f", taxManager.getTotalOutstandingDebt());
+            return String.format("%.2f", taxManager.getTotalNationalDebt());
         }
 
         if (params.equalsIgnoreCase("tax_penalty_rate")) {
-            return String.format("%.0f%%", taxManager.getLatePenaltyRate() * 100);
+            return String.format("%.0fx", TaxInvoice.PENALTY_MULTIPLIER);
         }
 
         // === PLAYER-SPECIFIC PLACEHOLDERS ===
@@ -382,40 +383,54 @@ public class NationExpansion extends PlaceholderExpansion {
                 }
 
                 // === TAX SYSTEM PLACEHOLDERS (Player-specific) ===
-                PlayerTaxData taxData = taxRecord.getPlayerTaxData(player.getUniqueId().toString());
+                PlayerTaxProfile taxProfile = taxRecord.getProfile(player.getUniqueId().toString());
 
                 if (params.equalsIgnoreCase("tax_status")) {
-                    if (taxData == null)
-                        return "N/A";
-                    if (taxData.isExempt())
-                        return "Exempt";
-                    if (taxData.getOutstandingDebt() > 0)
-                        return "In Debt";
-                    return "Paid";
+                    if (taxProfile == null)
+                        return "Clear";
+                    if (taxProfile.hasNationalDebt())
+                        return "National Debt";
+                    boolean hasOverdue = taxProfile.getOutstandingInvoices().stream()
+                            .anyMatch(inv -> inv.getStatus() == TaxInvoice.InvoiceStatus.OVERDUE);
+                    if (hasOverdue)
+                        return "Penalty";
+                    if (!taxProfile.getOutstandingInvoices().isEmpty())
+                        return "Unpaid";
+                    return "Clear";
+                }
+
+                if (params.equalsIgnoreCase("tax_outstanding")) {
+                    return taxProfile != null ? String.format("%.2f", taxProfile.getOutstandingTotal()) : "0.00";
+                }
+
+                if (params.equalsIgnoreCase("tax_invoice_count")) {
+                    return taxProfile != null
+                            ? String.valueOf(taxProfile.getOutstandingInvoices().size()) : "0";
                 }
 
                 if (params.equalsIgnoreCase("tax_debt")) {
-                    return taxData != null ? String.format("%.2f", taxData.getOutstandingDebt()) : "0.00";
+                    return taxProfile != null
+                            ? String.format("%.2f", taxProfile.getNationalDebtRemaining()) : "0.00";
                 }
 
-                if (params.equalsIgnoreCase("tax_missed")) {
-                    return taxData != null ? String.valueOf(taxData.getMissedPayments()) : "0";
+                if (params.equalsIgnoreCase("tax_defaulted")) {
+                    return taxProfile != null ? String.valueOf(taxProfile.getInvoicesDefaulted()) : "0";
                 }
 
-                if (params.equalsIgnoreCase("tax_is_exempt")) {
-                    return taxData != null && taxData.isExempt() ? "Yes" : "No";
+                if (params.equalsIgnoreCase("tax_auto_pay")) {
+                    return taxProfile != null && taxProfile.isAutoPay() ? "Yes" : "No";
                 }
 
                 if (params.equalsIgnoreCase("tax_last_paid")) {
-                    if (taxData == null || taxData.getLastPaymentTime() == 0)
+                    if (taxProfile == null || taxProfile.getLastPaymentTime() == 0)
                         return "Never";
                     return DateTimeFormatter.ofPattern("dd MMM yyyy")
                             .withZone(ZoneId.systemDefault())
-                            .format(Instant.ofEpochMilli(taxData.getLastPaymentTime()));
+                            .format(Instant.ofEpochMilli(taxProfile.getLastPaymentTime()));
                 }
 
                 if (params.equalsIgnoreCase("tax_total_paid")) {
-                    return taxData != null ? String.format("%.2f", taxData.getTotalAmountPaid()) : "0.00";
+                    return taxProfile != null ? String.format("%.2f", taxProfile.getTotalAmountPaid()) : "0.00";
                 }
             }
 

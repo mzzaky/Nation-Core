@@ -74,7 +74,7 @@ public class RepublicGUIHandler {
             return;
         }
         if (slot == RepublicMainMenu.getSlot("TAX")) {
-            gui.taxGUI.openTaxMenu(player);
+            gui.republicTaxMenu.open(player);
             return;
         }
         if (slot == RepublicMainMenu.getSlot("HELP")) {
@@ -82,8 +82,68 @@ public class RepublicGUIHandler {
             return;
         }
         if (slot == RepublicMainMenu.getSlot("CAPITAL")) {
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation == null) {
+                MessageUtils.send(player, "<red>You are not in a nation.</red>");
+                player.closeInventory();
+                return;
+            }
+            if (!nation.hasCapital()) {
+                MessageUtils.send(player, "<red>Your nation has not established a capital yet.</red>");
+                player.closeInventory();
+                return;
+            }
+
+            long now = System.currentTimeMillis();
+            long cooldownMs = 15L * 60 * 1000;
+            Long lastTeleport = gui.capitalTeleportCooldowns.get(player.getUniqueId());
+            if (lastTeleport != null && (now - lastTeleport) < cooldownMs && !player.hasPermission("nation.admin")) {
+                long remaining = cooldownMs - (now - lastTeleport);
+                MessageUtils.send(player, "<red>Capital teleport is on cooldown. Remaining: <white>"
+                        + MessageUtils.formatTime(remaining) + "</white></red>");
+                player.closeInventory();
+                return;
+            }
+
+            double cost = 100.0;
+            if (!plugin.getVaultHook().has(player.getUniqueId(), cost) && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player,
+                        "<red>You do not have enough money to teleport. Cost: <gold>$" + cost + "</gold></red>");
+                player.closeInventory();
+                return;
+            }
+
+            // Calculate chunk middle
+            Nation.CapitalLocation cap = nation.getCapital();
+            org.bukkit.World world = Bukkit.getWorld(cap.getWorld());
+            if (world == null) {
+                MessageUtils.send(player, "<red>Could not find the Capital world. Is it loaded?</red>");
+                player.closeInventory();
+                return;
+            }
+
+            // Charge Vault balance (except for admins/permission bypass)
+            if (!player.hasPermission("nation.admin")) {
+                plugin.getVaultHook().withdraw(player.getUniqueId(), cost);
+            }
+
+            int chunkX = ((int) Math.floor(cap.getX())) >> 4;
+            int chunkZ = ((int) Math.floor(cap.getZ())) >> 4;
+            double midX = (chunkX * 16) + 8.5;
+            double midZ = (chunkZ * 16) + 8.5;
+            double y = cap.getY();
+
+            org.bukkit.Location targetLoc = new org.bukkit.Location(world, midX, y, midZ, cap.getYaw(), cap.getPitch());
+
             player.closeInventory();
-            Bukkit.dispatchCommand(player, "nationcore capital");
+            player.teleport(targetLoc);
+
+            // Set cooldown
+            gui.capitalTeleportCooldowns.put(player.getUniqueId(), now);
+
+            MessageUtils.send(player, "<green>Teleported to the Capital of <gold>" + nation.getName()
+                    + "</gold> for <gold>$" + cost + "</gold>.</green>");
+            MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT);
             return;
         }
         if (slot == RepublicMainMenu.getSlot("RESEARCH")) {
@@ -146,6 +206,31 @@ public class RepublicGUIHandler {
             return;
         }
 
+        if (slot == 10) {
+            Government gov = nation.getRepublicGovernment();
+            boolean isPresident = gov != null && gov.hasPresident()
+                    && gov.getPresidentUUID().equals(player.getUniqueId());
+            if (!isPresident && !player.hasPermission("nation.admin")) {
+                MessageUtils.send(player, "<red>Only the President can set the announcement message.</red>");
+                return;
+            }
+
+            long lastAnn = nation.getLastAnnouncementTime();
+            long timeSinceLastAnn = System.currentTimeMillis() - lastAnn;
+            long cooldownDurationAnn = 12L * 60 * 60 * 1000;
+            if (timeSinceLastAnn < cooldownDurationAnn) {
+                long remainingAnn = cooldownDurationAnn - timeSinceLastAnn;
+                MessageUtils.send(player, "<red>The announcement message is on cooldown. Remaining: <white>"
+                        + MessageUtils.formatTime(remainingAnn) + "</white></red>");
+                return;
+            }
+
+            player.closeInventory();
+            id.nationcore.listeners.ChatListener.pendingAnnouncementMessages.put(player.getUniqueId(), nation);
+            MessageUtils.send(player, "<yellow>Please type the announcement message in chat. Type 'cancel' to abort.</yellow>");
+            return;
+        }
+
         if (slot == 32) {
             gui.republicDiplomacyMenu.openManagement(player, nation);
             return;
@@ -163,7 +248,8 @@ public class RepublicGUIHandler {
 
         if (slot == 48) {
             Government gov = nation.getRepublicGovernment();
-            boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            boolean isPresident = gov != null && gov.hasPresident()
+                    && gov.getPresidentUUID().equals(player.getUniqueId());
             if (!isPresident && !player.hasPermission("nation.admin")) {
                 MessageUtils.send(player, "§cOnly the President can rename the nation.");
                 return;
@@ -181,7 +267,8 @@ public class RepublicGUIHandler {
 
         if (slot == 50) {
             Government gov = nation.getRepublicGovernment();
-            boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+            boolean isPresident = gov != null && gov.hasPresident()
+                    && gov.getPresidentUUID().equals(player.getUniqueId());
             boolean isAdmin = player.hasPermission("nation.admin");
 
             if (!isPresident && !isAdmin) {
@@ -207,7 +294,8 @@ public class RepublicGUIHandler {
                 gui.arenaGUI.openArenaMenu(player);
             } else {
                 Government gov = nation.getRepublicGovernment();
-                boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+                boolean isPresident = gov != null && gov.hasPresident()
+                        && gov.getPresidentUUID().equals(player.getUniqueId());
                 if (isPresident && clicked.getType() == Material.PRIZE_POTTERY_SHERD) {
                     gui.confirmActionGUI.open(player, "Start Arena Game", () -> {
                         if (!plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
@@ -236,7 +324,8 @@ public class RepublicGUIHandler {
 
         if (slot == 23) {
             Government gov = nation.getRepublicGovernment();
-            if (gov == null) return;
+            if (gov == null)
+                return;
             boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
             if (!isPresident && !player.hasPermission("nation.admin")) {
                 MessageUtils.send(player, "<red>Only the President can broadcast a message.</red>");
@@ -248,13 +337,15 @@ public class RepublicGUIHandler {
             long cooldownDuration = 6L * 60 * 60 * 1000;
             if (timeSinceLast < cooldownDuration && !player.hasPermission("nation.admin")) {
                 long remaining = cooldownDuration - timeSinceLast;
-                MessageUtils.send(player, "<red>Broadcast is on cooldown. Remaining: <white>" + MessageUtils.formatTime(remaining) + "</white></red>");
+                MessageUtils.send(player, "<red>Broadcast is on cooldown. Remaining: <white>"
+                        + MessageUtils.formatTime(remaining) + "</white></red>");
                 return;
             }
 
             player.closeInventory();
             id.nationcore.listeners.ChatListener.pendingNationBroadcasts.put(player.getUniqueId(), nation);
-            MessageUtils.send(player, "<yellow>Please type your custom broadcast message in chat. Type 'cancel' to abort.</yellow>");
+            MessageUtils.send(player,
+                    "<yellow>Please type your custom broadcast message in chat. Type 'cancel' to abort.</yellow>");
             return;
         }
     }
@@ -264,7 +355,8 @@ public class RepublicGUIHandler {
             player.closeInventory();
             return;
         }
-        if (RepublicExecutiveOrdersMenu.SLOT_BACK == slot || clicked.getType() == Material.SPECTRAL_ARROW || clicked.getType() == Material.ARROW) {
+        if (RepublicExecutiveOrdersMenu.SLOT_BACK == slot || clicked.getType() == Material.SPECTRAL_ARROW
+                || clicked.getType() == Material.ARROW) {
             gui.openGovernmentGUI(player);
             return;
         }
@@ -276,7 +368,8 @@ public class RepublicGUIHandler {
 
         CabinetDecision.DecisionType type = RepublicExecutiveOrdersMenu.getDecisionAtSlot(player, slot);
         if (type == null) {
-            ExecutiveOrder.ExecutiveOrderType eoType = RepublicExecutiveOrdersMenu.getExecutiveOrderAtSlot(player, slot);
+            ExecutiveOrder.ExecutiveOrderType eoType = RepublicExecutiveOrdersMenu.getExecutiveOrderAtSlot(player,
+                    slot);
             if (eoType == null)
                 return;
 
@@ -448,7 +541,8 @@ public class RepublicGUIHandler {
             String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
             if (targetName == null && FakeMember.isNpcUUID(targetUUID)) {
                 FakeMember npc = nation.getFakeMember(targetUUID);
-                if (npc != null) targetName = npc.getName();
+                if (npc != null)
+                    targetName = npc.getName();
             }
             final String finalName = targetName != null ? targetName : "NPC";
 

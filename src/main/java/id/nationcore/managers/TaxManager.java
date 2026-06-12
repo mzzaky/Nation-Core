@@ -3,21 +3,42 @@ package id.nationcore.managers;
 import java.util.*;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
+import id.nationcore.models.TaxInvoice;
+import id.nationcore.models.TaxInvoice.InvoiceStatus;
 import id.nationcore.models.TaxRecord;
-import id.nationcore.models.TaxRecord.PlayerTaxData;
-import id.nationcore.models.TaxRecord.TaxTransaction;
-import id.nationcore.models.TaxRecord.TaxTransactionType;
+import id.nationcore.models.TaxRecord.PaymentMethod;
+import id.nationcore.models.TaxRecord.PlayerTaxProfile;
+import id.nationcore.models.TaxRecord.TaxPayment;
 import id.nationcore.models.Treasury.TransactionType;
 import id.nationcore.utils.MessageUtils;
 
+/**
+ * Invoice-based nation tax engine.
+ *
+ * Billing: every billing cycle (1 real-life day) the system issues a $50
+ * invoice to every active nation member. An invoice left unpaid for 1 day
+ * doubles in value (penalty); left unpaid for 3 days from issue it becomes
+ * permanent national debt which the state force-collects from any balance
+ * the player ever holds — even after leaving the issuing nation.
+ *
+ * Paid invoices transfer the money to the issuing nation's treasury.
+ */
 public class TaxManager {
+
+    /** Face value of one tax invoice per billing cycle. */
+    public static final double INVOICE_AMOUNT = 50.0;
+
+    /** Billing cycle length: 1 real-life day. */
+    public static final long BILLING_CYCLE_MILLIS = 24L * 60 * 60 * 1000;
+
+    /** Players offline longer than this are skipped at invoice generation. */
+    private static final long INACTIVE_SKIP_MILLIS = 3L * 24 * 60 * 60 * 1000;
 
     private final NationCore plugin;
     private int taskId = -1;
@@ -30,21 +51,17 @@ public class TaxManager {
         return plugin.getDataManager().getTaxRecord();
     }
 
-    /**
-     * Start the scheduled tax collection task
-     */
+    // =====================================================================
+    // Scheduler
+    // =====================================================================
+
     public void startTaxScheduler() {
         if (taskId != -1) {
             Bukkit.getScheduler().cancelTask(taskId);
         }
-
-        // Check every minute if tax collection is due
-        taskId = Bukkit.getScheduler().runTaskTimer(plugin, this::checkTaxCollection, 20L * 60, 20L * 60).getTaskId();
+        taskId = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L * 60, 20L * 60).getTaskId();
     }
 
-    /**
-     * Stop the scheduled tax collection task
-     */
     public void stopTaxScheduler() {
         if (taskId != -1) {
             Bukkit.getScheduler().cancelTask(taskId);
@@ -52,194 +69,99 @@ public class TaxManager {
         }
     }
 
-    /**
-     * Check if it's time to collect taxes
-     */
-    public void checkTaxCollection() {
+    /** Runs every minute: escalate invoices, seize national debt, bill new cycle. */
+    public void tick() {
         if (!isEnabled()) return;
+        updateInvoiceStatuses();
+        collectAllNationalDebts();
+        checkBillingCycle();
+    }
 
+    // =====================================================================
+    // Invoice generation (billing cycle)
+    // =====================================================================
+
+    private void checkBillingCycle() {
         TaxRecord record = getTaxRecord();
         long now = System.currentTimeMillis();
-        long interval = getCollectionIntervalMillis();
 
-        // First-time initialization
-        if (record.getLastCollectionTime() == 0) {
-            record.setLastCollectionTime(now);
+        // First-time initialization: anchor the cycle, bill one cycle later.
+        if (record.getLastCycleTime() == 0) {
+            record.setLastCycleTime(now);
             return;
         }
 
-        long timeSinceLastCollection = now - record.getLastCollectionTime();
-
-        if (timeSinceLastCollection >= interval) {
-            collectTaxes();
+        if (now - record.getLastCycleTime() >= BILLING_CYCLE_MILLIS) {
+            runBillingCycle();
         }
     }
 
-    /**
-     * Perform tax collection for all eligible players
-     */
-    public void collectTaxes() {
-        if (!isEnabled()) return;
-
+    /** Issues one $50 invoice to every active nation member, then bills NPCs. */
+    public void runBillingCycle() {
         TaxRecord record = getTaxRecord();
-        double taxAmount = getTaxAmount();
-        long inactiveDays = getInactiveDaysThreshold();
-        long inactiveThreshold = System.currentTimeMillis() - (inactiveDays * 24L * 60 * 60 * 1000);
-        double penaltyRate = getLatePenaltyRate();
-        int maxMissedBeforePunishment = getMaxMissedBeforePunishment();
+        long inactiveThreshold = System.currentTimeMillis() - INACTIVE_SKIP_MILLIS;
 
-        Collection<PlayerData> allPlayers = plugin.getDataManager().getAllPlayerData();
-        int taxedCount = 0;
-        int penalizedCount = 0;
-        int exemptCount = 0;
-        double totalCollected = 0;
+        int issuedCount = 0;
+        int autoPaidCount = 0;
+        double autoPaidTotal = 0;
 
-        for (PlayerData playerData : allPlayers) {
+        for (PlayerData playerData : plugin.getDataManager().getAllPlayerData()) {
             UUID playerUUID = playerData.getUuid();
-            String uuidStr = playerUUID.toString();
 
-            // Skip players who have been offline too long
+            // Skip long-offline players so bills don't pile up while they are gone.
             if (playerData.getLastSeen() < inactiveThreshold) {
                 continue;
             }
 
-            // Only charge players who are in a nation!
             Nation nation = plugin.getNationManager().getNationOf(playerUUID);
             if (nation == null) {
                 continue;
             }
 
-            PlayerTaxData taxData = record.getOrCreatePlayerTaxData(uuidStr, playerData.getName());
-            taxData.setPlayerName(playerData.getName());
+            PlayerTaxProfile profile = record.getOrCreateProfile(playerUUID.toString(), playerData.getName());
+            TaxInvoice invoice = new TaxInvoice(record.nextInvoiceId(), nation.getId(), nation.getName(),
+                    INVOICE_AMOUNT);
+            profile.addInvoice(invoice);
+            issuedCount++;
 
-            // Skip exempt players
-            if (taxData.isExempt()) {
-                exemptCount++;
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.TAX_EXEMPTION, 0, "Player is tax exempt"));
-                continue;
+            boolean autoPaid = false;
+            if (profile.isAutoPay()) {
+                autoPaid = tryAutoPay(playerUUID, profile, invoice);
+                if (autoPaid) {
+                    autoPaidCount++;
+                    autoPaidTotal += invoice.getTotalDue();
+                }
             }
 
-            // Calculate total owed (tax + outstanding debt + late penalty if applicable)
-            double totalOwed = taxAmount;
-
-            // Add late penalty if they have outstanding debt
-            if (taxData.getOutstandingDebt() > 0) {
-                double penalty = taxData.getOutstandingDebt() * penaltyRate;
-                totalOwed += penalty;
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.LATE_PENALTY, penalty,
-                        String.format("Late penalty (%.0f%% of $%s debt)",
-                                penaltyRate * 100, MessageUtils.formatNumber(taxData.getOutstandingDebt()))));
-                record.addPenaltyCollected(penalty);
-                taxData.recordPenalty(penalty);
-                penalizedCount++;
-            }
-
-            // Add outstanding debt to total owed
-            totalOwed += taxData.getOutstandingDebt();
-
-            // Try to collect from player's balance
-            double playerBalance = plugin.getVaultHook().getBalance(playerUUID);
-
-            if (playerBalance >= totalOwed) {
-                // Full payment
-                plugin.getVaultHook().withdraw(playerUUID, totalOwed);
-                plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, totalOwed,
-                        "Nation tax from " + playerData.getName(), playerUUID);
-
-                taxData.recordPayment(totalOwed);
-                taxData.clearDebt();
-                record.addTaxCollected(totalOwed);
-                totalCollected += totalOwed;
-
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.TAX_PAID, totalOwed, "Full tax payment"));
-
-                // Notify online player
-                Player onlinePlayer = Bukkit.getPlayer(playerUUID);
-                if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                    MessageUtils.send(onlinePlayer,
-                            "<yellow>You have been charged <gold>$" + MessageUtils.formatNumber(totalOwed) +
-                                    "</gold> in nation taxes. Payment deposited to nation treasury.");
+            Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                if (autoPaid) {
+                    MessageUtils.send(onlinePlayer, "<green>📑 Tax invoice <white>" + invoice.getId()
+                            + "</white> of <gold>$" + MessageUtils.formatNumber(INVOICE_AMOUNT)
+                            + "</gold> was paid automatically (Auto Pay).");
                     MessageUtils.playSound(onlinePlayer, Sound.BLOCK_NOTE_BLOCK_PLING);
+                } else {
+                    MessageUtils.send(onlinePlayer, "<yellow>📑 New tax invoice <white>" + invoice.getId()
+                            + "</white> of <gold>$" + MessageUtils.formatNumber(INVOICE_AMOUNT)
+                            + "</gold> issued by <white>" + nation.getName()
+                            + "</white>. Pay within <white>1 day</white> or the bill doubles.");
+                    MessageUtils.playSound(onlinePlayer, Sound.BLOCK_NOTE_BLOCK_BELL);
                 }
-
-                taxedCount++;
-            } else if (playerBalance > 0) {
-                // Partial payment - take what they have, remainder becomes debt
-                double paid = playerBalance;
-                double remainder = totalOwed - paid;
-
-                plugin.getVaultHook().withdraw(playerUUID, paid);
-                plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, paid,
-                        "Partial nation tax from " + playerData.getName(), playerUUID);
-
-                taxData.recordPayment(paid);
-                taxData.clearDebt();
-                taxData.addDebt(remainder);
-                taxData.addMissedPayment();
-                record.addTaxCollected(paid);
-                totalCollected += paid;
-
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.TAX_PAID, paid, "Partial tax payment"));
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.LATE_PENALTY, remainder,
-                        "Outstanding debt added (insufficient funds)"));
-
-                // Notify online player
-                Player onlinePlayer = Bukkit.getPlayer(playerUUID);
-                if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                    MessageUtils.send(onlinePlayer,
-                            "<red>You could not afford the full tax of <gold>$" + MessageUtils.formatNumber(totalOwed) +
-                                    "</gold>. <red>Paid <gold>$" + MessageUtils.formatNumber(paid) +
-                                    "</gold>, <red>remaining debt: <gold>$" + MessageUtils.formatNumber(remainder));
-                    MessageUtils.playSound(onlinePlayer, Sound.ENTITY_VILLAGER_NO);
-                }
-
-                penalizedCount++;
-            } else {
-                // No payment - full amount becomes debt
-                taxData.addDebt(totalOwed);
-                taxData.addMissedPayment();
-
-                record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                        TaxTransactionType.LATE_PENALTY, totalOwed,
-                        "Full debt added (no funds available)"));
-
-                // Notify online player
-                Player onlinePlayer = Bukkit.getPlayer(playerUUID);
-                if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                    MessageUtils.send(onlinePlayer,
-                            "<red>You have no funds to pay the nation tax of <gold>$" + MessageUtils.formatNumber(totalOwed) +
-                                    "</gold>. <red>This has been added to your debt. Total debt: <gold>$" +
-                                    MessageUtils.formatNumber(taxData.getOutstandingDebt()));
-                    MessageUtils.playSound(onlinePlayer, Sound.ENTITY_VILLAGER_NO);
-                }
-
-                penalizedCount++;
-            }
-
-            // Check for punishment threshold
-            if (taxData.getMissedPayments() >= maxMissedBeforePunishment) {
-                applyPunishment(playerUUID, playerData, taxData, record);
             }
         }
 
-        // === Fake Member (NPC) Tax Collection ===
-        int npcTaxedCount  = 0;
-        int npcDebtCount   = 0;
+        // === Fake Member (NPC) billing — collected directly each cycle ===
+        int npcTaxedCount = 0;
+        int npcDebtCount = 0;
         double npcCollected = 0;
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getAllFakeMembers().isEmpty()) continue;
 
             for (id.nationcore.models.FakeMember npc : nation.getAllFakeMembers()) {
-                double paid = plugin.getFakeMemberManager().collectTax(npc, nation, taxAmount);
+                double paid = plugin.getFakeMemberManager().collectTax(npc, nation, INVOICE_AMOUNT);
                 npcCollected += paid;
-
-                if (paid < taxAmount) {
+                if (paid < INVOICE_AMOUNT) {
                     npcDebtCount++;
                 } else {
                     npcTaxedCount++;
@@ -247,238 +169,354 @@ public class TaxManager {
             }
         }
 
-        // Simpan perubahan taxBalance NPC ke disk
         if (npcTaxedCount > 0 || npcDebtCount > 0) {
             plugin.getDataManager().saveNations();
         }
 
-        // Update cycle
         record.incrementCycle();
 
-        // Broadcast tax collection summary
-        if (taxedCount > 0 || penalizedCount > 0 || npcTaxedCount > 0 || npcDebtCount > 0) {
+        if (issuedCount > 0 || npcTaxedCount > 0 || npcDebtCount > 0) {
             MessageUtils.broadcast("<gold>=======================================================");
-            MessageUtils.broadcast("<yellow>          NATION TAX COLLECTION");
+            MessageUtils.broadcast("<yellow>          NATION TAX — INVOICE BILLING");
             MessageUtils.broadcast("<gold>=======================================================");
-            MessageUtils.broadcast("<gray>Tax Amount: <gold>$" + MessageUtils.formatNumber(taxAmount));
-            MessageUtils.broadcast("<gray>Players Taxed: <green>" + taxedCount);
-            if (penalizedCount > 0) {
-                MessageUtils.broadcast("<gray>Players Penalized: <red>" + penalizedCount);
-            }
-            if (exemptCount > 0) {
-                MessageUtils.broadcast("<gray>Players Exempt: <aqua>" + exemptCount);
+            MessageUtils.broadcast("<gray>Invoice Amount: <gold>$" + MessageUtils.formatNumber(INVOICE_AMOUNT)
+                    + " <gray>per citizen");
+            MessageUtils.broadcast("<gray>Invoices Issued: <green>" + issuedCount);
+            if (autoPaidCount > 0) {
+                MessageUtils.broadcast("<gray>Auto-Paid: <aqua>" + autoPaidCount + " <gray>(<gold>$"
+                        + MessageUtils.formatNumber(autoPaidTotal) + "</gold>)");
             }
             if (npcTaxedCount > 0 || npcDebtCount > 0) {
                 MessageUtils.broadcast("<gray>NPC Members Taxed: <green>" + npcTaxedCount
                         + " <gray>| NPC Debt: <red>" + npcDebtCount);
                 MessageUtils.broadcast("<gray>NPC Total Paid: <gold>$" + MessageUtils.formatNumber(npcCollected));
             }
-            MessageUtils.broadcast("<gray>Total Collected: <gold>$"
-                    + MessageUtils.formatNumber(totalCollected + npcCollected));
+            MessageUtils.broadcast("<gray>Due Time: <white>1 day</white> <gray>— after that the bill doubles!");
             MessageUtils.broadcast("<gold>=======================================================");
         }
 
-        plugin.getLogger().info("Tax collection completed: " + taxedCount + " taxed, " +
-                penalizedCount + " penalized, " + exemptCount + " exempt. " +
-                "NPC: " + npcTaxedCount + " taxed, " + npcDebtCount + " in debt. " +
-                "Total (player): $" + String.format("%.2f", totalCollected) +
-                " | Total (NPC): $" + String.format("%.2f", npcCollected));
+        plugin.getLogger().info("Tax billing cycle #" + record.getTotalCycles() + " completed: "
+                + issuedCount + " invoices issued, " + autoPaidCount + " auto-paid. "
+                + "NPC: " + npcTaxedCount + " taxed, " + npcDebtCount + " in debt.");
     }
 
-    /**
-     * Apply punishment for excessive missed payments
-     */
-    private void applyPunishment(UUID playerUUID, PlayerData playerData,
-                                  PlayerTaxData taxData, TaxRecord record) {
-        String uuidStr = playerUUID.toString();
-        String punishmentDesc = "Tax evasion penalty";
-
-        // Default: add a punishment record
-        playerData.getPunishments().add(
-                new PlayerData.Punishment("TAX_EVASION", punishmentDesc, 0));
-
-        // Record punishment
-        taxData.getPunishmentHistory().add(String.valueOf(System.currentTimeMillis()));
-        record.addTransaction(new TaxTransaction(uuidStr, playerData.getName(),
-                TaxTransactionType.PUNISHMENT_APPLIED, taxData.getOutstandingDebt(),
-                punishmentDesc + " (Missed " + taxData.getMissedPayments() + " payments)"));
-
-        // Reset missed counter after punishment
-        taxData.setMissedPayments(0);
-
-        // Notify player
-        Player onlinePlayer = Bukkit.getPlayer(playerUUID);
-        if (onlinePlayer != null && onlinePlayer.isOnline()) {
-            MessageUtils.send(onlinePlayer,
-                    "<dark_red><bold>TAX EVASION PENALTY!</bold></dark_red> <red>You have been punished for missing " +
-                            "too many tax payments. Outstanding debt: <gold>$" +
-                            MessageUtils.formatNumber(taxData.getOutstandingDebt()));
-            MessageUtils.sendTitle(onlinePlayer,
-                    "<red><bold>TAX PENALTY",
-                    "<yellow>You have been punished for tax evasion!",
-                    10, 60, 20);
-            MessageUtils.playSound(onlinePlayer, Sound.ENTITY_WITHER_SPAWN);
-        }
-    }
-
-    /**
-     * Pay outstanding tax debt manually
-     */
-    public boolean payDebt(Player player) {
-        TaxRecord record = getTaxRecord();
-        String uuidStr = player.getUniqueId().toString();
-        PlayerTaxData taxData = record.getPlayerTaxData(uuidStr);
-
-        if (taxData == null || taxData.getOutstandingDebt() <= 0) {
-            MessageUtils.send(player, "<green>You have no outstanding tax debt!");
+    /** Attempts to settle a freshly issued invoice from the player's balance. */
+    private boolean tryAutoPay(UUID playerUUID, PlayerTaxProfile profile, TaxInvoice invoice) {
+        double due = invoice.getRemaining();
+        if (due <= 0) return false;
+        if (!plugin.getVaultHook().has(playerUUID, due)) {
             return false;
         }
-
-        double debt = taxData.getOutstandingDebt();
-        double balance = plugin.getVaultHook().getBalance(player.getUniqueId());
-
-        if (balance < debt) {
-            MessageUtils.send(player, "<red>You need <gold>$" + MessageUtils.formatNumber(debt) +
-                    "</gold> to pay your debt. Current balance: <gold>$" + MessageUtils.formatNumber(balance));
-            return false;
-        }
-
-        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-
-        plugin.getVaultHook().withdraw(player.getUniqueId(), debt);
-        plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, debt,
-                "Debt payment from " + player.getName(), player.getUniqueId());
-
-        taxData.clearDebt();
-        taxData.setMissedPayments(0);
-        record.addTaxCollected(debt);
-
-        record.addTransaction(new TaxTransaction(uuidStr, player.getName(),
-                TaxTransactionType.DEBT_PAYMENT, debt, "Manual debt payment"));
-
-        MessageUtils.send(player, "<green>Successfully paid off your tax debt of <gold>$" +
-                MessageUtils.formatNumber(debt) + "</gold>!");
-        MessageUtils.playSound(player, Sound.ENTITY_PLAYER_LEVELUP);
-
+        plugin.getVaultHook().withdraw(playerUUID, due);
+        applyPayment(playerUUID, profile, invoice, due, PaymentMethod.AUTO_PAY);
         return true;
     }
 
-    /**
-     * Set a player's tax exempt status (admin only)
-     */
-    public void setExempt(UUID playerUUID, String playerName, boolean exempt) {
-        TaxRecord record = getTaxRecord();
-        PlayerTaxData taxData = record.getOrCreatePlayerTaxData(playerUUID.toString(), playerName);
-        taxData.setExempt(exempt);
+    // =====================================================================
+    // Status escalation: ACTIVE → OVERDUE (2x) → NATIONAL_DEBT (permanent)
+    // =====================================================================
 
-        record.addTransaction(new TaxTransaction(playerUUID.toString(), playerName,
-                TaxTransactionType.TAX_EXEMPTION, 0,
-                exempt ? "Player exempted from taxes" : "Tax exemption removed"));
+    private void updateInvoiceStatuses() {
+        TaxRecord record = getTaxRecord();
+        long now = System.currentTimeMillis();
+
+        for (Map.Entry<String, PlayerTaxProfile> entry : record.getPlayerProfiles().entrySet()) {
+            PlayerTaxProfile profile = entry.getValue();
+            UUID playerUUID = parseUUID(entry.getKey());
+
+            for (TaxInvoice invoice : profile.getInvoices()) {
+                if (!invoice.isOutstanding()) continue;
+
+                // Invoices of dissolved nations are voided — there is no
+                // treasury left to receive the money.
+                if (plugin.getNationManager().getNation(invoice.getNationId()) == null) {
+                    invoice.setStatus(InvoiceStatus.PAID);
+                    invoice.setPaidAt(now);
+                    plugin.getLogger().info("Tax invoice " + invoice.getId() + " voided — nation "
+                            + invoice.getNationName() + " no longer exists.");
+                    continue;
+                }
+
+                long age = now - invoice.getCreatedAt();
+
+                if (invoice.getStatus() == InvoiceStatus.ACTIVE && age >= TaxInvoice.DUE_PERIOD_MILLIS) {
+                    invoice.setStatus(InvoiceStatus.OVERDUE);
+                    invoice.setPenaltyApplied(true);
+                    notifyOverdue(playerUUID, invoice);
+                }
+
+                if (invoice.getStatus() == InvoiceStatus.OVERDUE && age >= TaxInvoice.DEBT_PERIOD_MILLIS) {
+                    invoice.setStatus(InvoiceStatus.NATIONAL_DEBT);
+                    profile.setInvoicesDefaulted(profile.getInvoicesDefaulted() + 1);
+                    notifyNationalDebt(playerUUID, invoice);
+                }
+            }
+        }
     }
 
-    /**
-     * Forgive a player's debt (admin only)
-     */
-    public void forgiveDebt(UUID playerUUID, String playerName) {
+    private void notifyOverdue(UUID playerUUID, TaxInvoice invoice) {
+        if (playerUUID == null) return;
+        Player player = Bukkit.getPlayer(playerUUID);
+        if (player == null || !player.isOnline()) return;
+        MessageUtils.send(player, "<red>⚠ Tax invoice <white>" + invoice.getId()
+                + "</white> is overdue! The bill has <bold>doubled</bold> to <gold>$"
+                + MessageUtils.formatNumber(invoice.getTotalDue())
+                + "</gold>. <red>Settle it within <white>"
+                + MessageUtils.formatTime(invoice.getMillisUntilDebt())
+                + "</white> or it becomes permanent national debt.");
+        MessageUtils.playSound(player, Sound.ENTITY_VILLAGER_NO);
+    }
+
+    private void notifyNationalDebt(UUID playerUUID, TaxInvoice invoice) {
+        if (playerUUID == null) return;
+        Player player = Bukkit.getPlayer(playerUUID);
+        if (player == null || !player.isOnline()) return;
+        MessageUtils.send(player, "<dark_red><bold>NATIONAL DEBT!</bold></dark_red> <red>Tax invoice <white>"
+                + invoice.getId() + "</white> of <gold>$" + MessageUtils.formatNumber(invoice.getTotalDue())
+                + "</gold> has been permanently recorded as national debt. The state will seize any balance "
+                + "you hold until it is settled — even if you leave the nation.");
+        MessageUtils.sendTitle(player,
+                "<dark_red><bold>NATIONAL DEBT",
+                "<red>Invoice " + invoice.getId() + " will be force-collected!",
+                10, 60, 20);
+        MessageUtils.playSound(player, Sound.ENTITY_WITHER_SPAWN);
+    }
+
+    // =====================================================================
+    // National debt — forced bypass collection
+    // =====================================================================
+
+    private void collectAllNationalDebts() {
         TaxRecord record = getTaxRecord();
-        PlayerTaxData taxData = record.getPlayerTaxData(playerUUID.toString());
-
-        if (taxData != null && taxData.getOutstandingDebt() > 0) {
-            double forgiven = taxData.getOutstandingDebt();
-            taxData.clearDebt();
-            taxData.setMissedPayments(0);
-
-            record.addTransaction(new TaxTransaction(playerUUID.toString(), playerName,
-                    TaxTransactionType.DEBT_FORGIVEN, forgiven, "Debt forgiven by admin"));
+        for (String uuidStr : new ArrayList<>(record.getPlayerProfiles().keySet())) {
+            UUID playerUUID = parseUUID(uuidStr);
+            if (playerUUID != null) {
+                collectNationalDebt(playerUUID);
+            }
         }
     }
 
     /**
-     * Get next collection time
+     * Force-collects outstanding national debt from whatever balance the
+     * player currently holds (bypass — partial seizure allowed). Works for
+     * offline players and players who already left the issuing nation.
+     * Also called on player join so freshly earned money is seized promptly.
      */
-    public long getNextCollectionTime() {
+    public void collectNationalDebt(UUID playerUUID) {
         TaxRecord record = getTaxRecord();
-        if (record.getLastCollectionTime() == 0) return 0;
-        return record.getLastCollectionTime() + getCollectionIntervalMillis();
+        PlayerTaxProfile profile = record.getProfile(playerUUID.toString());
+        if (profile == null || !profile.hasNationalDebt()) return;
+
+        double balance = plugin.getVaultHook().getBalance(playerUUID);
+        if (balance < 0.01) return;
+
+        double seizedTotal = 0;
+        for (TaxInvoice invoice : profile.getOutstandingInvoices()) {
+            if (invoice.getStatus() != InvoiceStatus.NATIONAL_DEBT) continue;
+            if (balance < 0.01) break;
+
+            double seize = Math.min(balance, invoice.getRemaining());
+            if (seize < 0.01) continue;
+
+            if (!plugin.getVaultHook().withdraw(playerUUID, seize)) {
+                continue;
+            }
+            balance -= seize;
+            seizedTotal += seize;
+            applyPayment(playerUUID, profile, invoice, seize, PaymentMethod.FORCED);
+        }
+
+        if (seizedTotal > 0) {
+            Player player = Bukkit.getPlayer(playerUUID);
+            if (player != null && player.isOnline()) {
+                double remaining = profile.getNationalDebtRemaining();
+                MessageUtils.send(player, "<dark_red>⚖ The state seized <gold>$"
+                        + MessageUtils.formatNumber(seizedTotal) + "</gold> from your balance toward national debt."
+                        + (remaining > 0
+                                ? " <red>Remaining debt: <gold>$" + MessageUtils.formatNumber(remaining) + "</gold>"
+                                : " <green>Your national debt is now fully settled!"));
+                MessageUtils.playSound(player, remaining > 0 ? Sound.ENTITY_VILLAGER_NO : Sound.ENTITY_PLAYER_LEVELUP);
+            }
+        }
+    }
+
+    // =====================================================================
+    // Payments
+    // =====================================================================
+
+    /** Outcome of a "pay all invoices" request, consumed by the tax menus. */
+    public static class PaymentResult {
+        public final int invoicesPaid;
+        public final double amountPaid;
+        public final int invoicesRemaining;
+        public final double remainingDue;
+
+        public PaymentResult(int invoicesPaid, double amountPaid, int invoicesRemaining, double remainingDue) {
+            this.invoicesPaid = invoicesPaid;
+            this.amountPaid = amountPaid;
+            this.invoicesRemaining = invoicesRemaining;
+            this.remainingDue = remainingDue;
+        }
+
+        public boolean nothingToPay() {
+            return invoicesPaid == 0 && invoicesRemaining == 0;
+        }
     }
 
     /**
-     * Get time remaining until next collection
+     * Pays every outstanding invoice the player can afford, oldest first.
+     * Money is withdrawn from the player's Vault balance and deposited into
+     * the issuing nation's treasury.
      */
-    public long getTimeUntilNextCollection() {
-        long next = getNextCollectionTime();
-        if (next == 0) return 0;
-        return Math.max(0, next - System.currentTimeMillis());
+    public PaymentResult payAllInvoices(Player player) {
+        PlayerTaxProfile profile = getOrCreateProfile(player);
+        List<TaxInvoice> outstanding = profile.getOutstandingInvoices();
+
+        if (outstanding.isEmpty()) {
+            return new PaymentResult(0, 0, 0, 0);
+        }
+
+        int paidCount = 0;
+        double paidTotal = 0;
+
+        for (TaxInvoice invoice : outstanding) {
+            double remaining = invoice.getRemaining();
+            if (remaining <= 0) continue;
+            if (!plugin.getVaultHook().has(player.getUniqueId(), remaining)) {
+                break; // oldest-first; stop at the first bill the player cannot afford
+            }
+            plugin.getVaultHook().withdraw(player.getUniqueId(), remaining);
+            applyPayment(player.getUniqueId(), profile, invoice, remaining, PaymentMethod.MANUAL);
+            paidCount++;
+            paidTotal += remaining;
+        }
+
+        return new PaymentResult(paidCount, paidTotal,
+                profile.getOutstandingInvoices().size(), profile.getOutstandingTotal());
     }
 
-    // === Config Helpers ===
+    /**
+     * Books a successful Vault withdrawal against an invoice: deposits the
+     * money into the issuing nation's treasury, updates invoice state,
+     * statistics and the player's transaction log.
+     */
+    private void applyPayment(UUID playerUUID, PlayerTaxProfile profile, TaxInvoice invoice,
+                              double amount, PaymentMethod method) {
+        TaxRecord record = getTaxRecord();
+        InvoiceStatus statusBefore = invoice.getStatus();
+
+        Nation nation = plugin.getNationManager().getNation(invoice.getNationId());
+        if (nation != null) {
+            String description = switch (method) {
+                case FORCED -> "National debt seizure (" + invoice.getId() + ") from " + profile.getPlayerName();
+                case AUTO_PAY -> "Auto-paid tax invoice " + invoice.getId() + " from " + profile.getPlayerName();
+                default -> "Tax invoice " + invoice.getId() + " paid by " + profile.getPlayerName();
+            };
+            plugin.getTreasuryManager().deposit(nation, TransactionType.TAX_INCOME, amount, description, playerUUID);
+        }
+
+        invoice.setPaidAmount(invoice.getPaidAmount() + amount);
+        boolean settled = invoice.getRemaining() <= 0.0001;
+        if (settled) {
+            invoice.setStatus(InvoiceStatus.PAID);
+            invoice.setPaidAt(System.currentTimeMillis());
+        }
+
+        profile.setTotalAmountPaid(profile.getTotalAmountPaid() + amount);
+
+        if (method == PaymentMethod.FORCED || statusBefore == InvoiceStatus.NATIONAL_DEBT) {
+            profile.setTotalDebtRepaid(profile.getTotalDebtRepaid() + amount);
+            record.addDebtCollected(amount);
+        } else {
+            double penaltyPortion = invoice.isPenaltyApplied() ? Math.max(0, amount - invoice.getBaseAmount()) : 0;
+            record.addTaxCollected(amount - penaltyPortion);
+            if (penaltyPortion > 0) {
+                record.addPenaltyCollected(penaltyPortion);
+                profile.setTotalPenaltyPaid(profile.getTotalPenaltyPaid() + penaltyPortion);
+            }
+            if (settled) {
+                profile.setInvoicesPaid(profile.getInvoicesPaid() + 1);
+                if (invoice.isPenaltyApplied()) {
+                    profile.setInvoicesPaidLate(profile.getInvoicesPaidLate() + 1);
+                }
+            }
+        }
+
+        String logNote = switch (method) {
+            case FORCED -> settled ? "Debt seized in full" : "Partial debt seizure";
+            case AUTO_PAY -> "Paid automatically";
+            default -> statusBefore == InvoiceStatus.NATIONAL_DEBT ? "Debt settled manually"
+                    : (invoice.isPenaltyApplied() ? "Paid with penalty" : "Paid on time");
+        };
+        profile.recordPayment(new TaxPayment(invoice.getId(), amount, method, logNote));
+    }
+
+    // =====================================================================
+    // Auto Pay
+    // =====================================================================
+
+    /** Flips the player's Auto Pay preference and returns the new state. */
+    public boolean toggleAutoPay(Player player) {
+        PlayerTaxProfile profile = getOrCreateProfile(player);
+        profile.setAutoPay(!profile.isAutoPay());
+        return profile.isAutoPay();
+    }
+
+    // =====================================================================
+    // Accessors / helpers
+    // =====================================================================
+
+    public PlayerTaxProfile getOrCreateProfile(Player player) {
+        return getTaxRecord().getOrCreateProfile(player.getUniqueId().toString(), player.getName());
+    }
+
+    public PlayerTaxProfile getProfile(UUID playerUUID) {
+        return getTaxRecord().getProfile(playerUUID.toString());
+    }
 
     public boolean isEnabled() {
         return getTaxRecord().isEnabled();
     }
 
-    public double getTaxAmount() {
-        return 50.0;
+    public double getInvoiceAmount() {
+        return INVOICE_AMOUNT;
     }
 
-    public long getCollectionIntervalMillis() {
-        return 20L * 60L * 1000L; // 24 Minecraft hours = 20 real minutes
+    public long getNextCycleTime() {
+        TaxRecord record = getTaxRecord();
+        if (record.getLastCycleTime() == 0) return 0;
+        return record.getLastCycleTime() + BILLING_CYCLE_MILLIS;
     }
 
-    public long getInactiveDaysThreshold() {
-        return 3;
+    public long getTimeUntilNextCycle() {
+        long next = getNextCycleTime();
+        if (next == 0) return 0;
+        return Math.max(0, next - System.currentTimeMillis());
     }
 
-    public double getLatePenaltyRate() {
-        return 0.10;
+    /** Total national debt still owed across all players. */
+    public double getTotalNationalDebt() {
+        double total = 0;
+        for (PlayerTaxProfile profile : getTaxRecord().getPlayerProfiles().values()) {
+            total += profile.getNationalDebtRemaining();
+        }
+        return total;
     }
 
-    public int getMaxMissedBeforePunishment() {
-        return 3;
-    }
-
-    /**
-     * Get total number of taxable players (active within threshold)
-     */
-    public int getTaxablePlayerCount() {
-        long inactiveThreshold = System.currentTimeMillis() - (getInactiveDaysThreshold() * 24L * 60 * 60 * 1000);
-        return (int) plugin.getDataManager().getAllPlayerData().stream()
-                .filter(p -> p.getLastSeen() >= inactiveThreshold)
-                .filter(p -> plugin.getNationManager().getNationOf(p.getUuid()) != null)
-                .count();
-    }
-
-    /**
-     * Get total outstanding debt across all players
-     */
-    public double getTotalOutstandingDebt() {
-        return getTaxRecord().getPlayerTaxData().entrySet().stream()
-                .filter(entry -> {
-                    try {
-                        UUID uuid = UUID.fromString(entry.getKey());
-                        return plugin.getNationManager().getNationOf(uuid) != null;
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
-                .mapToDouble(entry -> entry.getValue().getOutstandingDebt())
-                .sum();
-    }
-
-    /**
-     * Get number of players with outstanding debt
-     */
+    /** Number of players carrying unsettled national debt. */
     public int getDebtorCount() {
-        return (int) getTaxRecord().getPlayerTaxData().entrySet().stream()
-                .filter(entry -> {
-                    try {
-                        UUID uuid = UUID.fromString(entry.getKey());
-                        return plugin.getNationManager().getNationOf(uuid) != null;
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
-                .filter(entry -> entry.getValue().getOutstandingDebt() > 0)
-                .count();
+        int count = 0;
+        for (PlayerTaxProfile profile : getTaxRecord().getPlayerProfiles().values()) {
+            if (profile.hasNationalDebt()) count++;
+        }
+        return count;
+    }
+
+    private UUID parseUUID(String raw) {
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }
