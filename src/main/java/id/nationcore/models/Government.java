@@ -20,6 +20,7 @@ public class Government {
     private long fieldMedicineCooldownUntil;
 
     private long lastBroadcastTime;
+    private List<UUID> senators;
 
     public Government() {
         this.cabinet = new EnumMap<>(CabinetPosition.class);
@@ -28,6 +29,14 @@ public class Government {
         this.currentApprovalRating = 3.0;
         this.totalSalaryPayouts = 0.0;
         this.lastBroadcastTime = 0;
+        this.senators = new ArrayList<>();
+    }
+
+    public List<UUID> getSenators() {
+        if (senators == null) {
+            senators = new ArrayList<>();
+        }
+        return senators;
     }
 
     private double totalSalaryPayouts;

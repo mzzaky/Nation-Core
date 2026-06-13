@@ -1071,4 +1071,124 @@ public class CommunistManager {
             plugin.getDataManager().saveNations();
         }
     }
+
+    public long getSalaryCooldown(Player player) {
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || nation.getType() != GovernmentType.COMMUNIST) return -1;
+        CommunistGovernment cg = nation.getCommunistGovernment();
+        if (cg == null) return -1;
+
+        if (cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(player.getUniqueId())) {
+            long now = System.currentTimeMillis();
+            long dayMillis = 24 * 60 * 60 * 1000L;
+            long diff = now - cg.getLastDailyReward();
+            return (diff >= dayMillis) ? 0 : (dayMillis - diff);
+        }
+
+        CommunistGovernment.PolitburoMember member = cg.getPolitburoMemberByUUID(player.getUniqueId());
+        if (member != null) {
+            long now = System.currentTimeMillis();
+            long dayMillis = 24 * 60 * 60 * 1000L;
+            long diff = now - member.getLastDailyReward();
+            return (diff >= dayMillis) ? 0 : (dayMillis - diff);
+        }
+        return -1; // Not eligible
+    }
+
+    public void claimDailySalary(Player player) {
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || nation.getType() != GovernmentType.COMMUNIST) {
+            MessageUtils.send(player, "<red>You are not in a Communist nation!</red>");
+            return;
+        }
+        CommunistGovernment cg = nation.getCommunistGovernment();
+        if (cg == null) {
+            MessageUtils.send(player, "<red>No active Communist government!</red>");
+            return;
+        }
+
+        long cooldown = getSalaryCooldown(player);
+        if (cooldown > 0) {
+            MessageUtils.send(player, "<red>You can claim your salary in: " + MessageUtils.formatTime(cooldown) + "</red>");
+            return;
+        } else if (cooldown == -1) {
+            MessageUtils.send(player, "<red>You are not eligible for a government salary!</red>");
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+
+        if (cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(player.getUniqueId())) {
+            double vaultPoints = plugin.getConfig().getDouble("president.daily-rewards.vault-points", 50000);
+            int diamondBlocks = plugin.getConfig().getInt("president.daily-rewards.diamond-blocks", 5);
+            int netheriteIngots = plugin.getConfig().getInt("president.daily-rewards.netherite-ingots", 3);
+            int goldenApples = plugin.getConfig().getInt("president.daily-rewards.enchanted-golden-apples", 10);
+
+            if (plugin.getTreasuryManager().canAfford(nation, vaultPoints)) {
+                plugin.getTreasuryManager().withdraw(nation, TransactionType.PRESIDENT_SALARY, vaultPoints,
+                        "Daily salary for Secretary General " + player.getName(), player.getUniqueId());
+                plugin.getVaultHook().deposit(player.getUniqueId(), vaultPoints);
+                cg.addSubsidyPayout(vaultPoints); // Track payout
+                cg.setLastDailyReward(now);
+                MessageUtils.send(player, "managers.government.daily_reward");
+            } else {
+                MessageUtils.send(player, "<red>The Treasury cannot afford your daily salary!</red>");
+                return;
+            }
+
+            var leftover1 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.DIAMOND_BLOCK, diamondBlocks));
+            for (var item : leftover1.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+            var leftover2 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.NETHERITE_INGOT, netheriteIngots));
+            for (var item : leftover2.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+            var leftover3 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.ENCHANTED_GOLDEN_APPLE, goldenApples));
+            for (var item : leftover3.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+
+            MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
+            plugin.getDataManager().saveNations();
+            return;
+        }
+
+        CommunistGovernment.PolitburoMember member = cg.getPolitburoMemberByUUID(player.getUniqueId());
+        if (member != null) {
+            CommunistGovernment.PolitburoPosition position = member.getPosition();
+            String configPath = switch (position) {
+                case DEFENSE -> "cabinet.defense.daily-vault";
+                case TREASURY -> "cabinet.treasury-minister.daily-vault";
+                default -> "cabinet.daily-salary";
+            };
+
+            double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
+            double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+            double totalPay = vaultPoints + salary;
+
+            if (plugin.getTreasuryManager().canAfford(nation, totalPay)) {
+                plugin.getTreasuryManager().withdraw(nation, TransactionType.CABINET_SALARY, totalPay,
+                        "Daily salary for " + position.getDisplayName() + " " + player.getName(), player.getUniqueId());
+                plugin.getVaultHook().deposit(player.getUniqueId(), totalPay);
+                cg.addSubsidyPayout(totalPay); // Track payout
+                member.setLastDailyReward(now);
+                MessageUtils.send(player, "managers.government.cabinet_daily");
+            } else {
+                MessageUtils.send(player, "<red>The Treasury cannot afford your daily salary!</red>");
+                return;
+            }
+
+            switch (position) {
+                case DEFENSE -> {
+                    var leftoverA = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.DIAMOND, 3));
+                    for (var item : leftoverA.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+                    var leftoverB = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.GOLDEN_APPLE, 5));
+                    for (var item : leftoverB.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+                }
+                case TREASURY -> {
+                    var leftoverC = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(Material.EMERALD_BLOCK, 10));
+                    for (var item : leftoverC.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+                }
+                default -> {}
+            }
+
+            MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
+            plugin.getDataManager().saveNations();
+        }
+    }
 }

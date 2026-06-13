@@ -195,6 +195,8 @@ public class Nation {
     private long announcementCreatedAt;
     private long lastAnnouncementTime;
 
+    private Boolean taxEnabled = true;
+
     public Nation() {
         this.members = new HashMap<>();
         this.fakeMembers = new HashMap<>();
@@ -565,6 +567,14 @@ public class Nation {
 
     public String getLeaderName() { return leaderName; }
     public void setLeaderName(String leaderName) { this.leaderName = leaderName; }
+
+    public boolean isTaxEnabled() {
+        return taxEnabled == null || taxEnabled;
+    }
+
+    public void setTaxEnabled(boolean taxEnabled) {
+        this.taxEnabled = taxEnabled;
+    }
 
     // === Diplomacy API ===
     public Map<String, DiplomacyStatus> getDiplomacyRelations() {

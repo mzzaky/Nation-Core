@@ -43,6 +43,13 @@ import id.nationcore.gui.caliphate.CaliphateBorderMenu;
 import id.nationcore.gui.communist.CommunistBorderMenu;
 import id.nationcore.gui.monarchy.MonarchyBorderMenu;
 import id.nationcore.gui.republic.RepublicBorderMenu;
+import id.nationcore.gui.republic.RepublicSettingsMenu;
+import id.nationcore.gui.communist.CommunistSettingsMenu;
+import id.nationcore.gui.monarchy.MonarchySettingsMenu;
+import id.nationcore.gui.caliphate.CaliphateSettingsMenu;
+import id.nationcore.gui.communist.CommunistSalaryMenu;
+import id.nationcore.gui.monarchy.MonarchySalaryMenu;
+import id.nationcore.gui.caliphate.CaliphateSalaryMenu;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -83,6 +90,9 @@ public class GUIListener implements Listener {
     public final MonarchyTreasuryMenu monarchyTreasuryMenu;
     public final CaliphateTreasuryMenu caliphateTreasuryMenu;
     public final RepublicSalaryMenu salaryMenu;
+    public final CommunistSalaryMenu communistSalaryMenu;
+    public final MonarchySalaryMenu monarchySalaryMenu;
+    public final CaliphateSalaryMenu caliphateSalaryMenu;
     public final RepublicCabinetGUI cabinetGUI;
     public final MainMenuRouter mainMenuRouter;
     public final PlayerStatsGUI playerStatsGUI;
@@ -109,6 +119,10 @@ public class GUIListener implements Listener {
     public final CommunistBorderMenu communistBorderMenu;
     public final MonarchyBorderMenu monarchyBorderMenu;
     public final RepublicBorderMenu republicBorderMenu;
+    public final RepublicSettingsMenu republicSettingsMenu;
+    public final CommunistSettingsMenu communistSettingsMenu;
+    public final MonarchySettingsMenu monarchySettingsMenu;
+    public final CaliphateSettingsMenu caliphateSettingsMenu;
 
     // Shared per-player state.
     public final Map<UUID, UUID> viewingCandidate = new HashMap<>();
@@ -152,6 +166,9 @@ public class GUIListener implements Listener {
         this.monarchyTreasuryMenu = new MonarchyTreasuryMenu(plugin);
         this.caliphateTreasuryMenu = new CaliphateTreasuryMenu(plugin);
         this.salaryMenu = new RepublicSalaryMenu(plugin);
+        this.communistSalaryMenu = new CommunistSalaryMenu(plugin);
+        this.monarchySalaryMenu = new MonarchySalaryMenu(plugin);
+        this.caliphateSalaryMenu = new CaliphateSalaryMenu(plugin);
         this.cabinetGUI = new RepublicCabinetGUI(plugin);
         this.mainMenuRouter = new MainMenuRouter(plugin);
         this.playerStatsGUI = new PlayerStatsGUI(plugin);
@@ -178,6 +195,10 @@ public class GUIListener implements Listener {
         this.communistBorderMenu = new CommunistBorderMenu(plugin);
         this.monarchyBorderMenu = new MonarchyBorderMenu(plugin);
         this.republicBorderMenu = new RepublicBorderMenu(plugin);
+        this.republicSettingsMenu = new RepublicSettingsMenu(plugin);
+        this.communistSettingsMenu = new CommunistSettingsMenu(plugin);
+        this.monarchySettingsMenu = new MonarchySettingsMenu(plugin);
+        this.caliphateSettingsMenu = new CaliphateSettingsMenu(plugin);
 
         this.republic = new RepublicGUIHandler(plugin, this);
         this.communist = new CommunistGUIHandler(plugin, this);
@@ -237,6 +258,14 @@ public class GUIListener implements Listener {
         if (taxMenu != null) {
             event.setCancelled(true);
             taxMenu.handleClick(this, player, clicked, event.getRawSlot());
+            return;
+        }
+
+        // ── Settings menus (per-nation) ───────────────────────────────
+        AbstractSettingsMenu settingsMenu = settingsMenuFor(title);
+        if (settingsMenu != null) {
+            event.setCancelled(true);
+            settingsMenu.handleClick(this, player, clicked, event.getRawSlot(), event.getClick());
             return;
         }
 
@@ -459,6 +488,21 @@ public class GUIListener implements Listener {
     }
 
     /**
+     * @return the per-nation Settings menu matching this title, or null.
+     */
+    private AbstractSettingsMenu settingsMenuFor(String title) {
+        if (RepublicSettingsMenu.TITLE.equals(title))
+            return republicSettingsMenu;
+        if (CommunistSettingsMenu.TITLE.equals(title))
+            return communistSettingsMenu;
+        if (MonarchySettingsMenu.TITLE.equals(title))
+            return monarchySettingsMenu;
+        if (CaliphateSettingsMenu.TITLE.equals(title))
+            return caliphateSettingsMenu;
+        return null;
+    }
+
+    /**
      * @return the per-nation Border Management menu matching this title, or null.
      */
     private AbstractBorderMenu borderMenuFor(String title) {
@@ -529,6 +573,10 @@ public class GUIListener implements Listener {
                 title.equals(CommunistTaxMenu.TITLE) ||
                 title.equals(MonarchyTaxMenu.TITLE) ||
                 title.equals(CaliphateZakahMenu.TITLE) ||
+                title.equals(RepublicSettingsMenu.TITLE) ||
+                title.equals(CommunistSettingsMenu.TITLE) ||
+                title.equals(MonarchySettingsMenu.TITLE) ||
+                title.equals(CaliphateSettingsMenu.TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_MENU_TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_LEADERBOARD_TITLE) ||
                 title.equals(RepublicArenaGUI.ARENA_KIT_TITLE) ||
@@ -638,6 +686,20 @@ public class GUIListener implements Listener {
             caliphateZakahMenu.open(player);
         } else {
             republicTaxMenu.open(player);
+        }
+    }
+
+    public void openSettingsGUI(Player player) {
+        Nation n = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (n == null) return;
+        if (n.getType() == GovernmentType.MONARCHY) {
+            monarchySettingsMenu.open(player);
+        } else if (n.getType() == GovernmentType.COMMUNIST) {
+            communistSettingsMenu.open(player);
+        } else if (n.getType() == GovernmentType.CALIPHATE) {
+            caliphateSettingsMenu.open(player);
+        } else {
+            republicSettingsMenu.open(player);
         }
     }
 

@@ -324,7 +324,7 @@ public class DataManager {
         taxRecord.ensureInitialized();
     }
 
-    private void saveTaxRecord() {
+    public void saveTaxRecord() {
         File file = new File(dataFolder, "tax_record.json");
         try (Writer writer = new FileWriter(file)) {
             gson.toJson(taxRecord, writer);
@@ -500,19 +500,4 @@ public class DataManager {
         return presidentHistory.getRecords();
     }
 
-    // Reset methods for NationCommand
-    public void resetGovernment() {
-        government = new Government();
-        saveGovernment();
-    }
-
-    public void resetElection() {
-        election = new Election();
-        saveElection();
-    }
-
-    public void resetTreasury() {
-        treasury = new Treasury();
-        saveTreasury();
-    }
 }

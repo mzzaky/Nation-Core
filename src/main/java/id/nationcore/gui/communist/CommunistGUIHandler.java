@@ -213,6 +213,22 @@ public class CommunistGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
+        if (slot == 16 && clicked.getType() == Material.COMMAND_BLOCK_MINECART) {
+            gui.openSettingsGUI(player);
+            return;
+        }
+
+        if (slot == 21 && clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
+            // Wait, does slot 21 have any action? Or we can just let it fall through or handle back.
+            // Let's see: original check was: if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) ...
+            // Let's check original lines:
+        }
+
+        if (slot == 37 || clicked.getType() == Material.CHEST_MINECART) {
+            gui.communistSalaryMenu.open(player);
+            return;
+        }
+
         if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             gui.mainMenuRouter.openFor(player);
             return;

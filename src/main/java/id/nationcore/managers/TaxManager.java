@@ -114,7 +114,7 @@ public class TaxManager {
             }
 
             Nation nation = plugin.getNationManager().getNationOf(playerUUID);
-            if (nation == null) {
+            if (nation == null || !nation.isTaxEnabled()) {
                 continue;
             }
 
@@ -156,6 +156,7 @@ public class TaxManager {
         double npcCollected = 0;
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
+            if (!nation.isTaxEnabled()) continue;
             if (nation.getAllFakeMembers().isEmpty()) continue;
 
             for (id.nationcore.models.FakeMember npc : nation.getAllFakeMembers()) {
@@ -400,7 +401,7 @@ public class TaxManager {
      * money into the issuing nation's treasury, updates invoice state,
      * statistics and the player's transaction log.
      */
-    private void applyPayment(UUID playerUUID, PlayerTaxProfile profile, TaxInvoice invoice,
+    public void applyPayment(UUID playerUUID, PlayerTaxProfile profile, TaxInvoice invoice,
                               double amount, PaymentMethod method) {
         TaxRecord record = getTaxRecord();
         InvoiceStatus statusBefore = invoice.getStatus();

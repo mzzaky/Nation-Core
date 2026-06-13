@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -21,6 +20,7 @@ import id.nationcore.models.Nation.NationMember;
 import id.nationcore.models.Nation.NationRole;
 import id.nationcore.utils.MessageUtils;
 
+@SuppressWarnings({"deprecation", "unused"})
 public class RepublicMemberManagementGUI {
 
     public static final String TITLE = "§6§lMEMBER MANAGEMENT";
@@ -56,8 +56,12 @@ public class RepublicMemberManagementGUI {
         for (FakeMember npc : nation.getAllFakeMembers()) {
             members.add(new NationMember(npc.getId(), npc.getName(), npc.getRole()));
         }
-        // Sort: leader first, then officers, then citizens
-        members.sort((a, b) -> a.getRole().ordinal() - b.getRole().ordinal());
+        // Sort hierarchy: 0=President, 1=Senator, 2=Minister, 3=Member
+        members.sort((a, b) -> {
+            int roleA = getRoleWeight(a.getUuid(), gov);
+            int roleB = getRoleWeight(b.getUuid(), gov);
+            return Integer.compare(roleA, roleB);
+        });
 
         int totalPages = Math.max(1, (int) Math.ceil(members.size() / (double) MEMBERS_PER_PAGE));
         page = Math.max(0, Math.min(page, totalPages - 1));
@@ -151,20 +155,29 @@ public class RepublicMemberManagementGUI {
 
         // Current cabinet position (if any)
         String cabinetPosText = "§7None";
+        boolean isSenator = gov != null && gov.getSenators().contains(targetUUID);
+        boolean isMinister = false;
         if (gov != null) {
             Government.CabinetPosition pos = gov.getPositionByUUID(targetUUID);
-            if (pos != null) cabinetPosText = "§6" + pos.getDisplayName();
+            if (pos != null) {
+                cabinetPosText = "§6" + pos.getDisplayName();
+                isMinister = true;
+            }
         }
+
+        String roleText;
+        if (isPresident) roleText = "§6§lPresident";
+        else if (isSenator) roleText = "§d§lSenator";
+        else if (isMinister) roleText = "§b§lMinister";
+        else roleText = "§7Member";
 
         List<String> profileLore = new ArrayList<>();
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        profileLore.add("§7Nation Role  : " + formatRole(member.getRole()));
-        profileLore.add("§7President    : " + (isPresident ? "§a✔ Yes" : "§c✘ No"));
+        profileLore.add("§7Nation Role  : " + roleText);
         profileLore.add("§7Cabinet Pos  : " + cabinetPosText);
         if (isNpc) {
             FakeMember npc = nation.getFakeMember(targetUUID);
             if (npc != null) {
-                profileLore.add("§7Type         : §dFake Member (NPC)");
                 profileLore.add("§7Balance      : §e$" + MessageUtils.formatNumber(npc.getTaxBalance()));
                 profileLore.add("§7Debt         : §c$" + MessageUtils.formatNumber(npc.getTaxDebt()));
             }
@@ -174,13 +187,37 @@ public class RepublicMemberManagementGUI {
         head.setItemMeta(skull);
         inv.setItem(4, head);
 
-        // Slot 21 — Warn (Coming Soon)
-        inv.setItem(21, createItem(Material.KNOWLEDGE_BOOK,
-                "§e§l⚠ Warn Member",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Issue a formal warning to §f" + name + "§7.",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§d⏳ Coming Soon!"));
+        // Slot 21 — Senator Action Button (NPCs allowed)
+        if (isPresident) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§7§lAppoint as SENATOR",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7The President cannot be a Senator.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isMinister) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§7§lAppoint as SENATOR",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThis member is a Minister and",
+                    "§ccannot be appointed as a Senator.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isSenator) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§c§lRemove SENATOR Role",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Remove §f" + name + " §7from the Senator role.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to remove."));
+        } else {
+            inv.setItem(21, createItem(Material.CRIMSON_SIGN,
+                    "§c§lAppoint as SENATOR",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name + " §7as a Senator.",
+                    "§7Senators balance the power of",
+                    "§7the President.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
 
         // Slot 22 — Send Message (1-hour cooldown per target)
         inv.setItem(22, createItem(Material.WRITABLE_BOOK,
@@ -218,34 +255,79 @@ public class RepublicMemberManagementGUI {
         };
 
         // Slot 30 — Appoint as Minister of Treasury
-        inv.setItem(30, createItem(Material.WRITTEN_BOOK,
-                "§6§l💰 Appoint as Minister of Treasury",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Appoint §f" + name,
-                "§7as the §6Minister of Treasury§7.",
-                "§7Current: " + currentHolder.apply(Government.CabinetPosition.TREASURY),
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§eClick to appoint."));
+        if (isSenator) {
+            inv.setItem(30, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThis member is a Senator and",
+                    "§ccannot be appointed as a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isPresident) {
+            inv.setItem(30, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe President cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(30, createItem(Material.WRITTEN_BOOK,
+                    "§6§l💰 Appoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §6Minister of Treasury§7.",
+                    "§7Current: " + currentHolder.apply(Government.CabinetPosition.TREASURY),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
 
         // Slot 31 — Appoint as Minister of Defense
-        inv.setItem(31, createItem(Material.WRITTEN_BOOK,
-                "§c§l🛡 Appoint as Minister of Defense",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Appoint §f" + name,
-                "§7as the §cMinister of Defense§7.",
-                "§7Current: " + currentHolder.apply(Government.CabinetPosition.DEFENSE),
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§eClick to appoint."));
+        if (isSenator) {
+            inv.setItem(31, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThis member is a Senator and",
+                    "§ccannot be appointed as a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isPresident) {
+            inv.setItem(31, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe President cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(31, createItem(Material.WRITTEN_BOOK,
+                    "§c§l🛡 Appoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §cMinister of Defense§7.",
+                    "§7Current: " + currentHolder.apply(Government.CabinetPosition.DEFENSE),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
 
         // Slot 32 — Appoint as Minister of Health
-        inv.setItem(32, createItem(Material.WRITTEN_BOOK,
-                "§d§l💉 Appoint as Minister of Health",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Appoint §f" + name,
-                "§7as the §dMinister of Health§7.",
-                "§7Current: " + currentHolder.apply(Government.CabinetPosition.HEALTH),
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§eClick to appoint."));
+        if (isSenator) {
+            inv.setItem(32, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThis member is a Senator and",
+                    "§ccannot be appointed as a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isPresident) {
+            inv.setItem(32, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe President cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(32, createItem(Material.WRITTEN_BOOK,
+                    "§d§l💉 Appoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §dMinister of Health§7.",
+                    "§7Current: " + currentHolder.apply(Government.CabinetPosition.HEALTH),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
 
         // Slot 43 — Back
         inv.setItem(43, createItem(Material.SPECTRAL_ARROW,
@@ -261,25 +343,31 @@ public class RepublicMemberManagementGUI {
         meta.setOwningPlayer(Bukkit.getOfflinePlayer(member.getUuid()));
 
         boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(member.getUuid());
-        boolean isOfficer = member.getRole() == NationRole.OFFICER;
-        boolean isOnline = Bukkit.getPlayer(member.getUuid()) != null;
-        boolean isNpc = FakeMember.isNpcUUID(member.getUuid());
+
+        boolean isSenator = gov != null && gov.getSenators().contains(member.getUuid());
+        boolean isMinister = gov != null && gov.getPositionByUUID(member.getUuid()) != null;
 
         String prefix;
-        if (isPresident) prefix = "§6👑 ";
-        else if (isOfficer) prefix = "§b★ ";
-        else prefix = "§7· ";
+        String roleText;
+        if (isPresident) {
+            prefix = "§6👑 ";
+            roleText = "§6§lPresident";
+        } else if (isSenator) {
+            prefix = "§d⚖ ";
+            roleText = "§d§lSenator";
+        } else if (isMinister) {
+            prefix = "§b★ ";
+            roleText = "§b§lMinister";
+        } else {
+            prefix = "§7· ";
+            roleText = "§7Member";
+        }
 
         meta.setDisplayName(prefix + member.getName());
 
         List<String> lore = new ArrayList<>();
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        if (isNpc) {
-            lore.add("§7Status    : §dFake Member (NPC)");
-        } else {
-            lore.add("§7Status    : " + (isOnline ? "§aOnline" : "§8Offline"));
-        }
-        lore.add("§7Role      : " + formatRole(member.getRole()));
+        lore.add("§7Role      : " + roleText);
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("§eClick to manage this member.");
 
@@ -302,12 +390,20 @@ public class RepublicMemberManagementGUI {
         return item;
     }
 
-    private String formatRole(NationRole role) {
-        return switch (role) {
-            case LEADER  -> "§6§lPresident";
-            case OFFICER -> "§bOfficer";
-            case CITIZEN -> "§7Citizen";
-        };
+
+    private int getRoleWeight(UUID uuid, Government gov) {
+        if (gov != null) {
+            if (gov.hasPresident() && gov.getPresidentUUID().equals(uuid)) {
+                return 0; // President
+            }
+            if (gov.getSenators().contains(uuid)) {
+                return 1; // Senator
+            }
+            if (gov.getPositionByUUID(uuid) != null) {
+                return 2; // Minister
+            }
+        }
+        return 3; // Member
     }
 
     public static String extractNameFromActionTitle(String title, String prefix) {

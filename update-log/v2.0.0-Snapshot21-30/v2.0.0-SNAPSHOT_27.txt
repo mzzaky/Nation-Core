@@ -1,0 +1,129 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#27
+====================================================
+Revamped administrative commands by introducing a flexible treasury control system, adding target player invoice generation/settlement options, transitioning leader, announcement, and NPC setups to use nation name parameters instead of IDs, and completely removing the obsolete admin action and reset command suites along with their associated backend logic.
+
+[ADMIN TREASURY CONTROLS REVAMP]
+- NationCommand.java (id.nationcore.commands):
+  → Replaced `/dc admin addtreasury <nation_id> <amount>` with `/dc admin treasury give <nation_name> <amount>` to add funds to a nation's treasury using its name.
+  → Added `/dc admin treasury take <nation_name> <amount>` to withdraw funds from a nation's treasury using its name.
+  → Added `/dc admin treasury set <nation_name> <amount>` to set a nation's treasury balance to a specific amount using its name.
+  → Implemented full tab-completion supporting the new action types (`give`, `take`, `set`) and dynamic nation name retrieval.
+
+[ADMIN INVOICE MANAGEMENT COMMANDS]
+- NationCommand.java (id.nationcore.commands):
+  → Added `/dc admin invoice add <player_name>` to manually generate and assign a new tax invoice to a target player if they belong to a nation.
+  → Added `/dc admin invoice remove <player_name>` to settle all active invoices (including overdue or national debt) for a player and route the funds to their nation's treasury.
+  → Implemented full tab-completion supporting `add` and `remove` actions followed by online player names.
+- TaxManager.java (id.nationcore.managers):
+  → Changed `applyPayment` from private to public to allow manual admin invoice settlements to process payments correctly.
+
+[ADMIN LEADER, ANNOUNCEMENT & NPC COMMAND ADJUSTMENTS]
+- NationCommand.java (id.nationcore.commands):
+  → Modified `/dc admin set president <player_name>` to `/dc admin set leader <nation_name> <player_name>` to manually appoint a leader for any nation type by its name with full tab-completion.
+  → Adjusted `/dc admin set announcement <nation_id> <custom_message>` to `/dc admin set announcement <nation_name> <custom_message>` with full tab-completion.
+  → Overhauled the `/dc admin npc <invite|kick|role|list>` subcommands to take `<nation_name>` instead of `<nation_id>` for better readability.
+  → Upgraded tab-completion for NPC subcommands to dynamically resolve multi-word nation names, showing lists of fake members for kick/role actions and available roles ("CITIZEN"/"OFFICER") at correct arguments.
+
+[OBSOLETE COMMAND REMOVALS]
+- NationCommand.java (id.nationcore.commands):
+  → Completely removed the `/dc admin action` command suite and all its subcommands.
+  → Completely removed the `/dc admin reset` command suite and its subcommands (`government`, `election`, `treasury`, `all`).
+- DataManager.java (id.nationcore.managers):
+  → Deleted the unused backend reset helper methods: `resetGovernment()`, `resetElection()`, and `resetTreasury()`.
+
+[LANGUAGE CONFIGURATION CLEANUP]
+- language.yml (src/main/resources):
+  → Removed unused keys: `general.data_reset`, `general.all_data_reset`, `admin.help_addtreasury`, `admin.help_reset`, `admin.addtreasury_usage`, `admin.addtreasury_success`, `admin.addtreasury_invalid`, `admin.reset_usage`, and `admin.reset_invalid`.
+  → Updated help descriptions to reflect the new commands.
+
+[REPUBLIC SENATOR ROLE & DOUBLE ROLE INTEGRATION]
+- Government.java (id.nationcore.models):
+  → Added `senators` list to track appointed senators for Republic governments, with auto-serialization and a null-safe getter.
+- RepublicMemberManagementGUI.java (id.nationcore.gui.republic):
+  → Replaced the obsolete "Warn Member" button with a dynamic Senator appointment/removal toggle option.
+  → Removed the "Status" line from member head tooltips and the "Type: Fake Member" entry from the profile card so NPCs look identical to real players.
+  → Restructured and sorted the member management listing by role weights: President > Senator > Minister > Member.
+  → Integrated double-role UI checks that display barriers if a member already holds a conflicting role (e.g. preventing a Senator from being appointed as Minister and vice versa).
+  → Cleaned up unused import `OfflinePlayer`, unused variables `isOnline` and `isNpc`, and removed the unused `formatRole` method while adding class-level `@SuppressWarnings({"deprecation", "unused"})`.
+- RepublicGUIHandler.java (id.nationcore.gui.republic):
+  → Implemented the backend Senator appointment/removal logic under slot 21 with a maximum cap of 5 senators per Republic.
+  → Removed NPC constraints on Senator and Minister appointments to allow full simulated governments without real players.
+  → Enforced click validation to prevent double-role assignments (restricting Senators from Minister positions and Ministers from Senator slots).
+  → Removed unused imports `NationMember` and `NationRole`.
+- RepublicMainMenu.java (id.nationcore.gui.republic):
+  → Updated the Senator item card to display a modern, neatly formatted list of active senators and their total capacity.
+  → Removed unused imports `GUIListener`, `PlayerData`, and `PlayerTaxProfile`.
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic):
+  → Cleaned up unused import `SkullMeta` and unused static constants `FILLER_SLOTS` and `PRIMARY_FILLER` to resolve IDE compiler warnings.
+
+[NATION SETTINGS MENUS & TAX TOGGLE SYSTEM]
+- Nation.java (id.nationcore.models):
+  → Added `taxEnabled` boolean field with getter and setter to toggle nation tax collection.
+- TaxManager.java (id.nationcore.managers):
+  → Modified billing cycle to skip players and NPCs if their nation has disabled tax collection.
+- AbstractTaxMenu.java (id.nationcore.gui):
+  → Added dynamic tax/zakah status display (ENABLED/DISABLED) to the slot 4 stats item.
+- ChatListener.java (id.nationcore.listeners):
+  → Implemented pending nation tag renames tracking and dynamic chat-input renaming.
+  → Enforces uppercase formatting and exactly 3 letters constraints for nation tags.
+- AbstractSettingsMenu.java (id.nationcore.gui):
+  → Created base class for nation settings GUI featuring dynamic info display, back buttons, rename actions (left-click for name, right-click for tag), tax toggle controls, and disband verification.
+- RepublicSettingsMenu.java (id.nationcore.gui.republic):
+  → Implemented concrete settings GUI with light blue stained glass pane fillers.
+- CommunistSettingsMenu.java (id.nationcore.gui.communist):
+  → Implemented concrete settings GUI with red stained glass pane fillers.
+- MonarchySettingsMenu.java (id.nationcore.gui.monarchy):
+  → Implemented concrete settings GUI with yellow stained glass pane fillers.
+- CaliphateSettingsMenu.java (id.nationcore.gui.caliphate):
+  → Implemented concrete settings GUI with lime stained glass pane fillers.
+- GUIListener.java (id.nationcore.listeners):
+  → Added support for opening and handling settings menu clicks and preventing inventory drag interactions.
+
+[REPUBLIC GOVERNMENT GUI ADJUSTMENTS]
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic):
+  → Removed disband, leave, and rename items from slots 48, 49, and 50 and replaced them with light blue stained glass filler.
+  → Changed material on slot 37 (Salary Claim) from emerald to chest minecart.
+  → Changed material on slot 10 (Set Announcement) from writable book to command block minecart.
+  → Changed material on slot 16 (Nation Settings) from command block minecart to furnace minecart.
+  → Swapped Border Management (moved from slot 30 to slot 21) and Executive Order (moved from slot 21 to slot 30).
+  → Swapped Diplomacy Management (moved from slot 32 to slot 23) and Broadcast Message (moved from slot 23 to slot 32).
+- RepublicGUIHandler.java (id.nationcore.gui.republic):
+  → Removed old disband, leave, and rename action handlers on slots 48, 49, and 50.
+  → Redirected slot 16 click events to open the RepublicSettingsMenu.
+
+[MULTI-NATION DAILY SALARY CLAIM INTEGRATION]
+- CommunistGovernment.java (id.nationcore.models):
+  → Added `lastDailyReward` field with getter and setter to track last reward claim time.
+- MonarchyGovernment.java (id.nationcore.models):
+  → Added `lastDailyReward` field with getter and setter.
+- CaliphateGovernment.java (id.nationcore.models):
+  → Added `lastDailyReward` field with getter and setter.
+- CommunistManager.java (id.nationcore.managers):
+  → Implemented `getSalaryCooldown(Player)` and `claimDailySalary(Player)` daily claim logic with validation checks.
+- MonarchyManager.java (id.nationcore.managers):
+  → Implemented `getSalaryCooldown(Player)` and `claimDailySalary(Player)`.
+- CaliphateManager.java (id.nationcore.managers):
+  → Implemented `getSalaryCooldown(Player)` and `claimDailySalary(Player)`.
+- CommunistSalaryMenu.java (id.nationcore.gui.communist):
+  → Created per-nation custom inventory to handle daily salary claims for Communist leaders and Politburo members.
+- MonarchySalaryMenu.java (id.nationcore.gui.monarchy):
+  → Created per-nation custom inventory to handle daily salary claims for Monarchy leaders and High Council members.
+- CaliphateSalaryMenu.java (id.nationcore.gui.caliphate):
+  → Created per-nation custom inventory to handle daily salary claims for Caliphate leaders (Caliph).
+- CommunistGovernmentGUI.java (id.nationcore.gui.communist):
+  → Placed a chest minecart item on slot 37 to access the Salary Claim menu.
+- MonarchyGovernmentGUI.java (id.nationcore.gui.monarchy):
+  → Placed a chest minecart item on slot 37 to access the Salary Claim menu.
+- CaliphateGovernmentGUI.java (id.nationcore.gui.caliphate):
+  → Placed a chest minecart item on slot 37 to access the Salary Claim menu.
+- CommunistGUIHandler.java (id.nationcore.gui.communist):
+  → Added slot 37 click routing in `handleGovernmentGUI` to open `CommunistSalaryMenu`.
+- MonarchyGUIHandler.java (id.nationcore.gui.monarchy):
+  → Added slot 37 click routing in `handleGovernmentGUI` to open `MonarchySalaryMenu`.
+- CaliphateGUIHandler.java (id.nationcore.gui.caliphate):
+  → Added slot 37 click routing in `handleGovernmentGUI` to open `CaliphateSalaryMenu`.
+- GUIListener.java (id.nationcore.gui):
+  → Registered, imported, and instantiated all three new per-nation `SalaryMenu` instances.
+- CommonGUIHandler.java (id.nationcore.gui):
+  → Routed emerald block daily claim clicks in `handleSalaryGUI` to the appropriate per-nation manager.

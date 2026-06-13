@@ -33,6 +33,9 @@ public class ChatListener implements Listener {
     /** Pending treasury donations: playerUUID → target Nation */
     public static final java.util.Map<UUID, Nation> pendingTreasuryDonations = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Pending nation tag renames: playerUUID → target Nation */
+    public static final java.util.Map<UUID, Nation> pendingTagRenames = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** Holds a pending presidential direct-message to a specific nation member. */
     public record PendingMemberMessage(Nation nation, UUID targetUUID, String targetName) {
     }
@@ -156,6 +159,37 @@ public class ChatListener implements Listener {
                 MessageUtils.send(player, "<green>Nation name successfully changed to '" + input + "'.</green>");
                 org.bukkit.Bukkit
                         .broadcastMessage("§eNation §6" + oldName + " §ehas changed name to §6" + input + "§e.");
+            });
+            return;
+        }
+
+        // Capture new TAG when player is in pending tag rename mode.
+        if (pendingTagRenames.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation nation = pendingTagRenames.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Nation TAG change cancelled.</yellow>"));
+                return;
+            }
+
+            if (input.length() != 3 || !input.matches("[A-Za-z]+")) {
+                pendingTagRenames.put(uuid, nation); // re-queue
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> MessageUtils.send(player,
+                        "<red>TAG must be exactly 3 letters. Try again or type 'cancel'.</red>"));
+                return;
+            }
+
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                String oldTag = nation.getTag();
+                String newTag = input.toUpperCase(java.util.Locale.ROOT);
+                nation.setTag(newTag);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(player, "<green>Nation TAG successfully changed to '" + newTag + "'.</green>");
+                org.bukkit.Bukkit.broadcastMessage("§eNation §6" + nation.getName() + " §ehas changed its TAG from §6" + oldTag + " §eto §6" + newTag + "§e.");
             });
             return;
         }

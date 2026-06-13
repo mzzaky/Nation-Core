@@ -10,8 +10,6 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
-
 import id.nationcore.NationCore;
 import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Government;
@@ -22,17 +20,6 @@ public class RepublicGovernmentGUI {
 
     private final NationCore plugin;
     public static final String TITLE = "§9§lREPUBLIC GOVERNMENT";
-
-    private static final int[] FILLER_SLOTS = {
-            0, 1, 2, 3, 5, 6, 7, 8,
-            9, 17,
-            18, 26,
-            27, 35,
-            36, 44,
-            45, 46, 47, 51, 52, 53
-    };
-
-    private static final Material PRIMARY_FILLER = Material.LIGHT_BLUE_STAINED_GLASS_PANE;
 
     public RepublicGovernmentGUI(NationCore plugin) {
         this.plugin = plugin;
@@ -66,7 +53,7 @@ public class RepublicGovernmentGUI {
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
 
         // 1. FILLER
-        int[] lightBlueSlots = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 51, 52, 53 };
+        int[] lightBlueSlots = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53 };
         ItemStack lightBlueGlass = GovernmentGUIUtils.createItem(Material.LIGHT_BLUE_STAINED_GLASS_PANE, " ");
         for (int s : lightBlueSlots) {
             inv.setItem(s, lightBlueGlass);
@@ -108,6 +95,20 @@ public class RepublicGovernmentGUI {
                 "§a§lActive Effects: §f" + totalActive,
                 combinedLore.toArray(new String[0])));
 
+        // Nation Settings Button (Slot 16)
+        inv.setItem(16, GovernmentGUIUtils.createItem(
+                Material.FURNACE_MINECART,
+                "§e§lNation Settings",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Configure your nation settings.",
+                "§7• Rename nation & TAG",
+                "§7• Toggle Tax system",
+                "§7• Disband nation",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§eClick to open settings",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+        ));
+
         // Announcement Button (Slot 10)
         List<String> announcementLore = new ArrayList<>();
         announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
@@ -136,7 +137,7 @@ public class RepublicGovernmentGUI {
             announcementLore.add("§eClick to update message");
         }
 
-        inv.setItem(10, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lSet Announcement Message",
+        inv.setItem(10, GovernmentGUIUtils.createItem(Material.COMMAND_BLOCK_MINECART, "§e§lSet Announcement Message",
                 announcementLore.toArray(new String[0])));
 
         // 2. BACK (Slot 43)
@@ -144,32 +145,16 @@ public class RepublicGovernmentGUI {
                 GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
 
         // 3. Salary (Slot 37)
-        inv.setItem(37, GovernmentGUIUtils.createItem(Material.EMERALD, "§a§lSalary Claim",
+        inv.setItem(37, GovernmentGUIUtils.createItem(Material.CHEST_MINECART, "§a§lSalary Claim",
                 "§7President & Cabinet",
                 "§7Daily Salary Claim",
                 "",
                 "§eClick to open"));
 
-        // 4. Rename Nation (Slot 48)
-        inv.setItem(48, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lRename Nation",
-                "§7Rename your nation via chat",
-                "",
-                "§eClick to rename"));
+        // Slots 48, 49, 50 are now fillers, handled in the lightBlueSlots array.
 
-        // 5. Leave Nation (Slot 49)
-        inv.setItem(49, GovernmentGUIUtils.createItem(Material.COMPASS, "§e§lLeave Nation",
-                "§7Leave your current nation",
-                "",
-                "§cClick to leave"));
-
-        // 6. Disband Nation (Slot 50)
-        inv.setItem(50, GovernmentGUIUtils.createItem(Material.TNT_MINECART, "§e§lDisband Nation",
-                "§7Disband your nation",
-                "",
-                "§cClick to disband"));
-
-        // 7. Executive Order (Slot 21)
-        inv.setItem(21, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lExecutive Order",
+        // 7. Executive Order (Slot 30)
+        inv.setItem(30, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lExecutive Order",
                 "§7Manage executive orders for the nation",
                 "",
                 "§eClick to open"));
@@ -180,7 +165,7 @@ public class RepublicGovernmentGUI {
                 "",
                 "§eClick to open"));
 
-        // 9. Broadcast Message (Slot 23)
+        // 9. Broadcast Message (Slot 32)
         long lastBroadcast = gov != null ? gov.getLastBroadcastTime() : 0;
         long timeSinceLast = System.currentTimeMillis() - lastBroadcast;
         long cooldownDuration = 6L * 60 * 60 * 1000; // 6 hours
@@ -198,11 +183,11 @@ public class RepublicGovernmentGUI {
             broadcastLore.add("§eClick to broadcast");
         }
 
-        inv.setItem(23, GovernmentGUIUtils.createItem(Material.SCRAPE_POTTERY_SHERD, "§e§lBroadcast Message",
+        inv.setItem(32, GovernmentGUIUtils.createItem(Material.SCRAPE_POTTERY_SHERD, "§e§lBroadcast Message",
                 broadcastLore.toArray(new String[0])));
 
-        // 11. Border Management (Slot 30)
-        inv.setItem(30, GovernmentGUIUtils.createItem(Material.SHELTER_POTTERY_SHERD, "§e§lBorder Management",
+        // 11. Border Management (Slot 21)
+        inv.setItem(21, GovernmentGUIUtils.createItem(Material.SHELTER_POTTERY_SHERD, "§e§lBorder Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Manage your nation's territory.",
                 "§7• Claim & release chunks",
@@ -268,8 +253,8 @@ public class RepublicGovernmentGUI {
                     "§aClick to start"));
         }
 
-        // 13. Diplomacy Management (Slot 32)
-        inv.setItem(32, GovernmentGUIUtils.createItem(Material.SKULL_POTTERY_SHERD, "§e§lDiplomacy Management",
+        // 13. Diplomacy Management (Slot 23)
+        inv.setItem(23, GovernmentGUIUtils.createItem(Material.SKULL_POTTERY_SHERD, "§e§lDiplomacy Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Manage your foreign relations",
                 "§7with every other nation.",

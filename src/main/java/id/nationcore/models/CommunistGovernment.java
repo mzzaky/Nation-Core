@@ -128,6 +128,7 @@ public class CommunistGovernment {
     private long termStartTime;
     private int consecutiveTerms;
     private long lastSecretaryActivity;
+    private long lastDailyReward;
 
     private Map<PolitburoPosition, PolitburoMember> politburo;
 
@@ -237,6 +238,8 @@ public class CommunistGovernment {
     public void setLastSecretaryActivity(long lastSecretaryActivity) {
         this.lastSecretaryActivity = lastSecretaryActivity;
     }
+    public long getLastDailyReward() { return lastDailyReward; }
+    public void setLastDailyReward(long lastDailyReward) { this.lastDailyReward = lastDailyReward; }
 
     // === Politbiro API ===
 

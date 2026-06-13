@@ -15,8 +15,6 @@ import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
-import id.nationcore.models.Nation.NationMember;
-import id.nationcore.models.Nation.NationRole;
 import id.nationcore.utils.MessageUtils;
 
 /**
@@ -196,6 +194,11 @@ public class RepublicGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
+        if (slot == 16 && clicked.getType() == Material.FURNACE_MINECART) {
+            gui.openSettingsGUI(player);
+            return;
+        }
+
         if (clicked.getType() == Material.BARRIER) {
             player.closeInventory();
             return;
@@ -231,62 +234,22 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 32) {
+        if (slot == 23) {
             gui.republicDiplomacyMenu.openManagement(player, nation);
             return;
         }
 
-        if (slot == 30) {
+        if (slot == 21) {
             gui.republicBorderMenu.open(player, nation);
             return;
         }
 
-        if (slot == 37 || clicked.getType() == Material.EMERALD) {
+        if (slot == 37 || clicked.getType() == Material.CHEST_MINECART) {
             gui.salaryMenu.open(player);
             return;
         }
 
-        if (slot == 48) {
-            Government gov = nation.getRepublicGovernment();
-            boolean isPresident = gov != null && gov.hasPresident()
-                    && gov.getPresidentUUID().equals(player.getUniqueId());
-            if (!isPresident && !player.hasPermission("nation.admin")) {
-                MessageUtils.send(player, "§cOnly the President can rename the nation.");
-                return;
-            }
-            player.closeInventory();
-            plugin.getNationManager().setPendingRename(player.getUniqueId(), nation);
-            MessageUtils.send(player, "§ePlease type the new name for your nation in chat. Type 'cancel' to abort.");
-            return;
-        }
-
-        if (slot == 49) {
-            gui.confirmActionGUI.open(player, "Leave your nation", () -> player.performCommand("nc leave"));
-            return;
-        }
-
-        if (slot == 50) {
-            Government gov = nation.getRepublicGovernment();
-            boolean isPresident = gov != null && gov.hasPresident()
-                    && gov.getPresidentUUID().equals(player.getUniqueId());
-            boolean isAdmin = player.hasPermission("nation.admin");
-
-            if (!isPresident && !isAdmin) {
-                MessageUtils.send(player, "<red>Only the President or an admin can disband the nation.</red>");
-                return;
-            }
-
-            gui.confirmActionGUI.open(player, "Dissolve your nation", () -> {
-                id.nationcore.managers.NationManager.Result result = plugin.getNationManager().disbandNation(player);
-                if (result.isSuccess()) {
-                    MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
-                    player.closeInventory();
-                } else {
-                    MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
-                }
-            });
-            return;
-        }
+        // Slots 48, 49, 50 have been removed from government menu.
 
         if (slot == 31) {
             boolean isActive = plugin.getArenaManager().isArenaActive(nation);
@@ -311,7 +274,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 21 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
+        if (slot == 30 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
             gui.openOrdersGUI(player);
             return;
         }
@@ -322,7 +285,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 23) {
+        if (slot == 32) {
             Government gov = nation.getRepublicGovernment();
             if (gov == null)
                 return;
@@ -490,17 +453,61 @@ public class RepublicGUIHandler {
             return;
         }
 
-        // Slot 21 — Warn (Coming Soon)
-        if (slot == 21) {
-            MessageUtils.send(player, "§d⏳ The Warn feature is coming soon!");
-            return;
-        }
-
         boolean isPresident = gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
         boolean isAdmin = player.hasPermission("nation.admin");
         if (!isPresident && !isAdmin) {
             MessageUtils.send(player, "§cOnly the President can manage members.");
             player.closeInventory();
+            return;
+        }
+
+        // Slot 21 — Senator Action Button (Appoint / Remove)
+        if (slot == 21) {
+            if (gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(targetUUID)) {
+                MessageUtils.send(player, "<red>The President cannot be a Senator.</red>");
+                return;
+            }
+
+            boolean isSenator = gov != null && gov.getSenators().contains(targetUUID);
+            if (!isSenator && gov != null && gov.getPositionByUUID(targetUUID) != null) {
+                MessageUtils.send(player, "<red>This member is a Minister and cannot be a Senator.</red>");
+                return;
+            }
+
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (targetName == null && FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc != null) targetName = npc.getName();
+            }
+            final String finalTargetName = targetName != null ? targetName : "Unknown";
+
+            if (isSenator) {
+                gui.confirmActionGUI.open(player,
+                        "Remove " + finalTargetName + " from Senators",
+                        () -> {
+                            if (gov != null) {
+                                gov.getSenators().remove(targetUUID);
+                                plugin.getDataManager().saveNations();
+                                MessageUtils.send(player, "<green>Successfully removed " + finalTargetName + " from Senators.</green>");
+                            }
+                            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                        });
+            } else {
+                if (gov != null && gov.getSenators().size() >= 5) {
+                    MessageUtils.send(player, "<red>The Senator slots are full (maximum 5).</red>");
+                    return;
+                }
+                gui.confirmActionGUI.open(player,
+                        "Appoint " + finalTargetName + " as Senator",
+                        () -> {
+                            if (gov != null) {
+                                gov.getSenators().add(targetUUID);
+                                plugin.getDataManager().saveNations();
+                                MessageUtils.send(player, "<green>Successfully appointed " + finalTargetName + " as Senator.</green>");
+                            }
+                            gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                        });
+            }
             return;
         }
 
@@ -586,12 +593,20 @@ public class RepublicGUIHandler {
         };
 
         if (appointPos != null && clicked.getType() == Material.WRITTEN_BOOK) {
-            if (FakeMember.isNpcUUID(targetUUID)) {
-                MessageUtils.send(player, "<red>Fake members (NPCs) cannot be appointed to cabinet positions.</red>");
+            if (gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(targetUUID)) {
+                MessageUtils.send(player, "<red>The President cannot be a Minister.</red>");
+                return;
+            }
+            if (gov != null && gov.getSenators().contains(targetUUID)) {
+                MessageUtils.send(player, "<red>This member is a Senator and cannot be a Minister.</red>");
                 return;
             }
             final Government.CabinetPosition finalPos = appointPos;
             String memberName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (memberName == null && FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc != null) memberName = npc.getName();
+            }
             final String finalMemberName = memberName != null ? memberName : "Unknown";
 
             gui.confirmActionGUI.open(player,

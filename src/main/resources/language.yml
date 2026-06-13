@@ -7,8 +7,6 @@ general:
   player_not_found: "<red>Player not found!"
   unknown_command: "<red>Unknown command. Use <yellow>/dc help"
   config_reloaded: "<green>Config and language have been reloaded!"
-  data_reset: "<yellow>{data} data has been reset."
-  all_data_reset: "<red>ALL data has been reset!"
 
 # Help Messages
 help:
@@ -280,23 +278,16 @@ stats:
 # Admin
 admin:
   help_header: "<gold>═══ ADMIN COMMANDS ═══"
-  help_setpresident: "<white>/dc admin set president <player> <gray>- Set president"
+  help_setpresident: "<white>/dc admin set leader <nation> <player> <gray>- Set nation leader"
   help_removepresident: "<white>/dc admin remove president <gray>- Remove president"
   help_startelection: "<white>/dc admin startelection <gray>- Start election"
   help_endelection: "<white>/dc admin endelection <gray>- End election"
-  help_addtreasury: "<white>/dc admin addtreasury <nation_id> <amount> <gray>- Add to treasury"
   help_reload: "<white>/dc admin reload <gray>- Reload config"
-  help_reset: "<white>/dc admin reset <data> <gray>- Reset data"
-  setpresident_usage: "<red>Usage: /dc admin set president <player>"
-  setpresident_success: "<green>{player} has been set as President!"
+  setpresident_usage: "<red>Usage: /dc admin set leader <nation> <player>"
+  setpresident_success: "<green>{player} has been set as leader of {nation}!"
   removepresident_success: "<yellow>President has been removed."
   startelection_success: "<green>Election has been started!"
   endelection_success: "<yellow>Election has been ended!"
-  addtreasury_usage: "<red>Usage: /dc admin addtreasury <nation_id> <amount>"
-  addtreasury_success: "<green>Added {amount} to treasury."
-  addtreasury_invalid: "<red>Invalid amount!"
-  reset_usage: "<red>Usage: /dc admin reset <government|election|treasury|all>"
-  reset_invalid: "<red>Invalid data!"
 
 # Global Tax
 tax:

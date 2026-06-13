@@ -122,6 +122,7 @@ public abstract class AbstractTaxMenu {
         lore.add(DIVIDER);
         lore.add("§7 Citizen §8: §f" + player.getName());
         lore.add("§7 Nation §8: §f" + nation.getName() + " §8[§f" + nation.getTag() + "§8]");
+        lore.add("§7 " + taxTerm() + " Status §8: " + (nation.isTaxEnabled() ? "§aENABLED" : "§cDISABLED"));
         lore.add("");
         lore.add("§7 Invoices Issued §8: §f" + profile.getInvoicesIssued());
         lore.add("§7 Paid On Time §8: §a" + paidOnTime);

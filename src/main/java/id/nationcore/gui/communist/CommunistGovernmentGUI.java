@@ -52,6 +52,20 @@ public class CommunistGovernmentGUI {
 
                 inv.setItem(4, buildNationProfile(nation, cg));
 
+                // Nation Settings Button (Slot 16)
+                inv.setItem(16, GovernmentGUIUtils.createItem(
+                                Material.COMMAND_BLOCK_MINECART,
+                                "§e§lNation Settings",
+                                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                                "§7Configure your nation settings.",
+                                "§7• Rename nation & TAG",
+                                "§7• Toggle Tax system",
+                                "§7• Disband nation",
+                                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                                "§eClick to open settings",
+                                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+                ));
+
                 // Announcement Button (Slot 10)
                 java.util.List<String> announcementLore = new java.util.ArrayList<>();
                 announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
@@ -138,6 +152,12 @@ public class CommunistGovernmentGUI {
                                 "§7• Propose Peace, Alliance, Truce or War",
                                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                                 "§aClick to open."));
+
+                inv.setItem(37, GovernmentGUIUtils.createItem(Material.CHEST_MINECART, "§a§lSalary Claim",
+                                "§7Secretary General & Politburo",
+                                "§7Daily Salary Claim",
+                                "",
+                                "§eClick to open"));
 
                 inv.setItem(43, GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§c§lBack",
                                 "§7Return to previous menu"));

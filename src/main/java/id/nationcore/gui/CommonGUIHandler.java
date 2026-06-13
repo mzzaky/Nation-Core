@@ -45,7 +45,17 @@ public class CommonGUIHandler {
 
         if (clicked.getType() == Material.EMERALD_BLOCK) {
             player.closeInventory();
-            plugin.getGovernmentManager().claimDailySalary(player);
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation != null) {
+                switch (nation.getType()) {
+                    case COMMUNIST -> plugin.getCommunistManager().claimDailySalary(player);
+                    case MONARCHY -> plugin.getMonarchyManager().claimDailySalary(player);
+                    case CALIPHATE -> plugin.getCaliphateManager().claimDailySalary(player);
+                    default -> plugin.getGovernmentManager().claimDailySalary(player);
+                }
+            } else {
+                plugin.getGovernmentManager().claimDailySalary(player);
+            }
             return;
         }
     }

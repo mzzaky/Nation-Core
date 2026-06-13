@@ -1,6 +1,5 @@
 package id.nationcore.gui.republic;
 
-import id.nationcore.gui.GUIListener;
 import id.nationcore.gui.NationMenuBase;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,9 +18,7 @@ import id.nationcore.models.CabinetDecision;
 import id.nationcore.models.Election;
 import id.nationcore.models.Government;
 import id.nationcore.models.Nation;
-import id.nationcore.models.PlayerData;
 import id.nationcore.models.RecallPetition;
-import id.nationcore.models.TaxRecord.PlayerTaxProfile;
 
 /**
  * Main menu for REPUBLIC nations.
@@ -80,7 +77,7 @@ public class RepublicMainMenu extends NationMenuBase {
         inv.setItem(SLOT_EXEC_ORDER, buildExecOrderCard(nation, player));
         inv.setItem(SLOT_PRESIDENT, buildPresidentCard(gov, nation));
         inv.setItem(SLOT_TREASURY, buildTreasuryCard(nation));
-        inv.setItem(SLOT_SENATOR, buildSenatorCard());
+        inv.setItem(SLOT_SENATOR, buildSenatorCard(nation));
 
         inv.setItem(SLOT_ANNOUNCEMENT, buildAnnouncementCard(nation));
         inv.setItem(SLOT_RECALL, buildRecallCard(nation));
@@ -218,10 +215,30 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&eClick &7→ View Treasury Details");
     }
 
-    private ItemStack buildSenatorCard() {
+    private ItemStack buildSenatorCard(Nation nation) {
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        Government gov = nation.getRepublicGovernment();
+        List<UUID> senators = gov != null ? gov.getSenators() : new ArrayList<>();
+        if (senators.isEmpty()) {
+            lore.add("&7No senators appointed yet.");
+        } else {
+            for (int i = 0; i < senators.size(); i++) {
+                UUID senatorUUID = senators.get(i);
+                String name = Bukkit.getOfflinePlayer(senatorUUID).getName();
+                if (name == null) name = "Unknown";
+                lore.add("&7• &f" + name + " &7(Senator #" + (i + 1) + ")");
+            }
+        }
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&7Active Senators: &f" + senators.size() + " &8/ &f5");
+        lore.add("&7Senators act as a check on the");
+        lore.add("&7President's power.");
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
         return buildIcon(Material.CRIMSON_HANGING_SIGN,
                 "&c&lSenator",
-                "&7Coming Soon!");
+                lore);
     }
 
     private ItemStack buildAnnouncementCard(Nation nation) {

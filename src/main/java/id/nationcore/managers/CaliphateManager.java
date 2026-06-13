@@ -332,4 +332,72 @@ public class CaliphateManager {
             if (p != null) MessageUtils.send(p, message);
         }
     }
+
+    public long getSalaryCooldown(Player player) {
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || nation.getType() != GovernmentType.CALIPHATE) return -1;
+        CaliphateGovernment cg = nation.getCaliphateGovernment();
+        if (cg == null) return -1;
+
+        if (cg.hasCaliph() && cg.getCaliphUUID().equals(player.getUniqueId())) {
+            long now = System.currentTimeMillis();
+            long dayMillis = 24 * 60 * 60 * 1000L;
+            long diff = now - cg.getLastDailyReward();
+            return (diff >= dayMillis) ? 0 : (dayMillis - diff);
+        }
+        return -1; // Not eligible
+    }
+
+    public void claimDailySalary(Player player) {
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || nation.getType() != GovernmentType.CALIPHATE) {
+            MessageUtils.send(player, "<red>You are not in a Caliphate nation!</red>");
+            return;
+        }
+        CaliphateGovernment cg = nation.getCaliphateGovernment();
+        if (cg == null) {
+            MessageUtils.send(player, "<red>No active Caliphate government!</red>");
+            return;
+        }
+
+        long cooldown = getSalaryCooldown(player);
+        if (cooldown > 0) {
+            MessageUtils.send(player, "<red>You can claim your salary in: " + MessageUtils.formatTime(cooldown) + "</red>");
+            return;
+        } else if (cooldown == -1) {
+            MessageUtils.send(player, "<red>You are not eligible for a government salary!</red>");
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+
+        if (cg.hasCaliph() && cg.getCaliphUUID().equals(player.getUniqueId())) {
+            double vaultPoints = plugin.getConfig().getDouble("president.daily-rewards.vault-points", 50000);
+            int diamondBlocks = plugin.getConfig().getInt("president.daily-rewards.diamond-blocks", 5);
+            int netheriteIngots = plugin.getConfig().getInt("president.daily-rewards.netherite-ingots", 3);
+            int goldenApples = plugin.getConfig().getInt("president.daily-rewards.enchanted-golden-apples", 10);
+
+            if (plugin.getTreasuryManager().canAfford(nation, vaultPoints)) {
+                plugin.getTreasuryManager().withdraw(nation, TransactionType.PRESIDENT_SALARY, vaultPoints,
+                        "Daily salary for Caliph " + player.getName(), player.getUniqueId());
+                plugin.getVaultHook().deposit(player.getUniqueId(), vaultPoints);
+                cg.addSubsidyPayout(vaultPoints); // Track payout
+                cg.setLastDailyReward(now);
+                MessageUtils.send(player, "managers.government.daily_reward");
+            } else {
+                MessageUtils.send(player, "<red>The Treasury cannot afford your daily salary!</red>");
+                return;
+            }
+
+            var leftover1 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(org.bukkit.Material.DIAMOND_BLOCK, diamondBlocks));
+            for (var item : leftover1.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+            var leftover2 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(org.bukkit.Material.NETHERITE_INGOT, netheriteIngots));
+            for (var item : leftover2.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+            var leftover3 = player.getInventory().addItem(new org.bukkit.inventory.ItemStack(org.bukkit.Material.ENCHANTED_GOLDEN_APPLE, goldenApples));
+            for (var item : leftover3.values()) { player.getWorld().dropItemNaturally(player.getLocation(), item); }
+
+            MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
+            plugin.getDataManager().saveNations();
+        }
+    }
 }

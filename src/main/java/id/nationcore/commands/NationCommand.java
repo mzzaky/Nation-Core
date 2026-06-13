@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import id.nationcore.gui.GUIAction;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -24,6 +25,9 @@ import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.models.RecallPetition;
 import id.nationcore.models.Treasury;
+import id.nationcore.models.TaxInvoice;
+import id.nationcore.models.TaxRecord;
+import id.nationcore.managers.TaxManager;
 import id.nationcore.utils.MessageUtils;
 
 public class NationCommand implements CommandExecutor, TabCompleter {
@@ -484,12 +488,12 @@ public class NationCommand implements CommandExecutor, TabCompleter {
 
         switch (subCmd) {
             case "set":
-                if (args.length > 2 && args[2].equalsIgnoreCase("president")) {
-                    handleAdminSetPresident(sender, args);
+                if (args.length > 2 && args[2].equalsIgnoreCase("leader")) {
+                    handleAdminSetLeader(sender, args);
                 } else if (args.length > 2 && args[2].equalsIgnoreCase("announcement")) {
                     handleAdminSetAnnouncement(sender, args);
                 } else {
-                    MessageUtils.send(sender, "<red>Usage: /nationcore admin set <president|announcement> ...</red>");
+                    MessageUtils.send(sender, "<red>Usage: /nationcore admin set <leader|announcement> ...</red>");
                 }
                 break;
             case "remove":
@@ -502,20 +506,17 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "confirm":
                 handleAdminConfirm(sender);
                 break;
-            case "addtreasury":
-                handleAdminAddTreasury(sender, args);
+            case "treasury":
+                handleAdminTreasury(sender, args);
                 break;
             case "reload":
                 handleAdminReload(sender);
                 break;
-            case "reset":
-                handleAdminReset(sender, args);
-                break;
-            case "action":
-                handleAdminAction(sender, args);
-                break;
             case "npc":
                 handleAdminNpc(sender, args);
+                break;
+            case "invoice":
+                handleAdminInvoice(sender, args);
                 break;
             default:
                 showAdminHelp(sender);
@@ -526,54 +527,100 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "admin.help_header");
         MessageUtils.send(sender, "admin.help_setpresident");
         MessageUtils.send(sender, "admin.help_removepresident");
-        MessageUtils.send(sender, "admin.help_addtreasury");
+        MessageUtils.send(sender, "<gold>/dc admin treasury give <nation> <amount> <gray>- Give nation treasury balance");
+        MessageUtils.send(sender, "<gold>/dc admin treasury take <nation> <amount> <gray>- Take nation treasury balance");
+        MessageUtils.send(sender, "<gold>/dc admin treasury set <nation> <amount> <gray>- Set nation treasury balance");
         MessageUtils.send(sender, "admin.help_reload");
-        MessageUtils.send(sender, "admin.help_reset");
-        MessageUtils.send(sender, "<gold>/dc admin action <action_id> <player> <gray>- Execute a GUI action on a player");
-        MessageUtils.send(sender, "<gold>/nationcore admin npc invite <nation_id> <name> <gray>- Invite a fake member to the nation");
-        MessageUtils.send(sender, "<gold>/nationcore admin npc kick <nation_id> <name>   <gray>- Kick a fake member from the nation");
-        MessageUtils.send(sender, "<gold>/nationcore admin npc role <nation_id> <name> <role> <gray>- Change a fake member's role");
-        MessageUtils.send(sender, "<gold>/nationcore admin npc list <nation_id>           <gray>- View list of fake members");
+        MessageUtils.send(sender, "<gold>/dc admin invoice add <player> <gray>- Add a tax invoice to a player");
+        MessageUtils.send(sender, "<gold>/dc admin invoice remove <player> <gray>- Settle all active invoices for a player");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc invite <nation_name> <name> <gray>- Invite a fake member to the nation");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc kick <nation_name> <name>   <gray>- Kick a fake member from the nation");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc role <nation_name> <name> <role> <gray>- Change a fake member's role");
+        MessageUtils.send(sender, "<gold>/nationcore admin npc list <nation_name>           <gray>- View list of fake members");
     }
 
-    private void handleAdminAction(CommandSender sender, String[] args) {
+    private void handleAdminInvoice(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            MessageUtils.send(sender, "<gold>═══ ADMIN ACTION COMMAND ═══");
-            MessageUtils.send(sender, "<white>/dc admin action <action_id> <player>");
-            MessageUtils.send(sender, "");
-            MessageUtils.send(sender, "<yellow>--- Open GUI Actions ---");
-            for (GUIAction action : GUIAction.values()) {
-                if (action == GUIAction.UNKNOWN)
-                    continue;
-                MessageUtils.send(sender, "<gray>  " + action.getConfigKey());
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin invoice <add|remove> <player_name></red>");
+            return;
+        }
+
+        String action = args[2].toLowerCase();
+        String targetName = args[3];
+
+        org.bukkit.OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetName);
+        if (targetPlayer == null || (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline())) {
+            MessageUtils.send(sender, "general.player_not_found");
+            return;
+        }
+
+        UUID playerUUID = targetPlayer.getUniqueId();
+
+        if (action.equals("add")) {
+            Nation nation = plugin.getNationManager().getNationOf(playerUUID);
+            if (nation == null) {
+                MessageUtils.send(sender, "<red>Player " + targetPlayer.getName() + " is not in a nation.</red>");
+                return;
             }
-            return;
-        }
 
-        String actionId = args[2].toLowerCase();
-        String playerName = args[3];
+            var taxRecord = plugin.getTaxManager().getTaxRecord();
+            var profile = plugin.getTaxManager().getTaxRecord().getOrCreateProfile(playerUUID.toString(), targetPlayer.getName());
+            
+            // Generate next sequential invoice ID
+            String invId = taxRecord.nextInvoiceId();
+            
+            // Create the invoice
+            TaxInvoice invoice = new TaxInvoice(invId, nation.getId(), nation.getName(), TaxManager.INVOICE_AMOUNT);
+            profile.addInvoice(invoice);
+            
+            plugin.getDataManager().saveTaxRecord();
 
-        Player target = Bukkit.getPlayer(playerName);
-        if (target == null || !target.isOnline()) {
-            MessageUtils.send(sender, "<red>Player '" + playerName + "' is not online.");
-            return;
-        }
+            MessageUtils.send(sender, "<green>Successfully generated new tax invoice <white>" + invId + "</white> of <gold>$" + MessageUtils.formatNumber(TaxManager.INVOICE_AMOUNT) + "</gold> for player " + targetPlayer.getName() + ".</green>");
+            
+            Player onlineTarget = targetPlayer.getPlayer();
+            if (onlineTarget != null && onlineTarget.isOnline()) {
+                MessageUtils.send(onlineTarget, "<yellow>📑 New tax invoice <white>" + invId + "</white> of <gold>$" + MessageUtils.formatNumber(TaxManager.INVOICE_AMOUNT) + "</gold> issued by admin.");
+                MessageUtils.playSound(onlineTarget, Sound.BLOCK_NOTE_BLOCK_BELL);
+            }
+        } else if (action.equals("remove")) {
+            var profile = plugin.getTaxManager().getProfile(playerUUID);
+            if (profile == null || profile.getOutstandingInvoices().isEmpty()) {
+                MessageUtils.send(sender, "<red>Player " + targetPlayer.getName() + " has no active tax invoices.</red>");
+                return;
+            }
 
-        GUIAction action = GUIAction.fromConfig(actionId);
-        if (action == GUIAction.UNKNOWN) {
-            MessageUtils.send(sender,
-                    "<red>Unknown action: '" + actionId + "'. Use /dc admin action to see valid actions.");
-            return;
-        }
+            List<TaxInvoice> outstanding = new ArrayList<>(profile.getOutstandingInvoices());
+            double totalPaid = 0;
+            int count = 0;
 
-        try {
-            plugin.getGUIListener().executeGUIAction(target, action, actionId, "", null);
-            MessageUtils.send(sender, "<green>Executed action '<gold>" + actionId + "<green>' on player '<gold>"
-                    + target.getName() + "<green>'.");
-        } catch (Exception e) {
-            MessageUtils.send(sender, "<red>Failed to execute action: " + e.getMessage());
+            for (TaxInvoice invoice : outstanding) {
+                double remaining = invoice.getRemaining();
+                if (remaining <= 0) continue;
+
+                // Withdraw from player's balance (force payment)
+                plugin.getVaultHook().withdraw(playerUUID, remaining);
+                
+                // applyPayment deposits the money to the nation's treasury and updates state
+                plugin.getTaxManager().applyPayment(playerUUID, profile, invoice, remaining, TaxRecord.PaymentMethod.MANUAL);
+                
+                totalPaid += remaining;
+                count++;
+            }
+
+            plugin.getDataManager().saveTaxRecord();
+
+            MessageUtils.send(sender, "<green>Successfully settled " + count + " active invoices for player " + targetPlayer.getName() + ", transferring <gold>$" + MessageUtils.formatNumber(totalPaid) + "</gold> to their respective nation treasury.</green>");
+            
+            Player onlineTarget = targetPlayer.getPlayer();
+            if (onlineTarget != null && onlineTarget.isOnline()) {
+                MessageUtils.send(onlineTarget, "<green>All active tax invoices (<gold>$" + MessageUtils.formatNumber(totalPaid) + "</gold>) have been settled by admin.</green>");
+                MessageUtils.playSound(onlineTarget, Sound.ENTITY_PLAYER_LEVELUP);
+            }
+        } else {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin invoice <add|remove> <player_name></red>");
         }
     }
+
 
     // === ADMIN NPC ===
 
@@ -597,50 +644,88 @@ public class NationCommand implements CommandExecutor, TabCompleter {
 
     private void sendNpcHelp(CommandSender sender) {
         MessageUtils.send(sender, "<gold>═══ ADMIN NPC COMMANDS ═══");
-        MessageUtils.send(sender, "<white>/nationcore admin npc invite <nation_id> <name>");
-        MessageUtils.send(sender, "<white>/nationcore admin npc kick   <nation_id> <name>");
-        MessageUtils.send(sender, "<white>/nationcore admin npc role   <nation_id> <name> <CITIZEN|OFFICER>");
-        MessageUtils.send(sender, "<white>/nationcore admin npc list   <nation_id>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc invite <nation_name> <name>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc kick   <nation_name> <name>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc role   <nation_name> <name> <CITIZEN|OFFICER>");
+        MessageUtils.send(sender, "<white>/nationcore admin npc list   <nation_name>");
     }
 
     private void handleAdminNpcInvite(CommandSender sender, String[] args) {
-        // /nationcore admin npc invite <nation_id> <name>
+        // /nationcore admin npc invite <nation_name> <name>
         if (args.length < 5) {
-            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc invite <nation_id> <name>");
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc invite <nation_name> <name>");
             return;
         }
-        String nationId = args[3];
-        String npcName  = args[4];
 
-        var result = plugin.getFakeMemberManager().inviteNpc(nationId, npcName);
+        Nation nation = null;
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length - 1; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+            }
+        }
+
+        if (nation == null) {
+            nation = plugin.getNationManager().getNation(args[3]);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation not found.</red>");
+            return;
+        }
+
+        String npcName  = args[args.length - 1];
+
+        var result = plugin.getFakeMemberManager().inviteNpc(nation.getId(), npcName);
         MessageUtils.send(sender,
                 (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
     }
 
     private void handleAdminNpcKick(CommandSender sender, String[] args) {
-        // /nationcore admin npc kick <nation_id> <name>
+        // /nationcore admin npc kick <nation_name> <name>
         if (args.length < 5) {
-            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc kick <nation_id> <name>");
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc kick <nation_name> <name>");
             return;
         }
-        String nationId = args[3];
-        String npcName  = args[4];
 
-        var result = plugin.getFakeMemberManager().kickNpc(nationId, npcName);
+        Nation nation = null;
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length - 1; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+            }
+        }
+
+        if (nation == null) {
+            nation = plugin.getNationManager().getNation(args[3]);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation not found.</red>");
+            return;
+        }
+
+        String npcName  = args[args.length - 1];
+
+        var result = plugin.getFakeMemberManager().kickNpc(nation.getId(), npcName);
         MessageUtils.send(sender,
                 (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
     }
 
     private void handleAdminNpcRole(CommandSender sender, String[] args) {
-        // /nationcore admin npc role <nation_id> <name> <CITIZEN|OFFICER>
+        // /nationcore admin npc role <nation_name> <name> <CITIZEN|OFFICER>
         if (args.length < 6) {
-            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc role <nation_id> <name> <CITIZEN|OFFICER>");
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc role <nation_name> <name> <CITIZEN|OFFICER>");
             return;
         }
-        String nationId = args[3];
-        String npcName  = args[4];
-        String roleStr  = args[5].toUpperCase();
 
+        String roleStr  = args[args.length - 1].toUpperCase();
         id.nationcore.models.Nation.NationRole role;
         try {
             role = id.nationcore.models.Nation.NationRole.valueOf(roleStr);
@@ -649,21 +734,57 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        var result = plugin.getFakeMemberManager().setNpcRole(nationId, npcName, role);
+        String npcName  = args[args.length - 2];
+
+        Nation nation = null;
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length - 2; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+            }
+        }
+
+        if (nation == null) {
+            nation = plugin.getNationManager().getNation(args[3]);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation not found.</red>");
+            return;
+        }
+
+        var result = plugin.getFakeMemberManager().setNpcRole(nation.getId(), npcName, role);
         MessageUtils.send(sender,
                 (result.isSuccess() ? "<green>" : "<red>") + result.getMessage());
     }
 
     private void handleAdminNpcList(CommandSender sender, String[] args) {
-        // /nationcore admin npc list <nation_id>
+        // /nationcore admin npc list <nation_name>
         if (args.length < 4) {
-            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc list <nation_id>");
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin npc list <nation_name>");
             return;
         }
-        String nationId = args[3];
-        id.nationcore.models.Nation nation = plugin.getNationManager().getNation(nationId);
+
+        Nation nation = null;
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+            }
+        }
+
         if (nation == null) {
-            MessageUtils.send(sender, "<red>Nation with ID '" + nationId + "' not found.");
+            nation = plugin.getNationManager().getNation(args[3]);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation not found.</red>");
             return;
         }
 
@@ -676,7 +797,8 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
         for (id.nationcore.models.FakeMember npc : npcs) {
             String roleColor = npc.getRole() == id.nationcore.models.Nation.NationRole.OFFICER
-                    ? "<yellow>" : "<white>";
+                    ? "<gold>"
+                    : "<white>";
             MessageUtils.send(sender,
                     "<gray> • " + roleColor + npc.getName()
                     + " <gray>[" + npc.getRole().name() + "]  "
@@ -685,15 +807,26 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void handleAdminSetPresident(CommandSender sender, String[] args) {
-        if (args.length < 4) {
+    private void handleAdminSetLeader(CommandSender sender, String[] args) {
+        if (args.length < 5) {
             MessageUtils.send(sender, "admin.setpresident_usage");
             return;
         }
 
-        String targetName = args[3];
-        Player onlinePlayer = Bukkit.getPlayer(targetName);
+        String targetName = args[args.length - 1];
+        String nationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 1));
 
+        Nation nation = plugin.getNationManager().getNationByName(nationName);
+        if (nation == null) {
+            nation = plugin.getNationManager().getNation(nationName);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation '" + nationName + "' not found.</red>");
+            return;
+        }
+
+        Player onlinePlayer = Bukkit.getPlayer(targetName);
         org.bukkit.OfflinePlayer targetPlayer;
         if (onlinePlayer != null) {
             targetPlayer = onlinePlayer;
@@ -706,45 +839,109 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
 
         final org.bukkit.OfflinePlayer offlinePlayer = targetPlayer;
+        final Nation finalNation = nation;
 
         if (sender instanceof Player player) {
             pendingConfirmations.put(player.getUniqueId(), () -> {
-                plugin.getGovernmentManager().setPresident(offlinePlayer.getUniqueId(), offlinePlayer.getName(), false);
-                plugin.getElectionManager().endElection();
-                plugin.getDataManager().saveElection();
-                plugin.getDataManager().saveGovernment();
-                MessageUtils.send(sender, "admin.setpresident_success", "player", offlinePlayer.getName());
+                executeSetLeader(finalNation, offlinePlayer);
+                MessageUtils.send(sender, "admin.setpresident_success", "player", offlinePlayer.getName(), "nation", finalNation.getName());
             });
             MessageUtils.send(sender, "<yellow>Are you sure you want to set <gold>" + offlinePlayer.getName() +
-                    "</gold> as president? This will end the current election.</yellow>");
+                    "</gold> as leader of <gold>" + finalNation.getName() + "</gold>? This will replace the current leader.</yellow>");
             MessageUtils.send(sender, "<green>Type <gold>/dc admin confirm</gold> to proceed.</green>");
         } else {
-            plugin.getGovernmentManager().setPresident(offlinePlayer.getUniqueId(), offlinePlayer.getName(), false);
-            plugin.getElectionManager().endElection();
-            plugin.getDataManager().saveElection();
-            plugin.getDataManager().saveGovernment();
-            MessageUtils.send(sender, "admin.setpresident_success", "player", offlinePlayer.getName());
+            executeSetLeader(finalNation, offlinePlayer);
+            MessageUtils.send(sender, "admin.setpresident_success", "player", offlinePlayer.getName(), "nation", finalNation.getName());
         }
-     }
+    }
+
+    private void executeSetLeader(Nation nation, org.bukkit.OfflinePlayer offlinePlayer) {
+        // Demote old leader in the nation and player data
+        UUID oldLeaderUUID = nation.getLeaderUUID();
+        if (oldLeaderUUID != null) {
+            Nation.NationMember oldMember = nation.getMember(oldLeaderUUID);
+            if (oldMember != null) {
+                oldMember.setRole(Nation.NationRole.CITIZEN);
+            }
+            PlayerData oldData = plugin.getDataManager().getPlayerData(oldLeaderUUID);
+            if (oldData != null) {
+                oldData.setNationRole(Nation.NationRole.CITIZEN);
+            }
+        }
+
+        // Promote new leader in the nation and player data
+        UUID newLeaderUUID = offlinePlayer.getUniqueId();
+        Nation.NationMember newMember = nation.getMember(newLeaderUUID);
+        if (newMember == null) {
+            newMember = new Nation.NationMember(newLeaderUUID, offlinePlayer.getName(), Nation.NationRole.LEADER);
+            nation.addMember(newMember);
+        } else {
+            newMember.setRole(Nation.NationRole.LEADER);
+        }
+        PlayerData newData = plugin.getDataManager().getOrCreatePlayerData(newLeaderUUID, offlinePlayer.getName());
+        newData.setNationId(nation.getId());
+        newData.setNationRole(Nation.NationRole.LEADER);
+        newData.setNationJoinedAt(System.currentTimeMillis());
+
+        // Set specific government type fields and logic
+        if (nation.getType() == GovernmentType.REPUBLIC) {
+            plugin.getGovernmentManager().setPresident(nation, newLeaderUUID, offlinePlayer.getName(), false);
+            if (nation.getElection() != null) {
+                nation.getElection().endElection();
+            }
+        } else if (nation.getType() == GovernmentType.COMMUNIST) {
+            plugin.getCommunistManager().setSecretaryGeneral(nation, newLeaderUUID, offlinePlayer.getName(), false);
+        } else if (nation.getType() == GovernmentType.MONARCHY) {
+            plugin.getMonarchyManager().setKing(nation, newLeaderUUID, offlinePlayer.getName());
+        } else if (nation.getType() == GovernmentType.CALIPHATE) {
+            plugin.getCaliphateManager().setCaliph(nation, newLeaderUUID, offlinePlayer.getName());
+        }
+
+        // Save changes
+        plugin.getDataManager().saveNations();
+        plugin.getDataManager().savePlayerData();
+    }
 
     private void handleAdminSetAnnouncement(CommandSender sender, String[] args) {
         if (args.length < 5) {
-            MessageUtils.send(sender, "<red>Usage: /nationcore admin set announcement <nation_id> <custom_message_value></red>");
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin set announcement <nation_name> <custom_message_value></red>");
             return;
         }
 
-        String nationId = args[3];
-        Nation nation = plugin.getNationManager().getNation(nationId);
-        if (nation == null) {
-            nation = plugin.getNationManager().getNationByName(nationId);
+        Nation nation = null;
+        int nationArgsCount = 0;
+
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+                nationArgsCount = i - 2;
+            }
         }
 
         if (nation == null) {
-            MessageUtils.send(sender, "<red>Nation with ID or name '" + nationId + "' not found.</red>");
+            // Check if args[3] is nation ID (UUID string) as a fallback
+            nation = plugin.getNationManager().getNation(args[3]);
+            if (nation != null) {
+                nationArgsCount = 1;
+            }
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation with name or ID '" + args[3] + "' not found.</red>");
             return;
         }
 
-        String message = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+        // The remaining arguments after the nation name form the custom message
+        if (3 + nationArgsCount >= args.length) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin set announcement <nation_name> <custom_message_value></red>");
+            return;
+        }
+
+        String message = String.join(" ", Arrays.copyOfRange(args, 3 + nationArgsCount, args.length));
         nation.setAnnouncementMessage(message);
         nation.setAnnouncementCreatedAt(System.currentTimeMillis());
         plugin.getDataManager().saveNations();
@@ -793,30 +990,77 @@ public class NationCommand implements CommandExecutor, TabCompleter {
 
 
 
-    private void handleAdminAddTreasury(CommandSender sender, String[] args) {
-        if (args.length < 4) {
-            MessageUtils.send(sender, "admin.addtreasury_usage");
+    private void handleAdminTreasury(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            MessageUtils.send(sender, "<red>Usage: /dc admin treasury <give|take|set> <nation_name> <amount></red>");
             return;
         }
 
-        String nationId = args[2];
-        Nation nation = plugin.getNationManager().getNation(nationId);
-        if (nation == null) {
-            nation = plugin.getNationManager().getNationByName(nationId);
-        }
-
-        if (nation == null) {
-            MessageUtils.send(sender, "<red>Nation with ID or name '" + nationId + "' not found.</red>");
+        String action = args[2].toLowerCase();
+        if (!action.equals("give") && !action.equals("take") && !action.equals("set")) {
+            MessageUtils.send(sender, "<red>Usage: /dc admin treasury <give|take|set> <nation_name> <amount></red>");
             return;
         }
 
+        String amountStr = args[args.length - 1];
+        long amount;
         try {
-            long amount = Long.parseLong(args[3]);
-            plugin.getTreasuryManager().deposit(nation, Treasury.TransactionType.MISC_EXPENSE, amount,
-                    "Admin deposit by " + sender.getName(), null);
-            MessageUtils.send(sender, "admin.addtreasury_success", "amount", MessageUtils.formatNumber(amount));
+            amount = Long.parseLong(amountStr);
+            if (amount < 0) {
+                MessageUtils.send(sender, "<red>Amount must be non-negative!</red>");
+                return;
+            }
         } catch (NumberFormatException e) {
-            MessageUtils.send(sender, "admin.addtreasury_invalid");
+            MessageUtils.send(sender, "<red>Invalid amount value!</red>");
+            return;
+        }
+
+        Nation nation = null;
+        int nationArgsCount = 0;
+
+        StringBuilder currentName = new StringBuilder();
+        for (int i = 3; i < args.length - 1; i++) {
+            if (i > 3) currentName.append(" ");
+            currentName.append(args[i]);
+            Nation found = plugin.getNationManager().getNationByName(currentName.toString());
+            if (found != null) {
+                nation = found;
+                nationArgsCount = i - 2;
+            }
+        }
+
+        if (nation == null) {
+            nation = plugin.getNationManager().getNation(args[3]);
+        }
+
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation not found.</red>");
+            return;
+        }
+
+        switch (action) {
+            case "give":
+                plugin.getTreasuryManager().deposit(nation, Treasury.TransactionType.MISC_EXPENSE, amount,
+                        "Admin give by " + sender.getName(), null);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(sender, "<green>Gave <gold>" + MessageUtils.formatNumber(amount) + "</gold> to nation '<gold>" + nation.getName() + "</gold>' treasury.</green>");
+                break;
+            case "take":
+                double balance = plugin.getTreasuryManager().getBalance(nation);
+                if (amount > balance) {
+                    MessageUtils.send(sender, "<red>Nation treasury only has " + MessageUtils.formatNumber(balance) + ". Cannot take " + MessageUtils.formatNumber(amount) + ".</red>");
+                    return;
+                }
+                plugin.getTreasuryManager().withdraw(nation, Treasury.TransactionType.MISC_EXPENSE, amount,
+                        "Admin take by " + sender.getName(), null);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(sender, "<green>Took <gold>" + MessageUtils.formatNumber(amount) + "</gold> from nation '<gold>" + nation.getName() + "</gold>' treasury.</green>");
+                break;
+            case "set":
+                plugin.getTreasuryManager().getTreasury(nation).setBalance(amount);
+                plugin.getDataManager().saveNations();
+                MessageUtils.send(sender, "<green>Set nation '<gold>" + nation.getName() + "</gold>' treasury balance to <gold>" + MessageUtils.formatNumber(amount) + "</gold>.</green>");
+                break;
         }
     }
 
@@ -826,40 +1070,6 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         plugin.reloadGUI();
         MessageUtils.send(sender, "general.config_reloaded");
     }
-
-    private void handleAdminReset(CommandSender sender, String[] args) {
-        if (args.length < 3) {
-            MessageUtils.send(sender, "admin.reset_usage");
-            return;
-        }
-
-        String data = args[2].toLowerCase();
-
-        switch (data) {
-            case "government":
-                plugin.getDataManager().resetGovernment();
-                MessageUtils.send(sender, "general.data_reset", "data", "Government");
-                break;
-            case "election":
-                plugin.getDataManager().resetElection();
-                MessageUtils.send(sender, "general.data_reset", "data", "Election");
-                break;
-            case "treasury":
-                plugin.getDataManager().resetTreasury();
-                MessageUtils.send(sender, "general.data_reset", "data", "Treasury");
-                break;
-            case "all":
-                plugin.getDataManager().resetGovernment();
-                plugin.getDataManager().resetElection();
-                plugin.getDataManager().resetTreasury();
-                MessageUtils.send(sender, "general.all_data_reset");
-                break;
-            default:
-                MessageUtils.send(sender, "admin.reset_invalid");
-                break;
-        }
-    }
-
 
 
     private void handleDiplomacy(CommandSender sender, String[] args) {
@@ -958,7 +1168,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                 case "admin":
                     if (sender.hasPermission("nation.admin")) {
                         completions.addAll(Arrays.asList(
-                                "set", "remove", "addtreasury", "reload", "reset", "confirm", "action", "npc"));
+                                "set", "remove", "treasury", "reload", "confirm", "npc", "invoice"));
                     }
                     break;
                 case "treasury":
@@ -979,75 +1189,122 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 3) {
             String sub = args[0].toLowerCase();
             String sub2 = args[1].toLowerCase();
-
             if (sub.equals("admin")) {
                 if (sub2.equals("set")) {
-                    completions.addAll(Arrays.asList("president", "announcement"));
+                    completions.addAll(Arrays.asList("leader", "announcement"));
                 } else if (sub2.equals("remove")) {
                     completions.add("president");
-                } else if (sub2.equals("reset")) {
-                    completions.addAll(Arrays.asList("government", "election", "treasury", "all"));
-                } else if (sub2.equals("action")) {
-                    for (GUIAction action : GUIAction.values()) {
-                        if (action != GUIAction.UNKNOWN) {
-                            completions.add(action.getConfigKey());
-                        }
-                    }
-                } else if (sub2.equals("addtreasury")) {
-                    for (Nation n : plugin.getNationManager().getAllNations()) {
-                        if (n.getId() != null) completions.add(n.getId());
-                    }
+                } else if (sub2.equals("treasury")) {
+                    completions.addAll(Arrays.asList("give", "take", "set"));
                 } else if (sub2.equals("npc")) {
                     completions.addAll(Arrays.asList("invite", "kick", "role", "list"));
+                } else if (sub2.equals("invoice")) {
+                    completions.addAll(Arrays.asList("add", "remove"));
                 }
             }
-        } else if (args.length == 4) {
+        } else if (args.length >= 4) {
             String sub = args[0].toLowerCase();
             String sub2 = args[1].toLowerCase();
 
-            if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("president")) {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    completions.add(p.getName());
+            if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("leader")) {
+                boolean isNationNameComplete = false;
+                if (args.length > 4) {
+                    String potentialNationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 1));
+                    if (plugin.getNationManager().getNationByName(potentialNationName) != null ||
+                        plugin.getNationManager().getNation(potentialNationName) != null) {
+                        isNationNameComplete = true;
+                    }
                 }
-            } else if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("announcement")) {
-                for (Nation n : plugin.getNationManager().getAllNations()) {
-                    if (n.getId() != null) completions.add(n.getId());
+                if (isNationNameComplete) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        completions.add(p.getName());
+                    }
+                } else {
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getName() != null) completions.add(n.getName());
+                    }
                 }
-            } else if (sub.equals("admin") && sub2.equals("action")) {
-                if (sender.hasPermission("nation.admin")) {
+            } else if (sub.equals("admin") && sub2.equals("invoice")) {
+                if (args.length == 4) {
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         completions.add(p.getName());
                     }
                 }
-            } else if (sub.equals("admin") && sub2.equals("npc") && sender.hasPermission("nation.admin")) {
-                // args[3] = nation_id
-                for (Nation n : plugin.getNationManager().getAllNations()) {
-                    if (n.getId() != null) completions.add(n.getId());
-                }
-            }
-        } else if (args.length == 5) {
-            String sub  = args[0].toLowerCase();
-            String sub2 = args[1].toLowerCase();
-            String sub3 = args[2].toLowerCase();
-
-            if (sub.equals("admin") && sub2.equals("npc") && sender.hasPermission("nation.admin")) {
-                // args[4] = npc name  (kick / role / list need the name)
-                String nationId = args[3];
-                Nation targetNation = plugin.getNationManager().getNation(nationId);
-                if (targetNation != null) {
-                    for (id.nationcore.models.FakeMember npc : targetNation.getAllFakeMembers()) {
-                        completions.add(npc.getName());
+            } else if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("announcement")) {
+                boolean isNationNameComplete = false;
+                if (args.length > 4) {
+                    String potentialNationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 1));
+                    if (plugin.getNationManager().getNationByName(potentialNationName) != null ||
+                        plugin.getNationManager().getNation(potentialNationName) != null) {
+                        isNationNameComplete = true;
                     }
                 }
-            }
-        } else if (args.length == 6) {
-            String sub  = args[0].toLowerCase();
-            String sub2 = args[1].toLowerCase();
-            String sub3 = args[2].toLowerCase();
-
-            if (sub.equals("admin") && sub2.equals("npc") && sub3.equals("role")
-                    && sender.hasPermission("nation.admin")) {
-                completions.addAll(Arrays.asList("CITIZEN", "OFFICER"));
+                if (!isNationNameComplete) {
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getName() != null) completions.add(n.getName());
+                    }
+                }
+            } else if (sub.equals("admin") && sub2.equals("treasury") &&
+                    (args[2].equalsIgnoreCase("give") || args[2].equalsIgnoreCase("take") || args[2].equalsIgnoreCase("set"))) {
+                boolean isNationNameComplete = false;
+                if (args.length > 4) {
+                    String potentialNationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 1));
+                    if (plugin.getNationManager().getNationByName(potentialNationName) != null ||
+                        plugin.getNationManager().getNation(potentialNationName) != null) {
+                        isNationNameComplete = true;
+                    }
+                }
+                if (!isNationNameComplete) {
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getName() != null) completions.add(n.getName());
+                    }
+                }
+            } else if (sub.equals("admin") && sub2.equals("npc") && sender.hasPermission("nation.admin")) {
+                String action = args[2].toLowerCase();
+                
+                Nation foundNation = null;
+                int nameStartIndex = -1;
+                
+                StringBuilder currentName = new StringBuilder();
+                for (int i = 3; i < args.length; i++) {
+                    if (i > 3) currentName.append(" ");
+                    currentName.append(args[i]);
+                    Nation n = plugin.getNationManager().getNationByName(currentName.toString());
+                    if (n == null) {
+                        n = plugin.getNationManager().getNation(args[i]);
+                    }
+                    if (n != null) {
+                        foundNation = n;
+                        nameStartIndex = i + 1;
+                        break;
+                    }
+                }
+                
+                if (foundNation == null) {
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getName() != null) completions.add(n.getName());
+                    }
+                } else {
+                    if (action.equals("list")) {
+                        // list only takes nation name
+                    } else if (action.equals("invite") || action.equals("kick")) {
+                        if (args.length == nameStartIndex + 1) {
+                            if (action.equals("kick")) {
+                                for (id.nationcore.models.FakeMember npc : foundNation.getAllFakeMembers()) {
+                                    completions.add(npc.getName());
+                                }
+                            }
+                        }
+                    } else if (action.equals("role")) {
+                        if (args.length == nameStartIndex + 1) {
+                            for (id.nationcore.models.FakeMember npc : foundNation.getAllFakeMembers()) {
+                                completions.add(npc.getName());
+                            }
+                        } else if (args.length == nameStartIndex + 2) {
+                            completions.addAll(Arrays.asList("CITIZEN", "OFFICER"));
+                        }
+                    }
+                }
             }
         }
 

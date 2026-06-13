@@ -33,6 +33,7 @@ public class CaliphateGovernment {
     private String caliphName;
     private long ascensionTime;
     private long lastCaliphActivity;
+    private long lastDailyReward;
 
     /** Shura Council members (subset of nation members). Max 3. */
     private Set<UUID> shuraCouncil;
@@ -81,6 +82,8 @@ public class CaliphateGovernment {
     public void setAscensionTime(long t) { this.ascensionTime = t; }
     public long getLastCaliphActivity() { return lastCaliphActivity; }
     public void setLastCaliphActivity(long t) { this.lastCaliphActivity = t; }
+    public long getLastDailyReward() { return lastDailyReward; }
+    public void setLastDailyReward(long lastDailyReward) { this.lastDailyReward = lastDailyReward; }
 
     public long getLastBroadcastTime() { return lastBroadcastTime; }
     public void setLastBroadcastTime(long t) { this.lastBroadcastTime = t; }

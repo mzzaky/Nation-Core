@@ -88,6 +88,7 @@ public class MonarchyGovernment {
     private String kingName;
     private long coronationTime;
     private long lastKingActivity;
+    private long lastDailyReward;
 
     private Map<HighCouncilPosition, HighCouncilMember> highCouncil;
 
@@ -157,6 +158,8 @@ public class MonarchyGovernment {
     public void setCoronationTime(long t) { this.coronationTime = t; }
     public long getLastKingActivity() { return lastKingActivity; }
     public void setLastKingActivity(long t) { this.lastKingActivity = t; }
+    public long getLastDailyReward() { return lastDailyReward; }
+    public void setLastDailyReward(long lastDailyReward) { this.lastDailyReward = lastDailyReward; }
 
     public long getLastBroadcastTime() { return lastBroadcastTime; }
     public void setLastBroadcastTime(long t) { this.lastBroadcastTime = t; }

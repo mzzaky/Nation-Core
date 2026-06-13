@@ -154,6 +154,16 @@ public class CaliphateGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
+        if (slot == 16 && clicked.getType() == Material.COMMAND_BLOCK_MINECART) {
+            gui.openSettingsGUI(player);
+            return;
+        }
+
+        if (slot == 37 || clicked.getType() == Material.CHEST_MINECART) {
+            gui.caliphateSalaryMenu.open(player);
+            return;
+        }
+
         if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             gui.mainMenuRouter.openFor(player);
             return;
