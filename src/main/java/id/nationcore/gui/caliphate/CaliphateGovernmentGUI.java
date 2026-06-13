@@ -19,6 +19,7 @@ import id.nationcore.utils.MessageUtils;
  * sparse — exposing executive-order access plus advisory rosters and the
  * standard rename/leave/disband row that mirrors the Monarchy variant.
  */
+@SuppressWarnings("deprecation")
 public class CaliphateGovernmentGUI {
 
         @SuppressWarnings("unused")

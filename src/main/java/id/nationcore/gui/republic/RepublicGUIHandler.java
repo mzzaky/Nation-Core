@@ -194,7 +194,7 @@ public class RepublicGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
-        if (slot == 16 && clicked.getType() == Material.FURNACE_MINECART) {
+        if (slot == 50 && clicked.getType() == Material.FURNACE_MINECART) {
             gui.openSettingsGUI(player);
             return;
         }
@@ -209,7 +209,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 10) {
+        if (slot == 49) {
             Government gov = nation.getRepublicGovernment();
             boolean isPresident = gov != null && gov.hasPresident()
                     && gov.getPresidentUUID().equals(player.getUniqueId());
@@ -244,12 +244,40 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 37 || clicked.getType() == Material.CHEST_MINECART) {
+        if (slot == 48 || clicked.getType() == Material.CHEST_MINECART) {
             gui.salaryMenu.open(player);
             return;
         }
 
-        // Slots 48, 49, 50 have been removed from government menu.
+        if (slot == 10) {
+            if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.HEALTH)) {
+                gui.republicHealthOfficeGUI.open(player, nation);
+            } else {
+                MessageUtils.send(player, "<red>Only the President and the Minister of Health can open this office console.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            }
+            return;
+        }
+
+        if (slot == 13) {
+            if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.TREASURY)) {
+                gui.republicTreasuryOfficeGUI.open(player, nation);
+            } else {
+                MessageUtils.send(player, "<red>Only the President and the Minister of Treasury can open this office console.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            }
+            return;
+        }
+
+        if (slot == 16) {
+            if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.DEFENSE)) {
+                gui.republicDefenseOfficeGUI.open(player, nation);
+            } else {
+                MessageUtils.send(player, "<red>Only the President and the Minister of Defense can open this office console.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            }
+            return;
+        }
 
         if (slot == 31) {
             boolean isActive = plugin.getArenaManager().isArenaActive(nation);
@@ -617,5 +645,158 @@ public class RepublicGUIHandler {
                         gui.republicMemberManagementGUI.openActionMenu(player, nation, targetUUID);
                     });
         }
+    }
+
+    public void handleHealthOfficeGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == org.bukkit.Material.AIR)
+            return;
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null)
+            return;
+
+        if (slot == 49) {
+            MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+            gui.republicGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        CabinetDecision.DecisionType type = switch (slot) {
+            case 20 -> CabinetDecision.DecisionType.QUARANTINE_PROTOCOL;
+            case 22 -> CabinetDecision.DecisionType.FIELD_MEDICINE;
+            case 24 -> CabinetDecision.DecisionType.VACCINATION_DRIVE;
+            case 30 -> CabinetDecision.DecisionType.EMERGENCY_RATIONS;
+            case 32 -> CabinetDecision.DecisionType.PLAGUE;
+            default -> null;
+        };
+
+        if (type != null) {
+            handleOfficeDecisionClick(player, nation, type);
+        }
+    }
+
+    public void handleDefenseOfficeGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == org.bukkit.Material.AIR)
+            return;
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null)
+            return;
+
+        if (slot == 49) {
+            MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+            gui.republicGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        CabinetDecision.DecisionType type = switch (slot) {
+            case 20 -> CabinetDecision.DecisionType.DECLARE_WAR;
+            case 22 -> CabinetDecision.DecisionType.MILITARY_DRAFT;
+            case 24 -> CabinetDecision.DecisionType.DEFENSE_PROTOCOL;
+            case 30 -> CabinetDecision.DecisionType.ARMORY_DISCOUNT;
+            case 32 -> CabinetDecision.DecisionType.BORDER_PATROL;
+            default -> null;
+        };
+
+        if (type != null) {
+            handleOfficeDecisionClick(player, nation, type);
+        }
+    }
+
+    public void handleTreasuryOfficeGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == org.bukkit.Material.AIR)
+            return;
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null)
+            return;
+
+        if (slot == 49) {
+            MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+            gui.republicGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        CabinetDecision.DecisionType type = switch (slot) {
+            case 20 -> CabinetDecision.DecisionType.TAX_HOLIDAY;
+            case 22 -> CabinetDecision.DecisionType.ECONOMIC_STIMULUS;
+            case 24 -> CabinetDecision.DecisionType.AUCTION_BOOST;
+            case 30 -> CabinetDecision.DecisionType.TREASURY_BONUS;
+            case 32 -> CabinetDecision.DecisionType.MARKET_CRASH;
+            default -> null;
+        };
+
+        if (type != null) {
+            handleOfficeDecisionClick(player, nation, type);
+        }
+    }
+
+    private void handleOfficeDecisionClick(Player player, Nation nation, CabinetDecision.DecisionType type) {
+        Government gov = nation.getRepublicGovernment();
+        if (gov == null) return;
+
+        Government.CabinetPosition requiredPosition = type.getPosition().toGovernmentPosition();
+        UUID ministerUUID = gov.getCabinetMember(requiredPosition);
+
+        boolean isMinister = ministerUUID != null && ministerUUID.equals(player.getUniqueId());
+        boolean isAdmin = player.hasPermission("nation.admin");
+
+        if (!isMinister && !isAdmin) {
+            MessageUtils.send(player, "<red>Only the " + requiredPosition.getDisplayName() + " can execute this decision.</red>");
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
+        }
+
+        if (ministerUUID == null && isAdmin) {
+            MessageUtils.send(player, "<red>Cannot execute decision because the Minister position is vacant.</red>");
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
+        }
+
+        if (plugin.getCabinetManager().isDecisionActive(nation, type)) {
+            MessageUtils.send(player, "<red>This decision is already active.</red>");
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
+        }
+
+        long cooldownRemaining = plugin.getCabinetManager().getRemainingCooldown(
+                ministerUUID != null ? ministerUUID : player.getUniqueId(), type);
+        if (cooldownRemaining > 0) {
+            MessageUtils.send(player, "<red>This decision is on cooldown.</red>");
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
+        }
+
+        int cost = plugin.getCabinetManager().getDecisionCost(type);
+        if (!plugin.getTreasuryManager().canAfford(nation, cost)) {
+            MessageUtils.send(player, "<red>Insufficient treasury funds.</red>");
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
+        }
+
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+        gui.confirmActionGUI.open(player, "Execute: " + type.getDisplayName(), () -> {
+            UUID targetId = isAdmin && !isMinister ? ministerUUID : player.getUniqueId();
+            boolean success = plugin.getCabinetManager().executeDecision(nation, targetId, type);
+            if (success) {
+                MessageUtils.send(player, "<green>Decision successfully executed!</green>");
+                MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
+            } else {
+                MessageUtils.send(player, "<red>Failed to execute decision. Check requirements and cooldown.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            }
+        });
+    }
+
+    private boolean isAuthorizedForOffice(Player player, Nation nation, Government.CabinetPosition position) {
+        if (nation == null) return false;
+        Government gov = nation.getRepublicGovernment();
+        if (gov == null) return false;
+
+        boolean isPresident = gov.hasPresident() && gov.getPresidentUUID().equals(player.getUniqueId());
+        boolean isThisMinister = gov.getCabinetMember(position) != null && gov.getCabinetMember(position).equals(player.getUniqueId());
+        boolean isAdmin = player.hasPermission("nation.admin");
+
+        return isPresident || isThisMinister || isAdmin;
     }
 }

@@ -121,17 +121,30 @@ public class MonarchyMainMenu extends NationMenuBase {
 
     private ItemStack buildNationProfile(Nation nation, MonarchyGovernment mg) {
         int memberCount = nation.getMemberCount();
+        int realCount = nation.getRealMemberCount();
+        int fakeCount = nation.getFakeMemberCount();
         int soldierCount = mg != null ? mg.getRoyalSoldierCount() : 0;
+        double balance = nation.getTreasury().getBalance();
 
         return buildIcon(Material.GLOW_ITEM_FRAME,
-                "&e&l" + nation.getName(),
+                "&e&l👑 &6&l" + nation.getName(),
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&7Explore the status, resources, and",
+                "&7structure of your sovereign territory.",
                 "",
-                "&7Government : &fMonarchy",
-                "&7Tag        : &f[" + nation.getTag() + "]",
-                "&7Subjects   : &f" + memberCount,
-                "&7Soldiers   : &f" + soldierCount,
+                "&e&lSYSTEM PROFILE",
+                "&8• &7Government: &fMonarchy",
+                "&8• &7Tag: &e[" + nation.getTag() + "]",
+                "&8• &7Capital: &f" + (nation.hasCapital() ? "&aClaimed" : "&cUnclaimed"),
+                "&8• &7Leader: &f" + (nation.getLeaderName() != null ? nation.getLeaderName() : "None"),
                 "",
-                "&8displays information about the nation");
+                "&e&lSTATE STATISTICS",
+                "&8• &7Treasury: &a$" + formatMoney(balance),
+                "&8• &7Territory: &f" + nation.getTerritorySize() + " Chunks",
+                "&8• &7Population: &f" + memberCount + " &7(" + realCount + " Players, " + fakeCount + " NPCs)",
+                "&8• &7Royal Soldiers: &f" + soldierCount,
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&8General info & statistics");
     }
 
     private ItemStack buildHighCouncilCard(MonarchyGovernment mg) {

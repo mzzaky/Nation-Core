@@ -117,12 +117,42 @@ public class RepublicMainMenu extends NationMenuBase {
     }
 
     private ItemStack buildNationBadge(Nation nation) {
+        Government gov = nation.getRepublicGovernment();
+        int memberCount = nation.getMemberCount();
+        int realCount = nation.getRealMemberCount();
+        int fakeCount = nation.getFakeMemberCount();
+        double balance = nation.getTreasury().getBalance();
+
+        int filledMinisters = 0;
+        if (gov != null) {
+            for (Government.CabinetPosition pos : Government.CabinetPosition.values()) {
+                if (gov.getCabinetMember(pos) != null) {
+                    filledMinisters++;
+                }
+            }
+        }
+        int senatorCount = gov != null ? gov.getSenators().size() : 0;
+
         return buildIcon(Material.GLOW_ITEM_FRAME,
-                "&b&l" + nation.getName(),
-                "&7Republic &f[" + nation.getTag() + "]",
-                "&7Members: &f" + nation.getMemberCount(),
+                "&b&l🏛 &3&l" + nation.getName(),
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&7Explore the status, resources, and",
+                "&7structure of your sovereign territory.",
                 "",
-                "&8System: &fOpen Democracy");
+                "&b&lSYSTEM PROFILE",
+                "&8• &7Government: &fRepublic",
+                "&8• &7Tag: &b[" + nation.getTag() + "]",
+                "&8• &7Capital: &f" + (nation.hasCapital() ? "&aClaimed" : "&cUnclaimed"),
+                "&8• &7Leader: &f" + (nation.getLeaderName() != null ? nation.getLeaderName() : "None"),
+                "",
+                "&b&lSTATE STATISTICS",
+                "&8• &7Treasury: &a$" + formatMoney(balance),
+                "&8• &7Territory: &f" + nation.getTerritorySize() + " Chunks",
+                "&8• &7Population: &f" + memberCount + " &7(" + realCount + " Players, " + fakeCount + " NPCs)",
+                "&8• &7Cabinet Ministers: &f" + filledMinisters + " &8/ &f3",
+                "&8• &7Active Senators: &f" + senatorCount + " &8/ &f5",
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&8General info & statistics");
     }
 
     private ItemStack buildCabinetCard(Government gov, Nation nation) {

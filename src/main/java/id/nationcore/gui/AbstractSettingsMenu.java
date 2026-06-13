@@ -1,8 +1,5 @@
 package id.nationcore.gui;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -16,6 +13,7 @@ import id.nationcore.models.GovernmentType;
 import id.nationcore.listeners.ChatListener;
 import id.nationcore.utils.MessageUtils;
 
+@SuppressWarnings("deprecation")
 public abstract class AbstractSettingsMenu {
 
     protected final NationCore plugin;

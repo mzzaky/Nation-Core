@@ -151,16 +151,30 @@ public class CommunistMainMenu extends NationMenuBase {
 
     private ItemStack buildNationProfile(Nation nation, CommunistGovernment cg) {
         int memberCount = nation.getMemberCount();
+        int realCount = nation.getRealMemberCount();
+        int fakeCount = nation.getFakeMemberCount();
         int partyCount = cg != null ? cg.getPartyMemberCount() : 0;
+        double balance = nation.getTreasury().getBalance();
 
         return buildIcon(Material.GLOW_ITEM_FRAME,
-                "&a&lNation Profile",
+                "&c&l☭ &4&l" + nation.getName(),
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&7Explore the status, resources, and",
+                "&7structure of your sovereign territory.",
                 "",
-                "&8 ● &7name: &c&l" + nation.getName(),
-                "&8 ● &7type: &cCommunist",
-                "&8 ● &7tag: &8[&e" + nation.getTag() + "&8]",
-                "&8 ● &7members: &f" + memberCount,
-                "&8 ● &7party members: &f" + partyCount);
+                "&c&lSYSTEM PROFILE",
+                "&8• &7Government: &fCommunist",
+                "&8• &7Tag: &c[" + nation.getTag() + "]",
+                "&8• &7Capital: &f" + (nation.hasCapital() ? "&aClaimed" : "&cUnclaimed"),
+                "&8• &7Leader: &f" + (nation.getLeaderName() != null ? nation.getLeaderName() : "None"),
+                "",
+                "&c&lSTATE STATISTICS",
+                "&8• &7Treasury: &a$" + formatMoney(balance),
+                "&8• &7Territory: &f" + nation.getTerritorySize() + " Chunks",
+                "&8• &7Population: &f" + memberCount + " &7(" + realCount + " Players, " + fakeCount + " NPCs)",
+                "&8• &7Party Members: &f" + partyCount + " &8/ &f5",
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&8General info & statistics");
     }
 
     // ── 2. Party Policy (slot 10) — PALE_OAK_HANGING_SIGN ──────────────

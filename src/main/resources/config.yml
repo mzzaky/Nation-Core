@@ -205,3 +205,35 @@ approval:
 auto-removal:
   inactive-days: 7
 
+# ============================================================
+# Cross-Plugin Integration (soft-depend)
+# ============================================================
+# Settings for optional integrations with other plugins. These only take effect
+# when the partner plugin is installed; NationCore runs perfectly fine without
+# any of them.
+integration:
+  # ----------------------------------------------------------
+  # FactoryCore -> NationCore  centralized factory tax
+  # ----------------------------------------------------------
+  # When a FactoryCore factory sits inside a nation's claimed territory, the tax
+  # the owner pays in FactoryCore's tax system is forwarded into THAT nation's
+  # treasury instead of vanishing into the void.
+  #
+  # IMPORTANT: this is the NationCore (receiving) side of the switch. FactoryCore
+  # has its own matching switch (integration.nation-tax.enabled). BOTH plugins
+  # must have the integration enabled for any money to move — a deliberate
+  # two-key safety design so neither server operator can be surprised.
+  factory-tax:
+    # Master switch for accepting routed factory taxes into nation treasuries.
+    enabled: true
+    # Percentage of each factory tax payment that is banked into the owning
+    # nation's treasury (0-100). The remainder behaves exactly as before
+    # (consumed by FactoryCore). Values outside 0-100 are clamped.
+    share-percent: 100.0
+    # Anti-abuse cap: the maximum amount a SINGLE tax payment may add to a
+    # treasury. Protects against treasury inflation from misconfigured or
+    # exploited factory prices. Set to 0 to disable the cap.
+    max-per-payment: 0.0
+    # Log every routed payment to the server console for auditing.
+    log: true
+

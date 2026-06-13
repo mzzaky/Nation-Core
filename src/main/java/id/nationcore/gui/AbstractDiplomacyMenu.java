@@ -35,6 +35,7 @@ import id.nationcore.utils.MessageUtils;
  * Subclasses only supply theming (filler colour, accent colour, menu titles) and
  * the {@link GovernmentType} this menu is bound to.
  */
+@SuppressWarnings("deprecation")
 public abstract class AbstractDiplomacyMenu {
 
     protected final NationCore plugin;

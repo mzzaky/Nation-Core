@@ -53,7 +53,7 @@ public class RepublicGovernmentGUI {
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
 
         // 1. FILLER
-        int[] lightBlueSlots = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53 };
+        int[] lightBlueSlots = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 51, 52, 53 };
         ItemStack lightBlueGlass = GovernmentGUIUtils.createItem(Material.LIGHT_BLUE_STAINED_GLASS_PANE, " ");
         for (int s : lightBlueSlots) {
             inv.setItem(s, lightBlueGlass);
@@ -95,8 +95,35 @@ public class RepublicGovernmentGUI {
                 "§a§lActive Effects: §f" + totalActive,
                 combinedLore.toArray(new String[0])));
 
-        // Nation Settings Button (Slot 16)
-        inv.setItem(16, GovernmentGUIUtils.createItem(
+        // Minister Offices
+        String healthMinisterName = "Vacant";
+        String defenseMinisterName = "Vacant";
+        String treasuryMinisterName = "Vacant";
+
+        if (gov != null) {
+            UUID healthUUID = gov.getCabinetMember(Government.CabinetPosition.HEALTH);
+            if (healthUUID != null) {
+                OfflinePlayer op = Bukkit.getOfflinePlayer(healthUUID);
+                if (op.getName() != null) healthMinisterName = op.getName();
+            }
+            UUID defenseUUID = gov.getCabinetMember(Government.CabinetPosition.DEFENSE);
+            if (defenseUUID != null) {
+                OfflinePlayer op = Bukkit.getOfflinePlayer(defenseUUID);
+                if (op.getName() != null) defenseMinisterName = op.getName();
+            }
+            UUID treasuryUUID = gov.getCabinetMember(Government.CabinetPosition.TREASURY);
+            if (treasuryUUID != null) {
+                OfflinePlayer op = Bukkit.getOfflinePlayer(treasuryUUID);
+                if (op.getName() != null) treasuryMinisterName = op.getName();
+            }
+        }
+
+        inv.setItem(13, createOfficeItem(Material.GOLDEN_HELMET, "§e§lMinister of Treasury Office", treasuryMinisterName));
+        inv.setItem(10, createOfficeItem(Material.TURTLE_HELMET, "§e§lMinister of Health Office", healthMinisterName));
+        inv.setItem(16, createOfficeItem(Material.NETHERITE_HELMET, "§e§lMinister of Defense Office", defenseMinisterName));
+
+        // Nation Settings Button (Slot 50)
+        inv.setItem(50, GovernmentGUIUtils.createItem(
                 Material.FURNACE_MINECART,
                 "§e§lNation Settings",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
@@ -109,7 +136,7 @@ public class RepublicGovernmentGUI {
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
         ));
 
-        // Announcement Button (Slot 10)
+        // Announcement Button (Slot 49)
         List<String> announcementLore = new ArrayList<>();
         announcementLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         announcementLore.add("§7Update the announcement message");
@@ -137,21 +164,37 @@ public class RepublicGovernmentGUI {
             announcementLore.add("§eClick to update message");
         }
 
-        inv.setItem(10, GovernmentGUIUtils.createItem(Material.COMMAND_BLOCK_MINECART, "§e§lSet Announcement Message",
+        inv.setItem(49, GovernmentGUIUtils.createItem(Material.COMMAND_BLOCK_MINECART, "§e§lSet Announcement Message",
                 announcementLore.toArray(new String[0])));
 
         // 2. BACK (Slot 43)
         inv.setItem(43,
                 GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
 
-        // 3. Salary (Slot 37)
-        inv.setItem(37, GovernmentGUIUtils.createItem(Material.CHEST_MINECART, "§a§lSalary Claim",
+        // 3. Salary (Slot 48)
+        inv.setItem(48, GovernmentGUIUtils.createItem(Material.CHEST_MINECART, "§a§lSalary Claim",
                 "§7President & Cabinet",
                 "§7Daily Salary Claim",
                 "",
                 "§eClick to open"));
 
-        // Slots 48, 49, 50 are now fillers, handled in the lightBlueSlots array.
+        // Guide & Help (Slot 37)
+        inv.setItem(37, GovernmentGUIUtils.createItem(
+                Material.BOOKSHELF,
+                "§b§lGuide & Help",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "§7Welcome to the Republic Government.",
+                "§7This console is used to manage the",
+                "§7administrative aspects of the nation.",
+                "",
+                "§3§lQuick Actions Guide:",
+                "§8• §bMember Management: §7Manage roles & senators",
+                "§8• §bDiplomacy Management: §7Foreign relationships",
+                "§8• §bExecutive Orders: §7Enable special policies",
+                "§8• §bArena Games: §7Host duels & tournaments",
+                "§8• §bTax & Settings: §7Adjust economy & options",
+                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+        ));
 
         // 7. Executive Order (Slot 30)
         inv.setItem(30, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lExecutive Order",
@@ -264,5 +307,39 @@ public class RepublicGovernmentGUI {
                 "§aClick to open."));
 
         player.openInventory(inv);
+    }
+
+    private ItemStack createOfficeItem(Material material, String name, String ministerName) {
+        List<String> lore = new ArrayList<>();
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§7Manage and execute specific");
+        lore.add("§7cabinet decisions & policies.");
+        lore.add("");
+        lore.add("§7Minister: §f" + ministerName);
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("§eClick to open office console");
+        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        ItemStack item = GovernmentGUIUtils.createItem(material, name, lore.toArray(new String[0]));
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            try {
+                org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(this.plugin, "dummy_hide_attrs");
+                org.bukkit.attribute.AttributeModifier modifier = new org.bukkit.attribute.AttributeModifier(
+                    key,
+                    0.0,
+                    org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                    org.bukkit.inventory.EquipmentSlotGroup.ANY
+                );
+                meta.addAttributeModifier(org.bukkit.attribute.Attribute.ARMOR, modifier);
+            } catch (Throwable t) {
+                // fallback or ignore if not supported
+            }
+            for (org.bukkit.inventory.ItemFlag flag : org.bukkit.inventory.ItemFlag.values()) {
+                meta.addItemFlags(flag);
+            }
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 }

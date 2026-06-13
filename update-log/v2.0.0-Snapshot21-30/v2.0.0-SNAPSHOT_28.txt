@@ -1,0 +1,90 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#28
+====================================================
+Introduced a centralized factory-tax integration that lets FactoryCore forward the tax paid on any factory standing inside a nation's claimed territory straight into that nation's treasury. The feature is delivered as a one-directional soft dependency: NationCore exposes a small, stable, reflection-friendly public API and owns every security control, while FactoryCore binds to it without any shared build artifact. NationCore continues to build and run with zero knowledge of FactoryCore.
+
+[NEW PUBLIC INTEGRATION API]
+- NationCoreAPI.java (id.nationcore.api) — NEW:
+  → Added a final, static-only facade that is the single supported entry point for other plugins.
+  → Built exclusively from JDK/Bukkit types (Location, double, UUID, String) so consumers can bind reflectively, giving a true soft-depend with no shared jar and no load-order coupling beyond a softdepend entry.
+  → Exposed `isFactoryTaxIntegrationEnabled()`, `getNationNameAt(Location)`, and `depositFactoryTax(Location, double, UUID, String)`.
+  → Every method is null-safe and swallows all Throwables at the boundary, so a consumer can never be destabilised by NationCore's internal state (e.g. mid-disable or pre-init).
+
+[CENTRALIZED FACTORY TAX HANDLER]
+- FactoryTaxIntegration.java (id.nationcore.integration) — NEW:
+  → Implements the actual routing: resolves the nation owning the land via TerritoryManager.getNationAt(Location) and deposits into its treasury through TreasuryManager.deposit(...) using TransactionType.TAX_INCOME.
+  → Owns ALL integration policy on the treasury-owning side: master enable flag, revenue share percentage, and per-payment cap.
+  → Tags every routed deposit in the treasury ledger with a "Factory tax (<factoryId>)" description and records the paying player for a full audit trail.
+
+[SECURITY & ANTI-EXPLOIT CONTROLS]
+- FactoryTaxIntegration.java (id.nationcore.integration):
+  → Gate 1 — honours the master `integration.factory-tax.enabled` switch.
+  → Gate 2 — rejects NaN, infinite, zero, and negative amounts before any money moves.
+  → Gate 3 — rejects null locations and locations whose world is not loaded.
+  → Gate 4 — routes nothing when the land is unclaimed (no owning nation).
+  → Clamps the configurable revenue share to the 0-100 range and applies an optional hard per-payment cap to defend against treasury inflation from misconfigured/exploited factory prices.
+  → Normalises floating-point dust (floored to 2 decimals) and re-validates the result is positive before depositing.
+  → Wraps the treasury deposit in its own try/catch and logs failures without throwing, guaranteeing a consumer-side tax payment is never broken by a server-side error.
+
+[CORE WIRING]
+- NationCore.java (id.nationcore):
+  → Added a `FactoryTaxIntegration` field, instantiated during onEnable() after the territory and treasury managers are ready.
+  → Added the `getFactoryTaxIntegration()` getter consumed by NationCoreAPI.
+  → The handler is created unconditionally and stays dormant until FactoryCore calls in and the operator enables it, so there is no startup cost or hard dependency.
+
+[CONFIGURATION]
+- config.yml (src/main/resources):
+  → Added a new top-level `integration.factory-tax` block: `enabled`, `share-percent`, `max-per-payment`, and `log`.
+  → Documented the deliberate "two-key" safety design — both NationCore and FactoryCore must enable the integration before any funds move.
+
+[COMPATIBILITY]
+- No existing behaviour, command, GUI, or save format was changed. With the partner plugin absent or the switch disabled, NationCore behaves identically to SNAPSHOT#27.
+
+[GUI REORGANIZATION & OFFICE UPDATES]
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic) & RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Repositioned existing core items in the Republic Government GUI:
+    ↳ "Set Announcement Message" moved from slot 10 to slot 49.
+    ↳ "Nation Settings" moved from slot 16 to slot 50.
+    ↳ "Salary Claim" moved from slot 37 to slot 48.
+  → Introduced new Minister Office slots (Coming Soon) with hidden equipment attributes (using ItemFlag.HIDE_ATTRIBUTES):
+    ↳ "Minister of Treasury Office" at slot 13 using Material.GOLDEN_HELMET.
+    ↳ "Minister of Health Office" at slot 10 using Material.TURTLE_HELMET.
+    ↳ "Minister of Defense Office" at slot 16 using Material.NETHERITE_HELMET.
+  → Added a new static informational item "Guide & Help" at slot 37 using Material.BOOKSHELF, presenting structured administrative guidance in English with no click behavior.
+
+[MINISTER OFFICE GUIS & STATIC ANALYSIS FIXES]
+- RepublicHealthOfficeGUI.java, RepublicDefenseOfficeGUI.java, RepublicTreasuryOfficeGUI.java (id.nationcore.gui.republic) — NEW:
+  → Created 3 new office GUI menus for Republic minister positions (Health, Defense, Treasury).
+  ↳ Layout uses light blue stained glass pane fillers on slots 0-9, 17, 18, 26, 27, 35, 36, 44-48, 50-53.
+  ↳ Back button (Material.SPECTRAL_ARROW) on slot 49 returns to the Government GUI.
+  ↳ Maps 5 cabinet decisions per office to slots 20, 22, 24, 30, 32.
+  ↳ Item materials dynamically change: Material.ENCHANTED_BOOK if active, Material.BOOK if on cooldown, Material.WRITABLE_BOOK if available.
+  ↳ Styled with a premium, modern, and clean lore format in English showing status, descriptions, costs, and durations.
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic) — UPDATED:
+  → Connected the three Minister Office buttons (slots 10, 13, 16) to open their respective new office GUIs.
+  → Removed the "Coming Soon" text from the titles of these offices.
+  → Updated their lore to display currently appointed minister names or "Vacant".
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Added slot handlers for slots 10, 13, 16 in the Government menu to open the new office GUIs.
+  → Added click handlers `handleHealthOfficeGUI`, `handleDefenseOfficeGUI`, and `handleTreasuryOfficeGUI` to manage the new menus.
+  → Implemented `handleOfficeDecisionClick` containing rigorous security checks (checks if player has a nation, if it's a Republic, checks if they are the correct minister/admin, active state, cooldown, and treasury funds).
+  → Added confirmation GUI support via `gui.confirmActionGUI.open` to prevent accidental clicks.
+- GUIListener.java (id.nationcore.gui) — UPDATED:
+  → Registered and initialized the three new GUI classes.
+  → Integrated menu routing inside `onInventoryClick` for the new office titles.
+  → Configured inventory drag cancellation for the new office GUIs to prevent exploits.
+- Warnings & Static Analysis (Various Classes) — FIXED:
+  → Suppressed deprecation warnings for `createInventory` and `ChatColor` in `AbstractBorderMenu.java`, `AbstractDiplomacyMenu.java`, `AbstractSettingsMenu.java`, `CaliphateExecutiveOrdersMenu.java`, `CaliphateGovernmentGUI.java`, and `CaliphateMainMenu.java`.
+  → Removed unused imports (`GUIAction`, `RecallPetition`) and unused local variable `nationArgsCount` in `NationCommand.java`.
+  → Removed unused imports (`ArrayList`, `List`) in `AbstractSettingsMenu.java`.
+  → Removed unused import `PlayerTaxProfile` in `CaliphateMainMenu.java`.
+
+[ARMOR ATTRIBUTES & SECURITY ENFORCEMENT]
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic) — UPDATED:
+  → Solved the issue where armor/helmet attributes (+2 Armor, etc.) remained visible on Spigot/Paper 1.21.1+ despite the `HIDE_ATTRIBUTES` flag.
+  → Overrode default armor values by attaching a dummy `AttributeModifier` (value `0.0`, operation `ADD_NUMBER`, applying to `EquipmentSlotGroup.ANY`) to `Attribute.ARMOR` (aligned with the 1.21.1+ renamed attributes).
+  → Removed the unused `createHelmet(Material, String)` helper method.
+- RepublicHealthOfficeGUI.java, RepublicDefenseOfficeGUI.java, RepublicTreasuryOfficeGUI.java (id.nationcore.gui.republic) — UPDATED:
+  → Restricted direct menu access so that only the specifically appointed minister for that position, the President, or an Admin can open their respective menu (e.g. only the Minister of Health can open the Health Office console).
+  → Cleaned up and converted legacy color codes (`&c`) in authorization check messages to modern MiniMessage tags.
+

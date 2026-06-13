@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import id.nationcore.gui.GUIAction;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
@@ -23,7 +21,6 @@ import id.nationcore.models.Government;
 import id.nationcore.models.GovernmentType;
 import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
-import id.nationcore.models.RecallPetition;
 import id.nationcore.models.Treasury;
 import id.nationcore.models.TaxInvoice;
 import id.nationcore.models.TaxRecord;
@@ -1016,7 +1013,6 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         }
 
         Nation nation = null;
-        int nationArgsCount = 0;
 
         StringBuilder currentName = new StringBuilder();
         for (int i = 3; i < args.length - 1; i++) {
@@ -1025,7 +1021,6 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             Nation found = plugin.getNationManager().getNationByName(currentName.toString());
             if (found != null) {
                 nation = found;
-                nationArgsCount = i - 2;
             }
         }
 

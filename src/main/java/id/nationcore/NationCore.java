@@ -13,6 +13,7 @@ import id.nationcore.models.PlayerData;
 
 import id.nationcore.commands.NationCommand;
 import id.nationcore.gui.GUIListener;
+import id.nationcore.integration.FactoryTaxIntegration;
 import id.nationcore.listeners.ArenaListener;
 import id.nationcore.listeners.ChatListener;
 import id.nationcore.listeners.DamageListener;
@@ -62,6 +63,7 @@ public class NationCore extends JavaPlugin {
     private id.nationcore.managers.DiplomacyManager diplomacyManager;
     private ResearchManager researchManager;
     private FakeMemberManager fakeMemberManager;
+    private FactoryTaxIntegration factoryTaxIntegration;
     private VaultHook vaultHook;
     private GUIListener guiListener;
     private YamlConfiguration languageConfig;
@@ -106,6 +108,11 @@ public class NationCore extends JavaPlugin {
         diplomacyManager = new id.nationcore.managers.DiplomacyManager(this);
         researchManager = new ResearchManager(this);
         fakeMemberManager = new FakeMemberManager(this);
+
+        // Soft-depend integration bridge (FactoryCore -> NationCore centralized tax).
+        // Created unconditionally; it only does work when FactoryCore calls into it
+        // via NationCoreAPI and the operator has enabled it in config.yml.
+        factoryTaxIntegration = new FactoryTaxIntegration(this);
 
         // Load data
         dataManager.loadAll();
@@ -369,6 +376,15 @@ public class NationCore extends JavaPlugin {
 
     public FakeMemberManager getFakeMemberManager() {
         return fakeMemberManager;
+    }
+
+    /**
+     * @return the FactoryCore tax integration handler. Exposed for
+     *         {@link id.nationcore.api.NationCoreAPI}; consumer plugins should go
+     *         through that API rather than calling this directly.
+     */
+    public FactoryTaxIntegration getFactoryTaxIntegration() {
+        return factoryTaxIntegration;
     }
 
     public VaultHook getVaultHook() {

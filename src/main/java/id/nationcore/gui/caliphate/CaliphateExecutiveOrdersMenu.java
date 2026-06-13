@@ -25,6 +25,7 @@ import id.nationcore.utils.MessageUtils;
  * exempt; only the King is). Hence this menu is single-tab and just lays
  * out the executive-order catalogue.
  */
+@SuppressWarnings("deprecation")
 public class CaliphateExecutiveOrdersMenu extends NationMenuBase {
 
     public static final String TITLE = ChatColor.translateAlternateColorCodes('&',

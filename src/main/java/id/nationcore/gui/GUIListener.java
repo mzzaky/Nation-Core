@@ -24,6 +24,9 @@ import id.nationcore.gui.republic.RepublicCabinetGUI;
 import id.nationcore.gui.republic.RepublicMainMenu;
 import id.nationcore.gui.republic.RepublicTaxMenu;
 import id.nationcore.gui.republic.RepublicTreasuryMenu;
+import id.nationcore.gui.republic.RepublicHealthOfficeGUI;
+import id.nationcore.gui.republic.RepublicDefenseOfficeGUI;
+import id.nationcore.gui.republic.RepublicTreasuryOfficeGUI;
 import id.nationcore.gui.caliphate.CaliphateZakahMenu;
 import id.nationcore.gui.communist.CommunistTaxMenu;
 import id.nationcore.gui.monarchy.MonarchyTaxMenu;
@@ -123,6 +126,9 @@ public class GUIListener implements Listener {
     public final CommunistSettingsMenu communistSettingsMenu;
     public final MonarchySettingsMenu monarchySettingsMenu;
     public final CaliphateSettingsMenu caliphateSettingsMenu;
+    public final RepublicHealthOfficeGUI republicHealthOfficeGUI;
+    public final RepublicDefenseOfficeGUI republicDefenseOfficeGUI;
+    public final RepublicTreasuryOfficeGUI republicTreasuryOfficeGUI;
 
     // Shared per-player state.
     public final Map<UUID, UUID> viewingCandidate = new HashMap<>();
@@ -199,6 +205,9 @@ public class GUIListener implements Listener {
         this.communistSettingsMenu = new CommunistSettingsMenu(plugin);
         this.monarchySettingsMenu = new MonarchySettingsMenu(plugin);
         this.caliphateSettingsMenu = new CaliphateSettingsMenu(plugin);
+        this.republicHealthOfficeGUI = new RepublicHealthOfficeGUI(plugin);
+        this.republicDefenseOfficeGUI = new RepublicDefenseOfficeGUI(plugin);
+        this.republicTreasuryOfficeGUI = new RepublicTreasuryOfficeGUI(plugin);
 
         this.republic = new RepublicGUIHandler(plugin, this);
         this.communist = new CommunistGUIHandler(plugin, this);
@@ -293,6 +302,15 @@ public class GUIListener implements Listener {
         } else if (title.equals(RepublicExecutiveOrdersMenu.TITLE)) {
             event.setCancelled(true);
             republic.handleOrdersGUI(player, clicked, event.getSlot());
+        } else if (title.equals(RepublicHealthOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            republic.handleHealthOfficeGUI(player, clicked, event.getSlot());
+        } else if (title.equals(RepublicDefenseOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            republic.handleDefenseOfficeGUI(player, clicked, event.getSlot());
+        } else if (title.equals(RepublicTreasuryOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            republic.handleTreasuryOfficeGUI(player, clicked, event.getSlot());
         } else if (title.equals(RepublicMemberManagementGUI.TITLE)) {
             event.setCancelled(true);
             republic.handleMemberManagementGUI(player, clicked, event.getSlot());
@@ -533,6 +551,9 @@ public class GUIListener implements Listener {
                 title.equals(CaliphateGovernmentGUI.TITLE) ||
                 title.equals("§2§l💰 SALARY & REWARDS 💰") ||
                 title.equals(RepublicExecutiveOrdersMenu.TITLE) ||
+                title.equals(RepublicHealthOfficeGUI.TITLE) ||
+                title.equals(RepublicDefenseOfficeGUI.TITLE) ||
+                title.equals(RepublicTreasuryOfficeGUI.TITLE) ||
                 title.equals(CommunistExecutiveOrdersMenu.TITLE) ||
                 title.equals(MonarchyExecutiveOrdersMenu.TITLE) ||
                 title.equals(CaliphateExecutiveOrdersMenu.TITLE) ||

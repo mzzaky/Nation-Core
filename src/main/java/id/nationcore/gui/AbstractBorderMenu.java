@@ -39,6 +39,7 @@ import id.nationcore.utils.MessageUtils;
  *   • Claim Territory (pale_oak_hanging_sign) on slot 32.
  *   • Back (spectral_arrow) on slot 49.
  */
+@SuppressWarnings("deprecation")
 public abstract class AbstractBorderMenu {
 
     protected final NationCore plugin;

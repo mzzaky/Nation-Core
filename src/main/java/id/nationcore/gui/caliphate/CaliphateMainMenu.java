@@ -18,7 +18,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import id.nationcore.NationCore;
 import id.nationcore.models.CaliphateGovernment;
 import id.nationcore.models.Nation;
-import id.nationcore.models.TaxRecord.PlayerTaxProfile;
 
 /**
  * Main menu for CALIPHATE nations.
@@ -28,6 +27,7 @@ import id.nationcore.models.TaxRecord.PlayerTaxProfile;
  * • Profile/Caliph/Treasury/Research are functional; the rest are
  * advisory displays or "coming soon" placeholders per spec.
  */
+@SuppressWarnings("deprecation")
 public class CaliphateMainMenu extends NationMenuBase {
 
     public static final String TITLE = ChatColor.translateAlternateColorCodes('&',
@@ -122,19 +122,32 @@ public class CaliphateMainMenu extends NationMenuBase {
 
     private ItemStack buildNationProfile(Nation nation, CaliphateGovernment cg) {
         int memberCount = nation.getMemberCount();
+        int realCount = nation.getRealMemberCount();
+        int fakeCount = nation.getFakeMemberCount();
         int shuraCount = cg != null ? cg.getShuraCount() : 0;
         int scholarsCount = cg != null ? cg.getScholarCount() : 0;
+        double balance = nation.getTreasury().getBalance();
 
         return buildIcon(Material.GLOW_ITEM_FRAME,
-                "&2&l" + nation.getName(),
+                "&2&l☪ &a&l" + nation.getName(),
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&7Explore the status, resources, and",
+                "&7structure of your sovereign territory.",
                 "",
-                "&7Government     : &fCaliphate",
-                "&7Tag            : &f[" + nation.getTag() + "]",
-                "&7Citizens       : &f" + memberCount,
-                "&7Shura Council  : &f" + shuraCount + "&8/&f" + CaliphateGovernment.MAX_SHURA,
-                "&7State Scholars : &f" + scholarsCount + "&8/&f" + CaliphateGovernment.MAX_SCHOLARS,
+                "&a&lSYSTEM PROFILE",
+                "&8• &7Government: &fCaliphate",
+                "&8• &7Tag: &a[" + nation.getTag() + "]",
+                "&8• &7Capital: &f" + (nation.hasCapital() ? "&aClaimed" : "&cUnclaimed"),
+                "&8• &7Leader: &f" + (nation.getLeaderName() != null ? nation.getLeaderName() : "None"),
                 "",
-                "&8displays information about the caliphate");
+                "&a&lSTATE STATISTICS",
+                "&8• &7Treasury: &a$" + formatMoney(balance),
+                "&8• &7Territory: &f" + nation.getTerritorySize() + " Chunks",
+                "&8• &7Population: &f" + memberCount + " &7(" + realCount + " Players, " + fakeCount + " NPCs)",
+                "&8• &7Shura Council: &f" + shuraCount + " &8/ &f" + CaliphateGovernment.MAX_SHURA,
+                "&8• &7State Scholars: &f" + scholarsCount + " &8/ &f" + CaliphateGovernment.MAX_SCHOLARS,
+                "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                "&8General info & statistics");
     }
 
     private ItemStack buildShuraCouncilCard(CaliphateGovernment cg) {
