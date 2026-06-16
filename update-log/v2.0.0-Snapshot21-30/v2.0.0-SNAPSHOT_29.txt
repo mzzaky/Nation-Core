@@ -1,0 +1,41 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#29
+====================================================
+Extended the centralized tax integration to a second consumer: ApartmentCore. An apartment standing inside a nation's claimed territory now forwards the tax its owner pays straight into that nation's treasury, exactly as factories already do. The feature follows the same one-directional soft-dependency design: NationCore exposes a small, stable, reflection-friendly public API and owns every security control, while ApartmentCore binds to it with no shared build artifact. Apartment and factory tax routing are configured, shared, and capped independently. NationCore continues to build and run with zero knowledge of either consumer.
+
+[PUBLIC INTEGRATION API EXTENDED]
+- NationCoreAPI.java (id.nationcore.api) — UPDATED:
+  → Added `isApartmentTaxIntegrationEnabled()` and `depositApartmentTax(Location, double, UUID, String)`, mirroring the existing factory-tax methods.
+  → Kept the facade built exclusively from JDK/Bukkit types so ApartmentCore can bind reflectively, preserving the no-shared-jar soft-depend contract.
+  → Both new methods are null-safe and swallow all Throwables at the boundary; a consumer can never be destabilised by NationCore's internal state.
+  → The existing `getNationNameAt(Location)` is reused unchanged (it is consumer-agnostic). The factory-tax methods are untouched, so SNAPSHOT#28 consumers keep working byte-for-byte.
+
+[CENTRALIZED APARTMENT TAX HANDLER]
+- ApartmentTaxIntegration.java (id.nationcore.integration) — NEW:
+  → A self-contained parallel to FactoryTaxIntegration that resolves the nation owning the land via TerritoryManager.getNationAt(Location) and deposits into its treasury through TreasuryManager.deposit(...) using TransactionType.TAX_INCOME.
+  → Owns ALL apartment-tax policy on the treasury-owning side: master enable flag, revenue share percentage, and per-payment cap — fully independent from the factory-tax knobs.
+  → Tags every routed deposit in the treasury ledger with an "Apartment tax (<apartmentId>)" description and records the paying player for a full audit trail.
+
+[SECURITY & ANTI-EXPLOIT CONTROLS]
+- ApartmentTaxIntegration.java (id.nationcore.integration):
+  → Gate 1 — honours the master `integration.apartment-tax.enabled` switch.
+  → Gate 2 — rejects NaN, infinite, zero, and negative amounts before any money moves.
+  → Gate 3 — rejects null locations and locations whose world is not loaded.
+  → Gate 4 — routes nothing when the land is unclaimed (no owning nation).
+  → Clamps the configurable revenue share to the 0-100 range and applies an optional hard per-payment cap to defend against treasury inflation from misconfigured/exploited apartment prices.
+  → Normalises floating-point dust (floored to 2 decimals) and re-validates the result is positive before depositing.
+  → Wraps the treasury deposit in its own try/catch and logs failures without throwing, guaranteeing a consumer-side tax payment is never broken by a server-side error.
+
+[CORE WIRING]
+- NationCore.java (id.nationcore):
+  → Added an `ApartmentTaxIntegration` field, instantiated during onEnable() alongside the existing factory bridge, after the territory and treasury managers are ready.
+  → Added the `getApartmentTaxIntegration()` getter consumed by NationCoreAPI.
+  → The handler is created unconditionally and stays dormant until ApartmentCore calls in and the operator enables it, so there is no startup cost or hard dependency.
+
+[CONFIGURATION]
+- config.yml (src/main/resources):
+  → Added a new `integration.apartment-tax` block: `enabled`, `share-percent`, `max-per-payment`, and `log`.
+  → Documented the deliberate "two-key" safety design — both NationCore and ApartmentCore must enable the integration before any funds move — and that this block is fully independent from `integration.factory-tax`.
+
+[COMPATIBILITY]
+- No existing behaviour, command, GUI, or save format was changed. With ApartmentCore absent or the switch disabled, NationCore behaves identically to SNAPSHOT#28. The factory-tax integration is entirely unaffected.

@@ -237,3 +237,31 @@ integration:
     # Log every routed payment to the server console for auditing.
     log: true
 
+  # ----------------------------------------------------------
+  # ApartmentCore -> NationCore  centralized apartment tax
+  # ----------------------------------------------------------
+  # When an ApartmentCore apartment's region sits inside a nation's claimed
+  # territory, the tax the owner pays in ApartmentCore's tax system is forwarded
+  # into THAT nation's treasury instead of vanishing into the void.
+  #
+  # IMPORTANT: this is the NationCore (receiving) side of the switch. ApartmentCore
+  # has its own matching switch (integration.nation-tax.enabled). BOTH plugins
+  # must have the integration enabled for any money to move — a deliberate
+  # two-key safety design so neither server operator can be surprised.
+  #
+  # This block is fully independent from factory-tax above: apartment and factory
+  # tax routing are enabled, shared, and capped separately.
+  apartment-tax:
+    # Master switch for accepting routed apartment taxes into nation treasuries.
+    enabled: true
+    # Percentage of each apartment tax payment that is banked into the owning
+    # nation's treasury (0-100). The remainder behaves exactly as before
+    # (consumed by ApartmentCore). Values outside 0-100 are clamped.
+    share-percent: 100.0
+    # Anti-abuse cap: the maximum amount a SINGLE tax payment may add to a
+    # treasury. Protects against treasury inflation from misconfigured or
+    # exploited apartment prices. Set to 0 to disable the cap.
+    max-per-payment: 0.0
+    # Log every routed payment to the server console for auditing.
+    log: true
+

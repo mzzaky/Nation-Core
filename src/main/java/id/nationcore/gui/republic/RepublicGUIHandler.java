@@ -194,7 +194,7 @@ public class RepublicGUIHandler {
 
         MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
 
-        if (slot == 50 && clicked.getType() == Material.FURNACE_MINECART) {
+        if (slot == 37 && clicked.getType() == Material.COMMAND_BLOCK_MINECART) {
             gui.openSettingsGUI(player);
             return;
         }
@@ -209,7 +209,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 49) {
+        if (slot == 28) {
             Government gov = nation.getRepublicGovernment();
             boolean isPresident = gov != null && gov.hasPresident()
                     && gov.getPresidentUUID().equals(player.getUniqueId());
@@ -234,17 +234,17 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 23) {
+        if (slot == 32) {
             gui.republicDiplomacyMenu.openManagement(player, nation);
             return;
         }
 
-        if (slot == 21) {
+        if (slot == 30) {
             gui.republicBorderMenu.open(player, nation);
             return;
         }
 
-        if (slot == 48 || clicked.getType() == Material.CHEST_MINECART) {
+        if (slot == 34 || clicked.getType() == Material.EMERALD) {
             gui.salaryMenu.open(player);
             return;
         }
@@ -279,7 +279,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 31) {
+        if (slot == 40) {
             boolean isActive = plugin.getArenaManager().isArenaActive(nation);
             if (isActive) {
                 gui.arenaGUI.openArenaMenu(player);
@@ -302,18 +302,18 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 30 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
+        if (slot == 39 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
             gui.openOrdersGUI(player);
             return;
         }
 
-        if (slot == 22 || clicked.getType() == Material.FRIEND_POTTERY_SHERD) {
+        if (slot == 31 || clicked.getType() == Material.FRIEND_POTTERY_SHERD) {
             int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
             gui.republicMemberManagementGUI.open(player, nation, page);
             return;
         }
 
-        if (slot == 32) {
+        if (slot == 41) {
             Government gov = nation.getRepublicGovernment();
             if (gov == null)
                 return;

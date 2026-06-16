@@ -13,6 +13,7 @@ import id.nationcore.models.PlayerData;
 
 import id.nationcore.commands.NationCommand;
 import id.nationcore.gui.GUIListener;
+import id.nationcore.integration.ApartmentTaxIntegration;
 import id.nationcore.integration.FactoryTaxIntegration;
 import id.nationcore.listeners.ArenaListener;
 import id.nationcore.listeners.ChatListener;
@@ -64,6 +65,7 @@ public class NationCore extends JavaPlugin {
     private ResearchManager researchManager;
     private FakeMemberManager fakeMemberManager;
     private FactoryTaxIntegration factoryTaxIntegration;
+    private ApartmentTaxIntegration apartmentTaxIntegration;
     private VaultHook vaultHook;
     private GUIListener guiListener;
     private YamlConfiguration languageConfig;
@@ -109,10 +111,11 @@ public class NationCore extends JavaPlugin {
         researchManager = new ResearchManager(this);
         fakeMemberManager = new FakeMemberManager(this);
 
-        // Soft-depend integration bridge (FactoryCore -> NationCore centralized tax).
-        // Created unconditionally; it only does work when FactoryCore calls into it
+        // Soft-depend integration bridges (consumer plugin -> NationCore centralized tax).
+        // Created unconditionally; each only does work when its consumer calls into it
         // via NationCoreAPI and the operator has enabled it in config.yml.
         factoryTaxIntegration = new FactoryTaxIntegration(this);
+        apartmentTaxIntegration = new ApartmentTaxIntegration(this);
 
         // Load data
         dataManager.loadAll();
@@ -385,6 +388,15 @@ public class NationCore extends JavaPlugin {
      */
     public FactoryTaxIntegration getFactoryTaxIntegration() {
         return factoryTaxIntegration;
+    }
+
+    /**
+     * @return the apartment-tax integration bridge backing
+     *         {@link id.nationcore.api.NationCoreAPI}; consumer plugins should go
+     *         through that API rather than calling this directly.
+     */
+    public ApartmentTaxIntegration getApartmentTaxIntegration() {
+        return apartmentTaxIntegration;
     }
 
     public VaultHook getVaultHook() {
