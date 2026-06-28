@@ -146,6 +146,11 @@ public class RepublicGUIHandler {
         }
         if (slot == RepublicMainMenu.getSlot("RESEARCH")) {
             gui.researchGUI.openMain(player);
+            return;
+        }
+        if (slot == RepublicMainMenu.getSlot("HUB")) {
+            gui.openHubGUI(player);
+            return;
         }
     }
 
@@ -204,7 +209,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
+        if (slot == 43 || clicked.getType() == Material.PALE_OAK_DOOR) {
             gui.mainMenuRouter.openFor(player);
             return;
         }
@@ -244,12 +249,12 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 34 || clicked.getType() == Material.EMERALD) {
+        if (slot == 34 || clicked.getType() == Material.KNOWLEDGE_BOOK) {
             gui.salaryMenu.open(player);
             return;
         }
 
-        if (slot == 10) {
+        if (slot == 12) {
             if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.HEALTH)) {
                 gui.republicHealthOfficeGUI.open(player, nation);
             } else {
@@ -259,7 +264,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 13) {
+        if (slot == 14) {
             if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.TREASURY)) {
                 gui.republicTreasuryOfficeGUI.open(player, nation);
             } else {
@@ -269,7 +274,7 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 16) {
+        if (slot == 13) {
             if (isAuthorizedForOffice(player, nation, Government.CabinetPosition.DEFENSE)) {
                 gui.republicDefenseOfficeGUI.open(player, nation);
             } else {
@@ -287,7 +292,7 @@ public class RepublicGUIHandler {
                 Government gov = nation.getRepublicGovernment();
                 boolean isPresident = gov != null && gov.hasPresident()
                         && gov.getPresidentUUID().equals(player.getUniqueId());
-                if (isPresident && clicked.getType() == Material.PRIZE_POTTERY_SHERD) {
+                if (isPresident && clicked.getType() == Material.WRITABLE_BOOK) {
                     gui.confirmActionGUI.open(player, "Start Arena Game", () -> {
                         if (!plugin.getArenaManager().startArena(nation, player.getUniqueId())) {
                             MessageUtils.send(player, "<red>Cannot start arena! Check requirements.</red>");
@@ -302,12 +307,12 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (slot == 39 || clicked.getType() == Material.ARMS_UP_POTTERY_SHERD) {
+        if (slot == 39) {
             gui.openOrdersGUI(player);
             return;
         }
 
-        if (slot == 31 || clicked.getType() == Material.FRIEND_POTTERY_SHERD) {
+        if (slot == 31) {
             int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
             gui.republicMemberManagementGUI.open(player, nation, page);
             return;
@@ -364,13 +369,14 @@ public class RepublicGUIHandler {
             if (eoType == null)
                 return;
 
-            if (clicked.getType() != Material.YELLOW_CONCRETE) {
+            if (clicked.getType() != Material.WRITABLE_BOOK) {
                 MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
                 return;
             }
 
-            player.closeInventory();
-            plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
+            gui.confirmActionGUI.open(player, "Issue Decree: " + eoType.getDisplayName(), () -> {
+                plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
+            });
             return;
         }
 

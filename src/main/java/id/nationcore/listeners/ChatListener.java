@@ -273,11 +273,28 @@ public class ChatListener implements Listener {
                 return;
             }
 
-            id.nationcore.models.Government gov = nation.getRepublicGovernment();
-            if (gov != null) {
-                gov.setLastBroadcastTime(System.currentTimeMillis());
-                plugin.getDataManager().saveNations();
+            if (nation.getType() == GovernmentType.REPUBLIC) {
+                id.nationcore.models.Government gov = nation.getRepublicGovernment();
+                if (gov != null) {
+                    gov.setLastBroadcastTime(System.currentTimeMillis());
+                }
+            } else if (nation.getType() == GovernmentType.COMMUNIST) {
+                id.nationcore.models.CommunistGovernment cg = nation.getCommunistGovernment();
+                if (cg != null) {
+                    cg.setLastBroadcastTime(System.currentTimeMillis());
+                }
+            } else if (nation.getType() == GovernmentType.MONARCHY) {
+                id.nationcore.models.MonarchyGovernment mg = nation.getMonarchyGovernment();
+                if (mg != null) {
+                    mg.setLastBroadcastTime(System.currentTimeMillis());
+                }
+            } else if (nation.getType() == GovernmentType.CALIPHATE) {
+                id.nationcore.models.CaliphateGovernment caliphGov = nation.getCaliphateGovernment();
+                if (caliphGov != null) {
+                    caliphGov.setLastBroadcastTime(System.currentTimeMillis());
+                }
             }
+            plugin.getDataManager().saveNations();
 
             org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
                 for (UUID memberUUID : nation.getMembers().keySet()) {

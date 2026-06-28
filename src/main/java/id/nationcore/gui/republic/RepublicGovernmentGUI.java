@@ -118,9 +118,9 @@ public class RepublicGovernmentGUI {
             }
         }
 
-        inv.setItem(13, createOfficeItem(Material.GOLDEN_HELMET, "§e§lMinister of Treasury Office", treasuryMinisterName));
-        inv.setItem(10, createOfficeItem(Material.TURTLE_HELMET, "§e§lMinister of Health Office", healthMinisterName));
-        inv.setItem(16, createOfficeItem(Material.NETHERITE_HELMET, "§e§lMinister of Defense Office", defenseMinisterName));
+        inv.setItem(14, createOfficeItem(Material.GOLDEN_HELMET, "§e§lMinister of Treasury Office", treasuryMinisterName));
+        inv.setItem(12, createOfficeItem(Material.DIAMOND_HELMET, "§e§lMinister of Health Office", healthMinisterName));
+        inv.setItem(13, createOfficeItem(Material.NETHERITE_HELMET, "§e§lMinister of Defense Office", defenseMinisterName));
 
         // Nation Settings Button (Slot 37)
         inv.setItem(37, GovernmentGUIUtils.createItem(
@@ -164,28 +164,28 @@ public class RepublicGovernmentGUI {
             announcementLore.add("§eClick to update message");
         }
 
-        inv.setItem(28, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lSet Announcement Message",
+        inv.setItem(28, GovernmentGUIUtils.createItem(Material.WRITTEN_BOOK, "§e§lSet Announcement Message",
                 announcementLore.toArray(new String[0])));
 
         // 2. BACK (Slot 43)
         inv.setItem(43,
-                GovernmentGUIUtils.createItem(Material.SPECTRAL_ARROW, "§7§l← Back to Menu", "§7Return to main menu"));
+                GovernmentGUIUtils.createItem(Material.PALE_OAK_DOOR, "§7§l← Back to Menu", "§7Return to main menu"));
 
         // 3. Salary (Slot 34)
-        inv.setItem(34, GovernmentGUIUtils.createItem(Material.EMERALD, "§a§lSalary Claim",
+        inv.setItem(34, GovernmentGUIUtils.createItem(Material.KNOWLEDGE_BOOK, "§a§lSalary Claim",
                 "§7President & Cabinet",
                 "§7Daily Salary Claim",
                 "",
                 "§eClick to open"));
 
         // 7. Executive Order (Slot 39)
-        inv.setItem(39, GovernmentGUIUtils.createItem(Material.ARMS_UP_POTTERY_SHERD, "§e§lExecutive Order",
+        inv.setItem(39, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lExecutive Order",
                 "§7Manage executive orders for the nation",
                 "",
                 "§eClick to open"));
 
         // 8. Member Management (Slot 31)
-        inv.setItem(31, GovernmentGUIUtils.createItem(Material.FRIEND_POTTERY_SHERD, "§e§lMember Management",
+        inv.setItem(31, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lMember Management",
                 "§7Manage your nation members & roles",
                 "",
                 "§eClick to open"));
@@ -208,11 +208,11 @@ public class RepublicGovernmentGUI {
             broadcastLore.add("§eClick to broadcast");
         }
 
-        inv.setItem(41, GovernmentGUIUtils.createItem(Material.SCRAPE_POTTERY_SHERD, "§e§lBroadcast Message",
+        inv.setItem(41, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lBroadcast Message",
                 broadcastLore.toArray(new String[0])));
 
         // 11. Border Management (Slot 30)
-        inv.setItem(30, GovernmentGUIUtils.createItem(Material.SHELTER_POTTERY_SHERD, "§e§lBorder Management",
+        inv.setItem(30, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lBorder Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Manage your nation's territory.",
                 "§7• Claim & release chunks",
@@ -226,7 +226,7 @@ public class RepublicGovernmentGUI {
         if (nation != null) {
             boolean isActive = plugin.getArenaManager().isArenaActive(nation);
             if (isActive) {
-                inv.setItem(40, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD, "§c§lPresidential Games",
+                inv.setItem(40, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§c§lPresidential Games",
                         "§7Arena game is currently active!",
                         "",
                         "§aClick to view Arena Menu"));
@@ -237,7 +237,7 @@ public class RepublicGovernmentGUI {
                     double treasury = nation.getTreasury().getBalance();
 
                     if (canStart) {
-                        inv.setItem(40, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD,
+                        inv.setItem(40, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK,
                                 "§a§l★ START ARENA §8[PRESIDENT]",
                                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                                 "§7Cost: §6$" + MessageUtils.formatNumber(startCost),
@@ -271,7 +271,7 @@ public class RepublicGovernmentGUI {
                 }
             }
         } else {
-            inv.setItem(40, GovernmentGUIUtils.createItem(Material.PRIZE_POTTERY_SHERD, "§c§lPresidential Games",
+            inv.setItem(40, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§c§lPresidential Games",
                     "§7Start a new arena game!",
                     "",
                     "§cOnly President can start",
@@ -279,7 +279,7 @@ public class RepublicGovernmentGUI {
         }
 
         // 13. Diplomacy Management (Slot 32)
-        inv.setItem(32, GovernmentGUIUtils.createItem(Material.SKULL_POTTERY_SHERD, "§e§lDiplomacy Management",
+        inv.setItem(32, GovernmentGUIUtils.createItem(Material.WRITABLE_BOOK, "§e§lDiplomacy Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Manage your foreign relations",
                 "§7with every other nation.",

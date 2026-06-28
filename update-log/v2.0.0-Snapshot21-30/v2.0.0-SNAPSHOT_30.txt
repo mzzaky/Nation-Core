@@ -1,41 +1,40 @@
 ====================================================
-  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#29
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#30
 ====================================================
-Extended the centralized tax integration to a second consumer: ApartmentCore. An apartment standing inside a nation's claimed territory now forwards the tax its owner pays straight into that nation's treasury, exactly as factories already do. The feature follows the same one-directional soft-dependency design: NationCore exposes a small, stable, reflection-friendly public API and owns every security control, while ApartmentCore binds to it with no shared build artifact. Apartment and factory tax routing are configured, shared, and capped independently. NationCore continues to build and run with zero knowledge of either consumer.
+Redesigned and updated the Republic Government GUI and the Executive Orders Menu layout, slot positions, materials, and confirmation security mechanics. The legacy multi-tab cabinet decision navigation within the Executive Orders Menu has been completely removed to dedicate the menu exclusively for presidential executive orders, styled with a modern, clean, and premium English lore design.
 
-[PUBLIC INTEGRATION API EXTENDED]
-- NationCoreAPI.java (id.nationcore.api) — UPDATED:
-  → Added `isApartmentTaxIntegrationEnabled()` and `depositApartmentTax(Location, double, UUID, String)`, mirroring the existing factory-tax methods.
-  → Kept the facade built exclusively from JDK/Bukkit types so ApartmentCore can bind reflectively, preserving the no-shared-jar soft-depend contract.
-  → Both new methods are null-safe and swallow all Throwables at the boundary; a consumer can never be destabilised by NationCore's internal state.
-  → The existing `getNationNameAt(Location)` is reused unchanged (it is consumer-agnostic). The factory-tax methods are untouched, so SNAPSHOT#28 consumers keep working byte-for-byte.
+[REPUBLIC GOVERNMENT GUI SLOT RESTRUCTURE]
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic) — UPDATED:
+  → Restructured the slot layouts to optimize navigation and layout balance:
+    • Border Management: Moved from slot 21 to slot 30.
+    • Member Management: Moved from slot 22 to slot 31.
+    • Diplomacy Management: Moved from slot 23 to slot 32.
+    • Executive Order: Moved from slot 30 to slot 39.
+    • Start Arena (Presidential Games): Moved from slot 31 to slot 40.
+    • Broadcast Message: Moved from slot 32 to slot 41.
+    • Salary Claim: Moved from slot 48 to slot 34, and changed the material to EMERALD.
+    • Set Announcement Message: Moved from slot 49 to slot 28, and changed the material to WRITABLE_BOOK.
+    • Nation Settings: Moved from slot 50 to slot 37, and changed the material to COMMAND_BLOCK_MINECART.
+  → Removed the legacy static Guide & Help button (originally at slot 37).
+  → Added slots 48, 49, and 50 to the light blue stained glass pane filler array, replacing them with background pane fillers.
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Adjusted the slot click routing inside `handleGovernmentGUI` to align with the new slot indices and material checks (e.g. EMERALD on slot 34, COMMAND_BLOCK_MINECART on slot 37).
 
-[CENTRALIZED APARTMENT TAX HANDLER]
-- ApartmentTaxIntegration.java (id.nationcore.integration) — NEW:
-  → A self-contained parallel to FactoryTaxIntegration that resolves the nation owning the land via TerritoryManager.getNationAt(Location) and deposits into its treasury through TreasuryManager.deposit(...) using TransactionType.TAX_INCOME.
-  → Owns ALL apartment-tax policy on the treasury-owning side: master enable flag, revenue share percentage, and per-payment cap — fully independent from the factory-tax knobs.
-  → Tags every routed deposit in the treasury ledger with an "Apartment tax (<apartmentId>)" description and records the paying player for a full audit trail.
+[EXECUTIVE ORDERS MENU REDESIGN & DEDICATION]
+- RepublicExecutiveOrdersMenu.java (id.nationcore.gui.republic) — REWRITTEN:
+  → Replaced the centralized multi-tab navigation style with a dedicated president-only Executive Orders layout. Removed all Cabinet Decision tabs (Defense, Treasury, Health, President) and associated decision-rendering logic.
+  → Configured the new menu layout:
+    • Filler: Placed light_blue_stained_glass_pane on slots 0-3, 5-9, 17-18, 26-27, 35-36, 44-48, and 50-53, creating a clean frame border.
+    • Back: Placed spectral_arrow on slot 49 to return to the Republic Government GUI.
+    • Information: Placed glow_item_frame on slot 4, displaying the nation name, tag, president name, and active decrees count.
+    • Executive Orders: Placed on slots 20-24 and 29-33 (a 2x5 grid in the center).
+  → Implemented dynamic item materials based on order status:
+    • Material is ENCHANTED_BOOK (and glows) when the executive order is currently active.
+    • Material is BOOK if the order is on cooldown, locked due to authorization, or insufficient funds.
+    • Material is WRITABLE_BOOK when the order is ready and available to be issued.
+  → Upgraded the description card lore with a premium English formatting structure utilizing Unicode dividers (`▬`), clear headers, and icons.
 
-[SECURITY & ANTI-EXPLOIT CONTROLS]
-- ApartmentTaxIntegration.java (id.nationcore.integration):
-  → Gate 1 — honours the master `integration.apartment-tax.enabled` switch.
-  → Gate 2 — rejects NaN, infinite, zero, and negative amounts before any money moves.
-  → Gate 3 — rejects null locations and locations whose world is not loaded.
-  → Gate 4 — routes nothing when the land is unclaimed (no owning nation).
-  → Clamps the configurable revenue share to the 0-100 range and applies an optional hard per-payment cap to defend against treasury inflation from misconfigured/exploited apartment prices.
-  → Normalises floating-point dust (floored to 2 decimals) and re-validates the result is positive before depositing.
-  → Wraps the treasury deposit in its own try/catch and logs failures without throwing, guaranteeing a consumer-side tax payment is never broken by a server-side error.
-
-[CORE WIRING]
-- NationCore.java (id.nationcore):
-  → Added an `ApartmentTaxIntegration` field, instantiated during onEnable() alongside the existing factory bridge, after the territory and treasury managers are ready.
-  → Added the `getApartmentTaxIntegration()` getter consumed by NationCoreAPI.
-  → The handler is created unconditionally and stays dormant until ApartmentCore calls in and the operator enables it, so there is no startup cost or hard dependency.
-
-[CONFIGURATION]
-- config.yml (src/main/resources):
-  → Added a new `integration.apartment-tax` block: `enabled`, `share-percent`, `max-per-payment`, and `log`.
-  → Documented the deliberate "two-key" safety design — both NationCore and ApartmentCore must enable the integration before any funds move — and that this block is fully independent from `integration.factory-tax`.
-
-[COMPATIBILITY]
-- No existing behaviour, command, GUI, or save format was changed. With ApartmentCore absent or the switch disabled, NationCore behaves identically to SNAPSHOT#28. The factory-tax integration is entirely unaffected.
+[DECREE CONFIRMATION SECURITY MECHANISM]
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Intercepted the click event for Executive Orders at slot 20-24 and 29-33 to check for `WRITABLE_BOOK` instead of `YELLOW_CONCRETE`.
+  → Wrapped the decree issuance process inside a confirmation step using `gui.confirmActionGUI.open()`, preventing accidental activation and ensuring authorization verification before treasury withdrawal.

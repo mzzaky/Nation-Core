@@ -1,4 +1,4 @@
-package id.nationcore.gui.republic;
+package id.nationcore.gui.communist;
 
 import id.nationcore.gui.NationMenuBase;
 import java.util.ArrayList;
@@ -13,20 +13,19 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import id.nationcore.NationCore;
-import id.nationcore.models.CabinetDecision;
-import id.nationcore.models.Government;
+import id.nationcore.models.CommunistGovernment;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.ExecutiveOrder.ExecutiveOrderType;
 import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
 
-public class RepublicExecutiveOrdersMenu extends NationMenuBase {
+public class CommunistLeaderOrdersMenu extends NationMenuBase {
 
     public static final String TITLE = ChatColor.translateAlternateColorCodes('&',
-            "&9&l⚖ &b&lRepublic Executive Orders");
+            "&c&l☭ &4&lCommunist Executive Orders");
 
     public static final int SLOT_BACK = 49;
-    public static final int SLOT_CLOSE = 53; // kept for backwards compatibility in GUIListener
+    public static final int SLOT_CLOSE = 53;
 
     private static final int[] FILLER_SLOTS = {
             0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 50, 51, 52, 53
@@ -37,16 +36,8 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
             29, 30, 31, 32, 33
     };
 
-    public RepublicExecutiveOrdersMenu(NationCore plugin) {
+    public CommunistLeaderOrdersMenu(NationCore plugin) {
         super(plugin);
-    }
-
-    public static boolean handleTabClick(Player player, int slot) {
-        return false;
-    }
-
-    public static CabinetDecision.DecisionType getDecisionAtSlot(Player player, int slot) {
-        return null;
     }
 
     public static ExecutiveOrderType getExecutiveOrderAtSlot(Player player, int slot) {
@@ -74,16 +65,16 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
         }
 
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
-        Government gov = nation.getRepublicGovernment();
+        CommunistGovernment cg = nation.getCommunistGovernment();
 
         // 1. Filler
-        ItemStack filler = pane(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
+        ItemStack filler = pane(Material.RED_STAINED_GLASS_PANE);
         for (int slot : FILLER_SLOTS) {
             inv.setItem(slot, filler);
         }
 
         // 3. Information (slot 4)
-        inv.setItem(4, buildNationProfile(nation, gov));
+        inv.setItem(4, buildNationProfile(nation, cg));
 
         // 2. Back button (slot 49)
         inv.setItem(SLOT_BACK, buildIcon(Material.SPECTRAL_ARROW, "&e&l← Back to Menu", "&7Return to main government menu"));
@@ -92,43 +83,43 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
         ExecutiveOrderType[] types = ExecutiveOrderType.values();
         for (int i = 0; i < types.length; i++) {
             if (i < ORDER_SLOTS.length) {
-                inv.setItem(ORDER_SLOTS[i], buildExecutiveOrderCard(nation, gov, player, types[i]));
+                inv.setItem(ORDER_SLOTS[i], buildExecutiveOrderCard(nation, cg, player, types[i]));
             }
         }
 
         player.openInventory(inv);
     }
 
-    private ItemStack buildNationProfile(Nation nation, Government gov) {
+    private ItemStack buildNationProfile(Nation nation, CommunistGovernment cg) {
         int activeOrdersCount = plugin.getExecutiveOrderManager().getActiveOrders(nation).size();
         
-        String presidentName = "Vacant";
-        if (gov != null && gov.hasPresident()) {
-            org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(gov.getPresidentUUID());
+        String leaderName = "Vacant";
+        if (cg != null && cg.hasSecretaryGeneral()) {
+            org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(cg.getSecretaryGeneralUUID());
             if (op.getName() != null) {
-                presidentName = op.getName();
+                leaderName = op.getName();
             }
         }
 
         return buildIcon(Material.GLOW_ITEM_FRAME,
-                "&b&lExecutive Decrees & Info",
+                "&c&lExecutive Decrees & Info",
                 "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "&7Nation Name   : &f" + nation.getName() + " [" + nation.getTag() + "]",
-                "&7President     : &f" + presidentName,
+                "&7Secretary Gen : &f" + leaderName,
                 "&7Active Decrees: &a" + activeOrdersCount,
                 "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "&7As President, you can issue executive orders",
+                "&7As Secretary General, you can issue executive orders",
                 "&7that affect all citizens of your nation.",
                 "&7These decrees cost treasury funds and last",
                 "&7for a limited duration.",
                 "&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
     }
 
-    private ItemStack buildExecutiveOrderCard(Nation nation, Government gov, Player viewer, ExecutiveOrderType type) {
-        boolean isPresident = gov != null && gov.hasPresident()
-                && gov.getPresidentUUID().equals(viewer.getUniqueId());
+    private ItemStack buildExecutiveOrderCard(Nation nation, CommunistGovernment cg, Player viewer, ExecutiveOrderType type) {
+        boolean isSekjen = cg != null && cg.hasSecretaryGeneral()
+                && cg.getSecretaryGeneralUUID().equals(viewer.getUniqueId());
         boolean isAdmin = viewer.hasPermission("nation.admin");
-        boolean canIssue = isPresident || isAdmin;
+        boolean canIssue = isSekjen || isAdmin;
 
         boolean active = plugin.getExecutiveOrderManager().isOrderActive(nation, type);
         boolean onCooldown = !active && plugin.getExecutiveOrderManager().isOrderOnCooldown(nation, type);
@@ -156,11 +147,11 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
             status = "&e[AVAILABLE]";
         }
 
-        String presidentName = "Vacant";
-        if (gov != null && gov.hasPresident()) {
-            org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(gov.getPresidentUUID());
+        String leaderName = "Vacant";
+        if (cg != null && cg.hasSecretaryGeneral()) {
+            org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(cg.getSecretaryGeneralUUID());
             if (op.getName() != null) {
-                presidentName = op.getName();
+                leaderName = op.getName();
             }
         }
 
@@ -168,7 +159,7 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
         lore.add("§8" + "▬".repeat(30));
         lore.add("§7\"" + type.getFlavorText() + "\"");
         lore.add("§8" + "▬".repeat(30));
-        lore.add("§7Issuer: §fPresident " + presidentName);
+        lore.add("§7Issuer: §fSecretary General " + leaderName);
         lore.add("§7Cost: §6$" + MessageUtils.formatNumber(cost));
         lore.add("§7Duration: §b" + (type.getDefaultDuration() == 0
                 ? "Instant"
@@ -186,7 +177,7 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
             lore.add("§7Available in: §c" + MessageUtils.formatTime(cooldownRemaining));
         } else if (!canIssue) {
             lore.add("§c✖ §lNO AUTHORIZATION");
-            lore.add("§7Only the President can issue this.");
+            lore.add("§7Only the Secretary General can issue this.");
         } else if (!canAfford) {
             lore.add("§c✖ §lINSUFFICIENT FUNDS");
             lore.add("§7Nation treasury requires §6$" + MessageUtils.formatNumber(cost));
@@ -198,7 +189,6 @@ public class RepublicExecutiveOrdersMenu extends NationMenuBase {
 
         ItemStack item = buildIcon(material, "&6&l" + type.getDisplayName() + " " + status, lore);
         
-        // If it is an enchanted book, make it glow if not already glowing
         if (active && material == Material.ENCHANTED_BOOK) {
             item = glowing(item);
         }

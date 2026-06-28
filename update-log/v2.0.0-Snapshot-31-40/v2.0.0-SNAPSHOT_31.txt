@@ -1,0 +1,95 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#31
+====================================================
+Fixed the "Nation Hub" button and slot routing conflicts in the Republic menus; updated Republic and Communist Government GUI layouts, materials, and safety validations; implemented Communist Minister Offices and the new Communist Leader Decrees Menu.
+
+[REPUBLIC MAIN MENU FIX]
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Added missing click routing for slot 43 (HUB) to call `gui.openHubGUI(player)`, resolving the issue where clicking the "Nation Hub" button had no effect.
+
+[REPUBLIC GOVERNMENT GUI ITEM & SLOT RESTRUCTURE]
+- RepublicGovernmentGUI.java (id.nationcore.gui.republic) — UPDATED:
+  → Updated item materials for various control slots:
+    • Border Management (Slot 30): Changed material to WRITABLE_BOOK.
+    • Member Management (Slot 31): Changed material to WRITABLE_BOOK.
+    • Diplomacy Management (Slot 32): Changed material to WRITABLE_BOOK.
+    • Executive Order (Slot 39): Changed material to WRITABLE_BOOK.
+    • Start Arena / Presidential Games (Slot 40): Changed base material to WRITABLE_BOOK.
+    • Broadcast Message (Slot 41): Changed material to WRITABLE_BOOK.
+    • Back to Menu (Slot 43): Changed material to PALE_OAK_DOOR.
+    • Salary Claim (Slot 34): Changed material to KNOWLEDGE_BOOK.
+    • Set Announcement Message (Slot 28): Changed material to WRITTEN_BOOK.
+  → Restructured the slots and materials for Minister Offices:
+    • Minister of Defense Office: Moved from slot 16 to slot 13.
+    • Minister of Treasury Office: Moved from slot 13 to slot 14.
+    • Minister of Health Office: Moved from slot 10 to slot 12, and changed material to DIAMOND_HELMET.
+
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Adjusted the slot click routing inside `handleGovernmentGUI` to align with the new slots (Health at slot 12, Defense at slot 13, Treasury at slot 14).
+  → Updated material validation checks in `handleGovernmentGUI` to match the new materials (PALE_OAK_DOOR for back button, KNOWLEDGE_BOOK for salary claim, and WRITABLE_BOOK for arena, executive orders, and member management).
+
+[COMMUNIST GOVERNMENT GUI ITEM & SLOT RESTRUCTURE]
+- CommunistGovernmentGUI.java (id.nationcore.gui.communist) — UPDATED:
+  → Removed the bottom actions on slots 48, 49, and 50, replacing them with RED_STAINED_GLASS_PANE background fillers.
+  → Restructured the slot layouts to optimize navigation:
+    • Salary Claim: Moved from slot 37 to slot 34, and changed material to KNOWLEDGE_BOOK.
+    • Nation Settings: Moved from slot 16 to slot 37.
+    • Set Announcement Message: Moved from slot 10 to slot 28, and changed material to WRITTEN_BOOK.
+    • Back to Menu (Slot 43): Changed material to PALE_OAK_DOOR.
+
+- CommunistGUIHandler.java (id.nationcore.gui.communist) — UPDATED:
+  → Adjusted the slot click routing inside `handleGovernmentGUI` to match the new layout slots (Salary Claim at slot 34, Nation Settings at slot 37, Set Announcement at slot 28).
+  → Updated material validation checks to correspond with the new items (PALE_OAK_DOOR for back button, KNOWLEDGE_BOOK for salary claim).
+  → Removed obsolete click handlers for slots 48, 49, and 50.
+
+[COMMUNIST MINISTER OFFICE GUIs IMPLEMENTATION]
+- CommunistTreasuryOfficeGUI.java (id.nationcore.gui.communist) — NEW:
+  → Created Treasury Office GUI with 5 Treasury decisions, red glass pane fillers, and security check matching Communist roles (Sekjen, Minister, Admin).
+- CommunistHealthOfficeGUI.java (id.nationcore.gui.communist) — NEW:
+  → Created Health Office GUI with 5 Health decisions, red glass pane fillers, and security check matching Communist roles.
+- CommunistDefenseOfficeGUI.java (id.nationcore.gui.communist) — NEW:
+  → Created Defense Office GUI with 5 Defense decisions, red glass pane fillers, and security check matching Communist roles.
+- CommunistPropagandaOfficeGUI.java (id.nationcore.gui.communist) — NEW:
+  → Created Propaganda Office GUI with 5 Propaganda decisions (Global Broadcast, National Broadcast, Leader Glorification, Media Censorship, Mobilization), red glass pane fillers, and security check matching Communist roles.
+- CommunistGovernmentGUI.java (id.nationcore.gui.communist) — UPDATED:
+  → Integrated buttons to access the 4 new office GUIs at specific slots and materials:
+    • Slot 10: Minister of Health Office (DIAMOND_HELMET)
+    • Slot 12: Minister of Propaganda Office (CHAINMAIL_HELMET)
+    • Slot 14: Minister of Defense Office (NETHERITE_HELMET)
+    • Slot 16: Minister of Treasury Office (GOLDEN_HELMET)
+  → Added `createOfficeItem` helper method to build helmet icons with proper lore details.
+- CommunistGUIHandler.java (id.nationcore.gui.communist) — UPDATED:
+  → Handled Government GUI click routing for slots 10, 12, 14, and 16 to check authorizations and open the respective Communist office menus.
+  → Added click handlers `handleHealthOfficeGUI`, `handleDefenseOfficeGUI`, `handleTreasuryOfficeGUI`, and `handlePropagandaOfficeGUI` to manage decision button clicks.
+  → Implemented `handleOfficeDecisionClick` and `isAuthorizedForOffice` check methods to enforce security rules, check active states, cooldowns, treasury affordability, and prompt action confirmations before executing decisions.
+- GUIListener.java (id.nationcore.gui) — UPDATED:
+  → Declared and instantiated all 4 Communist office GUI classes.
+  → Added routing inside `onInventoryClick` and drag event cancellation inside `onInventoryDrag` for each of the new office GUI titles.
+
+[COMMUNIST GUI LAYOUT ADJUSTMENTS & LEADER ORDERS MENU]
+- CommunistGovernmentGUI.java (id.nationcore.gui.communist) — UPDATED:
+  → Removed "Cabinet Member Management" (Slot 21) and "Party Member Management" (Slot 23).
+  → Moved "Nation Member Management" from Slot 22 to Slot 31 (material changed to WRITABLE_BOOK).
+  → Moved "Event Management" from Slot 31 to Slot 40 (material changed to WRITABLE_BOOK).
+  → Changed Border Management (Slot 30) and Diplomacy Management (Slot 32) materials to WRITABLE_BOOK.
+  → Added "Executive Order" access at Slot 39 (WRITABLE_BOOK).
+  → Added "Broadcast Message" access at Slot 41 (WRITABLE_BOOK) with cooldown status in lore.
+
+- CommunistLeaderOrdersMenu.java (id.nationcore.gui.communist) — NEW:
+  → Created a new 54-slot menu layout matching the Republic Executive Orders menu but with RED_STAINED_GLASS_PANE fillers.
+  → Renders active/cooldown/access statuses for all leader orders based on Secretary General role and treasury funds.
+
+- CommunistGUIHandler.java (id.nationcore.gui.communist) — UPDATED:
+  → Removed old slot 21 handling, updated member management routing to Slot 31.
+  → Handled Slot 39 clicks to open the new `CommunistLeaderOrdersMenu` and added `handleLeaderOrdersGUI` with SG security/cooldown checks.
+  → Handled Slot 41 clicks to prompt for a custom nation broadcast, enforcing a 6-hour real-life cooldown.
+
+- GUIListener.java (id.nationcore.gui) — UPDATED:
+  → Registered click routing and drag event cancellation for `CommunistLeaderOrdersMenu`.
+  → Implemented checks ensuring clicks target the top inventory to prevent player inventory interaction exploits.
+
+- ChatListener.java (id.nationcore.listeners) — UPDATED:
+  → Enhanced nation broadcast capture to correctly update last broadcast timestamps for all government models (Communist, Monarchy, Caliphate, and Republic).
+
+- RepublicGUIHandler.java (id.nationcore.gui.republic) — UPDATED:
+  → Removed redundant WRITABLE_BOOK material checks from slot 39 and slot 31 handlers, resolving the conflict where clicking slot 31 (Member Management) and slot 41 (Broadcast Message) incorrectly routed to the Executive Orders menu.

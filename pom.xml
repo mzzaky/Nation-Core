@@ -100,7 +100,7 @@
         <profile>
             <id>snapshot</id>
             <properties>
-                <build.suffix>.SNAPSHOT-30</build.suffix>
+                <build.suffix>.SNAPSHOT-31</build.suffix>
             </properties>
         </profile>
     </profiles>

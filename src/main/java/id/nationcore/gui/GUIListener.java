@@ -6,6 +6,7 @@ import id.nationcore.gui.caliphate.CaliphateGUIHandler;
 import id.nationcore.gui.caliphate.CaliphateMainMenu;
 import id.nationcore.gui.caliphate.CaliphateTreasuryMenu;
 import id.nationcore.gui.communist.CommunistExecutiveOrdersMenu;
+import id.nationcore.gui.communist.CommunistLeaderOrdersMenu;
 import id.nationcore.gui.communist.CommunistGovernmentGUI;
 import id.nationcore.gui.communist.CommunistGUIHandler;
 import id.nationcore.gui.communist.CommunistMainMenu;
@@ -53,6 +54,10 @@ import id.nationcore.gui.caliphate.CaliphateSettingsMenu;
 import id.nationcore.gui.communist.CommunistSalaryMenu;
 import id.nationcore.gui.monarchy.MonarchySalaryMenu;
 import id.nationcore.gui.caliphate.CaliphateSalaryMenu;
+import id.nationcore.gui.communist.CommunistHealthOfficeGUI;
+import id.nationcore.gui.communist.CommunistDefenseOfficeGUI;
+import id.nationcore.gui.communist.CommunistTreasuryOfficeGUI;
+import id.nationcore.gui.communist.CommunistPropagandaOfficeGUI;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -129,6 +134,10 @@ public class GUIListener implements Listener {
     public final RepublicHealthOfficeGUI republicHealthOfficeGUI;
     public final RepublicDefenseOfficeGUI republicDefenseOfficeGUI;
     public final RepublicTreasuryOfficeGUI republicTreasuryOfficeGUI;
+    public final CommunistHealthOfficeGUI communistHealthOfficeGUI;
+    public final CommunistDefenseOfficeGUI communistDefenseOfficeGUI;
+    public final CommunistTreasuryOfficeGUI communistTreasuryOfficeGUI;
+    public final CommunistPropagandaOfficeGUI communistPropagandaOfficeGUI;
 
     // Shared per-player state.
     public final Map<UUID, UUID> viewingCandidate = new HashMap<>();
@@ -208,6 +217,10 @@ public class GUIListener implements Listener {
         this.republicHealthOfficeGUI = new RepublicHealthOfficeGUI(plugin);
         this.republicDefenseOfficeGUI = new RepublicDefenseOfficeGUI(plugin);
         this.republicTreasuryOfficeGUI = new RepublicTreasuryOfficeGUI(plugin);
+        this.communistHealthOfficeGUI = new CommunistHealthOfficeGUI(plugin);
+        this.communistDefenseOfficeGUI = new CommunistDefenseOfficeGUI(plugin);
+        this.communistTreasuryOfficeGUI = new CommunistTreasuryOfficeGUI(plugin);
+        this.communistPropagandaOfficeGUI = new CommunistPropagandaOfficeGUI(plugin);
 
         this.republic = new RepublicGUIHandler(plugin, this);
         this.communist = new CommunistGUIHandler(plugin, this);
@@ -324,7 +337,14 @@ public class GUIListener implements Listener {
             communist.handleMainMenu(player, clicked, event.getSlot());
         } else if (title.equals(CommunistGovernmentGUI.TITLE)) {
             event.setCancelled(true);
-            communist.handleGovernmentGUI(player, clicked, event.getSlot());
+            if (event.getClickedInventory() == event.getView().getTopInventory()) {
+                communist.handleGovernmentGUI(player, clicked, event.getSlot());
+            }
+        } else if (title.equals(CommunistLeaderOrdersMenu.TITLE)) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() == event.getView().getTopInventory()) {
+                communist.handleLeaderOrdersGUI(player, clicked, event.getSlot());
+            }
         } else if (title.equals(CommunistExecutiveOrdersMenu.TITLE)) {
             event.setCancelled(true);
             communist.handleOrdersGUI(player, clicked, event.getSlot());
@@ -337,6 +357,18 @@ public class GUIListener implements Listener {
         } else if (title.startsWith(CommunistMemberManagementGUI.POLITBURO_PICK_TITLE_PREFIX)) {
             event.setCancelled(true);
             communist.handlePolitburoPickerGUI(player, clicked, event.getSlot(), title);
+        } else if (title.equals(CommunistHealthOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            communist.handleHealthOfficeGUI(player, clicked, event.getSlot());
+        } else if (title.equals(CommunistDefenseOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            communist.handleDefenseOfficeGUI(player, clicked, event.getSlot());
+        } else if (title.equals(CommunistTreasuryOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            communist.handleTreasuryOfficeGUI(player, clicked, event.getSlot());
+        } else if (title.equals(CommunistPropagandaOfficeGUI.TITLE)) {
+            event.setCancelled(true);
+            communist.handlePropagandaOfficeGUI(player, clicked, event.getSlot());
 
             // ── Monarchy GUIs ───────────────────────────────────────────────
         } else if (title.equals(MonarchyMainMenu.TITLE)) {
@@ -554,7 +586,12 @@ public class GUIListener implements Listener {
                 title.equals(RepublicHealthOfficeGUI.TITLE) ||
                 title.equals(RepublicDefenseOfficeGUI.TITLE) ||
                 title.equals(RepublicTreasuryOfficeGUI.TITLE) ||
+                title.equals(CommunistHealthOfficeGUI.TITLE) ||
+                title.equals(CommunistDefenseOfficeGUI.TITLE) ||
+                title.equals(CommunistTreasuryOfficeGUI.TITLE) ||
+                title.equals(CommunistPropagandaOfficeGUI.TITLE) ||
                 title.equals(CommunistExecutiveOrdersMenu.TITLE) ||
+                title.equals(CommunistLeaderOrdersMenu.TITLE) ||
                 title.equals(MonarchyExecutiveOrdersMenu.TITLE) ||
                 title.equals(CaliphateExecutiveOrdersMenu.TITLE) ||
                 title.equals(RepublicCabinetGUI.CABINET_GUI_TITLE) ||
