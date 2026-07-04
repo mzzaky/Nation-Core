@@ -163,6 +163,7 @@ public class CommunistGovernment {
         this.totalSubsidyPayouts = 0.0;
         this.lastBroadcastTime = 0;
         this.electionCycleStart = System.currentTimeMillis();
+        this.orderHistory = new ArrayList<>();
     }
 
     public long getLastBroadcastTime() {
@@ -469,5 +470,27 @@ public class CommunistGovernment {
 
     public void clearExpiredSanctions() {
         getActiveSanctions().removeIf(Sanction::isExpired);
+    }
+
+    // === Order & Decision History API ===
+
+    private List<String> orderHistory = new ArrayList<>();
+
+    public List<String> getOrderHistory() {
+        if (orderHistory == null) {
+            orderHistory = new ArrayList<>();
+        }
+        return orderHistory;
+    }
+
+    public void setOrderHistory(List<String> orderHistory) {
+        this.orderHistory = orderHistory;
+    }
+
+    public void addOrderHistory(String name) {
+        getOrderHistory().add(0, name); // Prepend to show newest first
+        while (getOrderHistory().size() > 3) {
+            getOrderHistory().remove(getOrderHistory().size() - 1);
+        }
     }
 }

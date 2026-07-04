@@ -426,6 +426,10 @@ public class ExecutiveOrderManager {
         nation.getActiveOrders().add(order);
         nation.setLastExecutiveOrderTime(System.currentTimeMillis());
 
+        if (nation.getType() == GovernmentType.COMMUNIST && nation.getCommunistGovernment() != null) {
+            nation.getCommunistGovernment().addOrderHistory(type.getDisplayName() + " (Leader)");
+        }
+
         applyOrderEffects(nation, order);
 
         String leaderTitle = nationType.getLeaderTitle();

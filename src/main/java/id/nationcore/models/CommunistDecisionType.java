@@ -174,4 +174,29 @@ public enum CommunistDecisionType {
     public int getCost() { return cost; }
     public long getDurationMillis() { return durationMillis; }
     public boolean isInstant() { return durationMillis == 0; }
+
+    public String getEnglishName() {
+        return switch (this) {
+            case PROP_GLOBAL_BROADCAST -> "Global Broadcast";
+            case PROP_NATIONAL_BROADCAST -> "National Broadcast";
+            case PROP_LEADER_GLORIFICATION -> "Leader Glorification";
+            case PROP_MEDIA_CENSORSHIP -> "Media Censorship";
+            case PROP_MOBILIZATION -> "Propaganda Mobilization";
+            case DEF_DECLARE_WAR -> "Declare War";
+            case DEF_MILITARY_DRAFT -> "Military Draft";
+            case DEF_DEFENSE_PROTOCOL -> "Defense Protocol";
+            case DEF_OFFENSE_PROTOCOL -> "Offense Protocol";
+            case DEF_MILITARY_EMERGENCY -> "Military Emergency";
+            case TRE_DISTRIBUTION_PROGRAM -> "Distribution Program";
+            case TRE_ECONOMIC_STIMULUS -> "Economic Stimulus";
+            case TRE_EDUCATION_PROGRAM -> "Education Program";
+            case TRE_TAX_INTENSIFICATION -> "Tax Intensification";
+            case TRE_MARKET_EVENT -> "Market Event";
+            case HEA_QUARANTINE_PROTOCOL -> "Quarantine Protocol";
+            case HEA_FIELD_MEDICINE -> "Field Medicine";
+            case HEA_VACCINATION_DRIVE -> "Vaccination Drive";
+            case HEA_EMERGENCY_RATIONS -> "Emergency Rations";
+            case HEA_PLAGUE -> "Plague";
+        };
+    }
 }

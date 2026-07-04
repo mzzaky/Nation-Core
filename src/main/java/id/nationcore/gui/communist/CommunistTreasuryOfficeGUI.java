@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@SuppressWarnings("deprecation")
 public class CommunistTreasuryOfficeGUI extends NationMenuBase {
 
     public static final String TITLE = "§c§lMINISTER OF TREASURY OFFICE";
@@ -120,7 +121,7 @@ public class CommunistTreasuryOfficeGUI extends NationMenuBase {
                 ? "Instant"
                 : MessageUtils.formatTimeShort(type.getDurationMillis())));
 
-        if (active) {
+        if (active && gov != null) {
             if (type == CommunistDecisionType.TRE_DISTRIBUTION_PROGRAM) {
                 lore.add("&7Phases Left: &a" + gov.getDistributionProgramPhasesLeft());
             } else if (type == CommunistDecisionType.TRE_TAX_INTENSIFICATION) {

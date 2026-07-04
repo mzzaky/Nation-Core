@@ -555,8 +555,8 @@ public class RepublicGUIHandler {
             Long lastSent = cooldowns.get(targetUUID);
             if (lastSent != null && (now - lastSent) < cooldownMs) {
                 long remaining = cooldownMs - (now - lastSent);
-                MessageUtils.send(player, "§c⏰ You must wait §f"
-                        + MessageUtils.formatTime(remaining) + " §cbefore messaging this member again.");
+                MessageUtils.send(player, "<red>⏰ You must wait <white>"
+                        + MessageUtils.formatTime(remaining) + "</white> before messaging this member again.</red>");
                 return;
             }
 

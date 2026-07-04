@@ -7,23 +7,18 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import id.nationcore.NationCore;
 
+@SuppressWarnings("deprecation")
 public class ConfirmActionGUI {
 
     public static final String TITLE = "§4§lCONFIRM ACTION";
     private final Map<UUID, Runnable> pendingActions = new HashMap<>();
-    private final NationCore plugin;
 
     public ConfirmActionGUI(NationCore plugin) {
-        this.plugin = plugin;
     }
 
     public void open(Player player, String actionDescription, Runnable onConfirm) {

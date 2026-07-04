@@ -23,7 +23,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 /**
  * Handles GUI clicks shared across all nation types:
- * cabinet, salary, treasury (republic/communist), president history, player stats,
+ * cabinet, salary, treasury (republic/communist), president history, player
+ * stats,
  * leaderboard, help, recall, arena, hub, create nation, research.
  * (Tax/Zakah menus are per-nation and handled by {@link AbstractTaxMenu}.)
  */
@@ -207,7 +208,8 @@ public class CommonGUIHandler {
      */
     public void handleTreasuryGUI(Player player, ItemStack clicked, int slot, boolean isCommunist) {
         // Ignore filler clicks
-        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE) {
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE
+                || clicked.getType() == Material.RED_STAINED_GLASS_PANE) {
             return;
         }
 
@@ -401,7 +403,8 @@ public class CommonGUIHandler {
         }
 
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        RecallPetition petition = (nation != null) ? nation.getRecallPetition() : plugin.getDataManager().getRecallPetition();
+        RecallPetition petition = (nation != null) ? nation.getRecallPetition()
+                : plugin.getDataManager().getRecallPetition();
         boolean hasActivePetition = petition != null
                 && petition.getPhase() != RecallPetition.RecallPhase.COMPLETED
                 && petition.getPhase() != RecallPetition.RecallPhase.FAILED;
@@ -658,8 +661,8 @@ public class CommonGUIHandler {
 
         MessageUtils.send(player, "");
         MessageUtils.send(player, "<gold></gold>");
-        MessageUtils.send(player, "<yellow>You selected government type: " +
-                selected.getColoredName() + "</yellow>");
+        MessageUtils.send(player, "<gold>You selected government type: " +
+                selected.getColoredName() + "");
         MessageUtils.send(player, "<gold>Type your nation name in chat now.</gold>");
         MessageUtils.send(player,
                 "<gray>(3-24 characters, alphanumeric and spaces only. Type 'cancel' to abort.)</gray>");

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@SuppressWarnings("deprecation")
 public class CommunistPropagandaOfficeGUI extends NationMenuBase {
 
     public static final String TITLE = "§c§lMINISTER OF PROPAGANDA OFFICE";
@@ -120,7 +121,7 @@ public class CommunistPropagandaOfficeGUI extends NationMenuBase {
                 ? "Instant"
                 : MessageUtils.formatTimeShort(type.getDurationMillis())));
 
-        if (active) {
+        if (active && gov != null) {
             long remaining = 0;
             if (type == CommunistDecisionType.PROP_LEADER_GLORIFICATION) {
                 remaining = gov.getGlorificationUntil() - System.currentTimeMillis();

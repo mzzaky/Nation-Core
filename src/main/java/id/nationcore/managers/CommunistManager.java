@@ -712,6 +712,10 @@ public class CommunistManager {
         // Dispatch handler
         Result handlerResult = dispatchDecision(nation, cg, player, type);
 
+        if (handlerResult.isSuccess()) {
+            cg.addOrderHistory(type.getEnglishName() + " (Minister - " + type.getPosition().getDisplayName().replace("Minister of ", "") + ")");
+        }
+
         plugin.getDataManager().saveNations();
         return handlerResult;
     }

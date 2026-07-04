@@ -1,7 +1,5 @@
 package id.nationcore.gui.communist;
 
-import id.nationcore.gui.GUIListener;
-import id.nationcore.gui.MainMenuRouter;
 import id.nationcore.gui.NationMenuBase;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -9,7 +7,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -18,13 +15,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.util.io.BukkitObjectInputStream;
-import org.bukkit.util.io.BukkitObjectOutputStream;
-import org.yaml.snakeyaml.external.biz.base64Coder.Base64Coder;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.Nation;

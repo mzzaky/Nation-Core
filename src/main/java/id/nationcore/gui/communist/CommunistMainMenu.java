@@ -1,27 +1,22 @@
 package id.nationcore.gui.communist;
 
-import id.nationcore.gui.GUIListener;
 import id.nationcore.gui.NationMenuBase;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.CommunistGovernment;
 import id.nationcore.models.CommunistGovernment.PolitburoMember;
 import id.nationcore.models.CommunistGovernment.PolitburoPosition;
 import id.nationcore.models.Nation;
-import id.nationcore.models.PlayerData;
-import id.nationcore.models.TaxRecord.PlayerTaxProfile;
+import id.nationcore.models.ExecutiveOrder;
 
 /**
  * Main menu for COMMUNIST nations.
@@ -38,10 +33,10 @@ import id.nationcore.models.TaxRecord.PlayerTaxProfile;
  * Row 5  [FILLER] [FILLER] [FILLER] [FILLER] [FILLER] [FILLER] [FILLER] [FILLER] [FILLER]
  * </pre>
  */
+@SuppressWarnings("deprecation")
 public class CommunistMainMenu extends NationMenuBase {
 
-    public static final String TITLE = ChatColor.translateAlternateColorCodes('&',
-            "&c&l☭ &4&lPolitburo Hall");
+    public static final String TITLE = "§c§l☭ §4§lPolitburo Hall";
 
     // ── Slot constants ──────────────────────────────────────────────────────
     private static final int SLOT_NATION_PROFILE = 4; // Nation Profile (GLOW_ITEM_FRAME)
@@ -89,7 +84,7 @@ public class CommunistMainMenu extends NationMenuBase {
         inv.setItem(SLOT_NATION_PROFILE, buildNationProfile(nation, cg));
 
         // ── Row 1: Core buttons ─────────────────────────────────────────
-        inv.setItem(SLOT_PARTY_POLICY, buildPartyPolicyCard(cg));
+        inv.setItem(SLOT_PARTY_POLICY, buildPartyPolicyCard(nation, cg));
         inv.setItem(SLOT_CABINET, buildCabinetCard(cg));
         inv.setItem(SLOT_SEKJEN, buildSekjenCard(cg, nation));
         inv.setItem(SLOT_PARTY_MEMBERS, buildPartyMembersCard(cg, nation));
@@ -179,38 +174,105 @@ public class CommunistMainMenu extends NationMenuBase {
 
     // ── 2. Party Policy (slot 10) — PALE_OAK_HANGING_SIGN ──────────────
 
-    private ItemStack buildPartyPolicyCard(CommunistGovernment cg) {
-        int activeFlags = 0;
-        if (cg != null) {
-            if (cg.isDefenseProtocolActive())
-                activeFlags++;
-            if (cg.isOffenseProtocolActive())
-                activeFlags++;
-            if (cg.isQuarantineActive())
-                activeFlags++;
-            if (cg.isPlagueActive())
-                activeFlags++;
-            if (cg.isMarketEventActive())
-                activeFlags++;
-            if (cg.isVaccinationActive())
-                activeFlags++;
-            if (cg.isMilitaryEmergencyActive())
-                activeFlags++;
-            if (cg.isGlorificationActive())
-                activeFlags++;
-            if (cg.isSensorMediaActive())
-                activeFlags++;
+    private ItemStack buildPartyPolicyCard(Nation nation, CommunistGovernment cg) {
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("&7View and monitor all active executive");
+        lore.add("&7directives and policies currently affecting");
+        lore.add("&7your nation.");
+        lore.add("");
+
+        // Active Orders
+        lore.add("&c&lACTIVE DIRECTIVES");
+        int activeCount = 0;
+
+        // Leader orders
+        if (nation != null) {
+            List<ExecutiveOrder> activeLeaderOrders = plugin.getExecutiveOrderManager().getActiveOrders(nation);
+            for (ExecutiveOrder order : activeLeaderOrders) {
+                lore.add(" &8• &e" + order.getType().getDisplayName() + " &8(&dLeader&8)");
+                activeCount++;
+            }
         }
+
+        // Minister orders
+        if (cg != null) {
+            if (cg.isGlorificationActive()) {
+                lore.add(" &8• &aLeader Glorification &8(&6Minister - Propaganda&8)");
+                activeCount++;
+            }
+            if (cg.isSensorMediaActive()) {
+                lore.add(" &8• &aMedia Censorship &8(&6Minister - Propaganda&8)");
+                activeCount++;
+            }
+            if (cg.isDefenseProtocolActive()) {
+                lore.add(" &8• &aDefense Protocol &8(&6Minister - Defense&8)");
+                activeCount++;
+            }
+            if (cg.isOffenseProtocolActive()) {
+                lore.add(" &8• &aOffense Protocol &8(&6Minister - Defense&8)");
+                activeCount++;
+            }
+            if (cg.isMilitaryEmergencyActive()) {
+                lore.add(" &8• &aMilitary Emergency &8(&6Minister - Defense&8)");
+                activeCount++;
+            }
+            if (cg.getDistributionProgramPhasesLeft() > 0) {
+                lore.add(" &8• &aDistribution Program &8(&6Minister - Treasury&8)");
+                activeCount++;
+            }
+            if (cg.getTaxIntensificationPhasesLeft() > 0) {
+                lore.add(" &8• &aTax Intensification &8(&6Minister - Treasury&8)");
+                activeCount++;
+            }
+            if (cg.isMarketEventActive()) {
+                lore.add(" &8• &aMarket Event &8(&6Minister - Treasury&8)");
+                activeCount++;
+            }
+            if (cg.isQuarantineActive()) {
+                lore.add(" &8• &aQuarantine Protocol &8(&6Minister - Health&8)");
+                activeCount++;
+            }
+            if (cg.isVaccinationActive()) {
+                lore.add(" &8• &aVaccination Drive &8(&6Minister - Health&8)");
+                activeCount++;
+            }
+            if (cg.isPlagueActive()) {
+                lore.add(" &8• &aPlague &8(&6Minister - Health&8)");
+                activeCount++;
+            }
+        }
+
+        if (activeCount == 0) {
+            lore.add(" &8• &7No active directives.");
+        }
+
+        lore.add("");
+        lore.add("&c&lRECENT HISTORY");
+        if (cg != null && !cg.getOrderHistory().isEmpty()) {
+            int idx = 1;
+            for (String entry : cg.getOrderHistory()) {
+                String cleanEntry = entry;
+                if (entry.endsWith("(Leader)")) {
+                    String name = entry.substring(0, entry.indexOf(" (Leader)"));
+                    cleanEntry = "&f" + name + " &8(&dLeader&8)";
+                } else if (entry.contains(" (Minister - ")) {
+                    int startIdx = entry.indexOf(" (Minister - ");
+                    String name = entry.substring(0, startIdx);
+                    String dept = entry.substring(startIdx + 13, entry.length() - 1);
+                    cleanEntry = "&f" + name + " &8(&6Minister - " + dept + "&8)";
+                }
+                lore.add(" &8• &7" + idx + ". " + cleanEntry);
+                idx++;
+            }
+        } else {
+            lore.add(" &8• &7No activation history.");
+        }
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
         return buildIcon(Material.PALE_OAK_HANGING_SIGN,
                 "&5&lParty Policy",
-                "",
-                "&7View active executive orders",
-                "&7issued by the party leadership.",
-                "",
-                "&8 ● &7active orders : &6" + activeFlags,
-                "",
-                "&cclick to open executive order menu!");
+                lore);
     }
 
     // ── 3. Cabinet Members (slot 11) — FIRE_CHARGE ─────────────────
@@ -302,7 +364,7 @@ public class CommunistMainMenu extends NationMenuBase {
 
         List<String> lore = new ArrayList<>();
         lore.add("");
-        lore.add("&7Registered permanent party members");
+        lore.add("&7Appointed permanent party members");
         lore.add("&7with full voting rights.");
         lore.add("");
         lore.add("&8 ● &7members: &f" + partyCount + " &8/ &f5 &7(&c" + percent + "%&7)");

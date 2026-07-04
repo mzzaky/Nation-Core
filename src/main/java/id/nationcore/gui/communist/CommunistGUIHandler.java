@@ -12,6 +12,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.CommunistGovernment;
+import id.nationcore.models.FakeMember;
 import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
 
@@ -54,12 +55,6 @@ public class CommunistGUIHandler {
         }
 
         if (slot == CommunistMainMenu.getSlot("PARTY_POLICY")) {
-            if (!presidentCabinetOrParty) {
-                MessageUtils.send(player,
-                        "<red>Only the Secretary General, Cabinet, and Party Members can access this menu.</red>");
-                return;
-            }
-            gui.openOrdersGUI(player);
             return;
         }
 
@@ -391,58 +386,7 @@ public class CommunistGUIHandler {
         });
     }
 
-    public void handleOrdersGUI(Player player, ItemStack clicked, int slot) {
-        if (CommunistExecutiveOrdersMenu.SLOT_CLOSE == slot || clicked.getType() == Material.BARRIER) {
-            player.closeInventory();
-            return;
-        }
-        if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
-            gui.mainMenuRouter.openFor(player);
-            return;
-        }
 
-        if (CommunistExecutiveOrdersMenu.handleTabClick(player, slot)) {
-            gui.openOrdersGUI(player);
-            return;
-        }
-
-        id.nationcore.models.CommunistDecisionType type = CommunistExecutiveOrdersMenu.getDecisionAtSlot(player, slot);
-        if (type == null) {
-            id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType = CommunistExecutiveOrdersMenu
-                    .getExecutiveOrderAtSlot(player, slot);
-            if (eoType == null)
-                return;
-
-            if (clicked.getType() != Material.YELLOW_CONCRETE) {
-                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
-                return;
-            }
-
-            player.closeInventory();
-            plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
-            return;
-        }
-
-        if (clicked.getType() != Material.YELLOW_CONCRETE) {
-            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
-            return;
-        }
-
-        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        if (nation == null) {
-            MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
-            player.closeInventory();
-            return;
-        }
-
-        player.closeInventory();
-        var result = plugin.getCommunistManager().executeDecision(nation, player, type);
-        if (result.isSuccess()) {
-            MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
-        } else {
-            MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
-        }
-    }
 
     public void handleMemberManagementGUI(Player player, ItemStack clicked, int slot) {
         if (clicked == null || clicked.getType() == Material.AIR)
@@ -460,20 +404,20 @@ public class CommunistGUIHandler {
 
         int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
 
-        if (slot == 47) {
+        if (slot == 43) {
             gui.memberListPage.remove(player.getUniqueId());
             gui.communistGovernmentGUI.open(player, nation);
             return;
         }
 
-        if (slot == 45 && clicked.getType() == Material.ARROW) {
+        if (slot == 48 && clicked.getType() == Material.ARROW) {
             page = Math.max(0, page - 1);
             gui.memberListPage.put(player.getUniqueId(), page);
             gui.communistMemberManagementGUI.open(player, nation, page);
             return;
         }
 
-        if (slot == 53 && clicked.getType() == Material.ARROW) {
+        if (slot == 50 && clicked.getType() == Material.ARROW) {
             page++;
             gui.memberListPage.put(player.getUniqueId(), page);
             gui.communistMemberManagementGUI.open(player, nation, page);
@@ -507,7 +451,7 @@ public class CommunistGUIHandler {
         CommunistGovernment cg = nation.getCommunistGovernment();
         UUID targetUUID = gui.viewingManagedMember.get(player.getUniqueId());
 
-        if (slot == 22 || clicked.getType() == Material.SPECTRAL_ARROW) {
+        if (slot == 43 || clicked.getType() == Material.SPECTRAL_ARROW) {
             int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
             gui.communistMemberManagementGUI.open(player, nation, page);
             return;
@@ -527,9 +471,111 @@ public class CommunistGUIHandler {
             return;
         }
 
-        if (slot == 10 && clicked.getType() == Material.RED_CONCRETE) {
-            gui.confirmActionGUI.open(player, "Kick " + Bukkit.getOfflinePlayer(targetUUID).getName() + " from nation",
+        // Slot 21 — Party Member Action Button
+        if (slot == 21) {
+            if (cg == null) return;
+            boolean isTargetSekjen = cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(targetUUID);
+            if (isTargetSekjen) {
+                MessageUtils.send(player, "<red>The Secretary General is already in the Party.</red>");
+                return;
+            }
+            boolean isPolitburo = cg.getPolitburoMemberByUUID(targetUUID) != null;
+            if (isPolitburo) {
+                MessageUtils.send(player, "<red>This member is in the Politburo and cannot be removed from the Party.</red>");
+                return;
+            }
+
+            boolean isParty = cg.isPartyMember(targetUUID);
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            final String finalTargetName = targetName != null ? targetName : "Unknown";
+
+            if (isParty) {
+                gui.confirmActionGUI.open(player,
+                        "Remove " + finalTargetName + " from Party",
+                        () -> {
+                            cg.removePartyMember(targetUUID);
+                            plugin.getDataManager().saveNations();
+                            MessageUtils.send(player, "<green>Successfully removed " + finalTargetName + " from the Party.</green>");
+                            
+                            org.bukkit.entity.Player targetOnline = Bukkit.getPlayer(targetUUID);
+                            if (targetOnline != null) {
+                                MessageUtils.send(targetOnline, "<red>🚩 You have been removed from the Party of " + nation.getName() + ".</red>");
+                            }
+                            gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                        });
+            } else {
+                if (cg.getPartyMemberCount() >= 5) {
+                    MessageUtils.send(player, "<red>The Party slots are full (maximum 5).</red>");
+                    return;
+                }
+                gui.confirmActionGUI.open(player,
+                        "Appoint " + finalTargetName + " as Party Member",
+                        () -> {
+                            cg.addPartyMember(targetUUID);
+                            plugin.getDataManager().saveNations();
+                            MessageUtils.send(player, "<green>Successfully appointed " + finalTargetName + " as Party Member.</green>");
+                            
+                            org.bukkit.entity.Player targetOnline = Bukkit.getPlayer(targetUUID);
+                            if (targetOnline != null) {
+                                MessageUtils.send(targetOnline, "<gold>🚩 You have been admitted to the Party of " + nation.getName() + "!</gold>");
+                            }
+                            gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                        });
+            }
+            return;
+        }
+
+        // Slot 22 — Send Message
+        if (slot == 22 && clicked.getType() == Material.WRITABLE_BOOK) {
+            long now = System.currentTimeMillis();
+            long cooldownMs = 60L * 60 * 1000; // 1 hour
+            java.util.Map<UUID, Long> cooldowns = gui.memberMessageCooldowns
+                    .computeIfAbsent(player.getUniqueId(), k -> new java.util.HashMap<>());
+            Long lastSent = cooldowns.get(targetUUID);
+            if (lastSent != null && (now - lastSent) < cooldownMs) {
+                long remaining = cooldownMs - (now - lastSent);
+                MessageUtils.send(player, "<red>⏰ You must wait <white>"
+                        + MessageUtils.formatTime(remaining) + "</white> before messaging this member again.</red>");
+                return;
+            }
+
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            final String finalTargetName = targetName != null ? targetName : "Unknown";
+
+            player.closeInventory();
+            id.nationcore.listeners.ChatListener.pendingMemberMessages.put(
+                    player.getUniqueId(),
+                    new id.nationcore.listeners.ChatListener.PendingMemberMessage(nation, targetUUID, finalTargetName));
+            MessageUtils.send(player, "§bType your message to §f" + finalTargetName
+                    + "§b in chat. Type §fcanceled§b to abort.");
+            return;
+        }
+
+        // Slot 23 — Kick Member
+        if (slot == 23 && clicked.getType() == Material.BOOK) {
+            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (targetName == null && FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc != null) targetName = npc.getName();
+            }
+            final String finalName = targetName != null ? targetName : "Unknown";
+
+            gui.confirmActionGUI.open(player, "Kick " + finalName + " from nation",
                     () -> {
+                        if (FakeMember.isNpcUUID(targetUUID)) {
+                            var result = plugin.getFakeMemberManager().kickNpcByUUID(nation.getId(), targetUUID);
+                            if (result.isSuccess()) {
+                                MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                                gui.viewingManagedMember.remove(player.getUniqueId());
+                                int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
+                                gui.communistMemberManagementGUI.open(player, nation, page);
+                            } else {
+                                MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                                gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                            }
+                            return;
+                        }
+
                         id.nationcore.managers.NationManager.Result result = plugin.getNationManager()
                                 .kickMember(player, targetUUID);
                         if (result.isSuccess()) {
@@ -545,100 +591,49 @@ public class CommunistGUIHandler {
             return;
         }
 
-        if (slot == 13 && clicked.getType() == Material.LIME_CONCRETE) {
-            if (cg == null) {
-                MessageUtils.send(player, "§cCommunist government not found.");
+        // Slots 29, 30, 32, 33 — Appoint Politburo Minister
+        CommunistGovernment.PolitburoPosition appointPos = switch (slot) {
+            case 29 -> CommunistGovernment.PolitburoPosition.PROPAGANDA;
+            case 30 -> CommunistGovernment.PolitburoPosition.DEFENSE;
+            case 32 -> CommunistGovernment.PolitburoPosition.TREASURY;
+            case 33 -> CommunistGovernment.PolitburoPosition.HEALTH;
+            default -> null;
+        };
+
+        if (appointPos != null && clicked.getType() == Material.WRITTEN_BOOK) {
+            if (cg != null && cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(targetUUID)) {
+                MessageUtils.send(player, "<red>The Secretary General cannot be a Minister.</red>");
                 return;
             }
-            if (cg.isPartyMember(targetUUID)) {
-                MessageUtils.send(player, "§eThis player is already a Party member.");
-                gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+            if (cg != null && !cg.isPartyMember(targetUUID)) {
+                MessageUtils.send(player, "<red>Must be a Party member first.</red>");
                 return;
             }
-            if (cg.getPartyMemberCount() >= 5) {
-                MessageUtils.send(player, "§cThe Party is full (max 5 members).");
-                gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
-                return;
+            final CommunistGovernment.PolitburoPosition finalPos = appointPos;
+            String memberName = Bukkit.getOfflinePlayer(targetUUID).getName();
+            if (memberName == null && FakeMember.isNpcUUID(targetUUID)) {
+                FakeMember npc = nation.getFakeMember(targetUUID);
+                if (npc != null) memberName = npc.getName();
             }
-            cg.addPartyMember(targetUUID);
-            plugin.getDataManager().saveNations();
+            final String finalMemberName = memberName != null ? memberName : "Unknown";
 
-            String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
-            MessageUtils.send(player, "<green>" + targetName + " has been added to the Party.</green>");
-
-            org.bukkit.entity.Player targetOnline = Bukkit.getPlayer(targetUUID);
-            if (targetOnline != null) {
-                MessageUtils.send(targetOnline,
-                        "<gold>🚩 You have been admitted to the Party of " + nation.getName() + "!</gold>");
-            }
-
-            gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
-            return;
-        }
-
-        if (slot == 16 && clicked.getType() == Material.GOLD_BLOCK) {
-            gui.communistMemberManagementGUI.openPolitburoPositionPicker(player, nation, targetUUID);
-            return;
+            gui.confirmActionGUI.open(player,
+                    "Appoint " + finalMemberName + " as " + finalPos.getDisplayName(),
+                    () -> {
+                        var result = plugin.getCommunistManager().appointPolitburo(nation, finalPos, targetUUID, finalMemberName);
+                        if (result.isSuccess()) {
+                            MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
+                            plugin.getDataManager().saveNations();
+                        } else {
+                            MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
+                        }
+                        gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+                    });
         }
     }
 
-    @SuppressWarnings("deprecation")
     public void handlePolitburoPickerGUI(Player player, ItemStack clicked, int slot, String title) {
-        if (clicked == null || clicked.getType() == Material.AIR)
-            return;
-        if (clicked.getType() == Material.RED_STAINED_GLASS_PANE)
-            return;
-
-        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
-
-        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        if (nation == null) {
-            player.closeInventory();
-            return;
-        }
-
-        UUID targetUUID = gui.viewingManagedMember.get(player.getUniqueId());
-
-        if (slot == 22 || clicked.getType() == Material.SPECTRAL_ARROW) {
-            if (targetUUID != null) {
-                gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
-            } else {
-                int page = gui.memberListPage.getOrDefault(player.getUniqueId(), 0);
-                gui.communistMemberManagementGUI.open(player, nation, page);
-            }
-            return;
-        }
-
-        if (targetUUID == null) {
-            player.closeInventory();
-            return;
-        }
-
-        CommunistGovernment cg = nation.getCommunistGovernment();
-        boolean isSekjen = cg != null && cg.hasSecretaryGeneral()
-                && cg.getSecretaryGeneralUUID().equals(player.getUniqueId());
-        boolean isAdmin = player.hasPermission("nation.admin");
-        if (!isSekjen && !isAdmin) {
-            MessageUtils.send(player, "§cOnly the Secretary General can appoint Politburo.");
-            player.closeInventory();
-            return;
-        }
-
-        CommunistGovernment.PolitburoPosition position = CommunistMemberManagementGUI.getPositionForPickerSlot(slot);
-        if (position == null)
-            return;
-
-        String targetName = Bukkit.getOfflinePlayer(targetUUID).getName();
-        id.nationcore.managers.CommunistManager.Result result = plugin.getCommunistManager().appointPolitburo(nation,
-                position, targetUUID, targetName);
-
-        if (result.isSuccess()) {
-            MessageUtils.send(player, "<green>" + result.getMessage() + "</green>");
-        } else {
-            MessageUtils.send(player, "<red>" + result.getMessage() + "</red>");
-        }
-
-        gui.communistMemberManagementGUI.openActionMenu(player, nation, targetUUID);
+        // Obsolete position picker
     }
 
     public void handleSharedStorage(InventoryClickEvent event, Player player, ItemStack clicked, int rawSlot) {

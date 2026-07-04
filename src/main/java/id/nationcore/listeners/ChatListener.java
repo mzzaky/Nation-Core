@@ -325,17 +325,50 @@ public class ChatListener implements Listener {
                 return;
             }
 
-            id.nationcore.models.Government gov = pending.nation().getRepublicGovernment();
-            String presidentName = gov != null && gov.hasPresident() ? gov.getPresidentName() : player.getName();
+            String leaderTitle = "President";
+            String leaderSymbol = "👑 ";
+            String leaderName = player.getName();
+
+            if (pending.nation().getType() == GovernmentType.COMMUNIST) {
+                leaderTitle = "Secretary General";
+                leaderSymbol = "🚩 ";
+                id.nationcore.models.CommunistGovernment cg = pending.nation().getCommunistGovernment();
+                if (cg != null && cg.hasSecretaryGeneral()) {
+                    leaderName = cg.getSecretaryGeneralName();
+                }
+            } else if (pending.nation().getType() == GovernmentType.REPUBLIC) {
+                id.nationcore.models.Government republicGov = pending.nation().getRepublicGovernment();
+                if (republicGov != null && republicGov.hasPresident()) {
+                    leaderName = republicGov.getPresidentName();
+                }
+            } else if (pending.nation().getType() == GovernmentType.MONARCHY) {
+                leaderTitle = "King";
+                leaderSymbol = "👑 ";
+                id.nationcore.models.MonarchyGovernment monGov = pending.nation().getMonarchyGovernment();
+                if (monGov != null && monGov.hasKing()) {
+                    leaderName = monGov.getKingName();
+                }
+            } else if (pending.nation().getType() == GovernmentType.CALIPHATE) {
+                leaderTitle = "Caliph";
+                leaderSymbol = "☪ ";
+                id.nationcore.models.CaliphateGovernment caliphGov = pending.nation().getCaliphateGovernment();
+                if (caliphGov != null && caliphGov.hasCaliph()) {
+                    leaderName = caliphGov.getCaliphName();
+                }
+            }
+
+            final String finalLeaderTitle = leaderTitle;
+            final String finalLeaderSymbol = leaderSymbol;
+            final String finalLeaderName = leaderName;
 
             org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
                 // Deliver to target if online
                 Player target = org.bukkit.Bukkit.getPlayer(pending.targetUUID());
                 if (target != null) {
                     MessageUtils.send(target, "");
-                    MessageUtils.send(target, "<gold>════════ [PRESIDENTIAL MESSAGE] ════════</gold>");
-                    MessageUtils.send(target, "<gold>👑 [President]</gold> <yellow>" + input + "</yellow>");
-                    MessageUtils.send(target, "<gray>— From President " + presidentName + "</gray>");
+                    MessageUtils.send(target, "<gold>════════ [" + finalLeaderTitle.toUpperCase() + " MESSAGE] ════════</gold>");
+                    MessageUtils.send(target, "<gold>" + finalLeaderSymbol + "[" + finalLeaderTitle + "]</gold> <yellow>" + input + "</yellow>");
+                    MessageUtils.send(target, "<gray>— From " + finalLeaderTitle + " " + finalLeaderName + "</gray>");
                     MessageUtils.send(target, "<gold>═══════════════════════════════════════</gold>");
                     target.playSound(target.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
                     MessageUtils.send(player, "<green>Message sent to " + pending.targetName() + ".</green>");

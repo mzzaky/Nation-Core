@@ -515,6 +515,9 @@ public class NationCommand implements CommandExecutor, TabCompleter {
             case "invoice":
                 handleAdminInvoice(sender, args);
                 break;
+            case "research":
+                handleAdminResearch(sender, args);
+                break;
             default:
                 showAdminHelp(sender);
                 break;
@@ -534,6 +537,8 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "<gold>/nationcore admin npc kick <nation_name> <name>   <gray>- Kick a fake member from the nation");
         MessageUtils.send(sender, "<gold>/nationcore admin npc role <nation_name> <name> <role> <gray>- Change a fake member's role");
         MessageUtils.send(sender, "<gold>/nationcore admin npc list <nation_name>           <gray>- View list of fake members");
+        MessageUtils.send(sender, "<gold>/nationcore admin research set <nation_name> <research_id> <level> <gray>- Set a nation's research level");
+        MessageUtils.send(sender, "<gold>/nationcore admin research reset <nation_name>                       <gray>- Reset all research data for a nation");
     }
 
     private void handleAdminInvoice(CommandSender sender, String[] args) {
@@ -1066,6 +1071,117 @@ public class NationCommand implements CommandExecutor, TabCompleter {
         MessageUtils.send(sender, "general.config_reloaded");
     }
 
+    // === ADMIN RESEARCH ===
+
+    private void handleAdminResearch(CommandSender sender, String[] args) {
+        // /nationcore admin research <set|reset> ...
+        if (args.length < 3) {
+            sendResearchAdminHelp(sender);
+            return;
+        }
+
+        String sub = args[2].toLowerCase();
+        switch (sub) {
+            case "set"   -> handleAdminResearchSet(sender, args);
+            case "reset" -> handleAdminResearchReset(sender, args);
+            default      -> sendResearchAdminHelp(sender);
+        }
+    }
+
+    private void sendResearchAdminHelp(CommandSender sender) {
+        MessageUtils.send(sender, "<gold>═══ ADMIN RESEARCH COMMANDS ═══");
+        MessageUtils.send(sender, "<white>/nationcore admin research set <nation_name> <research_id> <level>");
+        MessageUtils.send(sender, "<white>/nationcore admin research reset <nation_name>");
+    }
+
+    /**
+     * /nationcore admin research set <nation_name> <research_id> <level>
+     *
+     * Sets a specific research type to the given level for a nation.
+     * The level is clamped between 0 and the configured max level.
+     */
+    private void handleAdminResearchSet(CommandSender sender, String[] args) {
+        // Minimum: admin research set <nation> <research_id> <level>  → args[0..5]
+        if (args.length < 6) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin research set <nation_name> <research_id> <level></red>");
+            return;
+        }
+
+        // Last arg is the level, second-to-last is research_id.
+        // Everything between args[3] and args[length-3] is the nation name.
+        String levelStr    = args[args.length - 1];
+        String researchId  = args[args.length - 2];
+        String nationName  = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 2));
+
+        // Resolve nation
+        Nation nation = plugin.getNationManager().getNationByName(nationName);
+        if (nation == null) nation = plugin.getNationManager().getNation(nationName);
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation '" + nationName + "' not found.</red>");
+            return;
+        }
+
+        // Resolve research type
+        id.nationcore.models.ResearchType type = id.nationcore.models.ResearchType.fromId(researchId);
+        if (type == null) {
+            MessageUtils.send(sender, "<red>Unknown research ID: '" + researchId + "'. Use tab-complete to see valid IDs.</red>");
+            return;
+        }
+
+        // Parse level
+        int level;
+        try {
+            level = Integer.parseInt(levelStr);
+        } catch (NumberFormatException e) {
+            MessageUtils.send(sender, "<red>Invalid level value. Must be an integer.</red>");
+            return;
+        }
+
+        int maxLevel = plugin.getResearchManager().getMaxLevel(type);
+        if (level < 0 || level > maxLevel) {
+            MessageUtils.send(sender, "<red>Level must be between 0 and " + maxLevel + " for '" + type.getDisplayName() + "'.</red>");
+            return;
+        }
+
+        nation.getResearchData().setLevel(type, level);
+        plugin.getDataManager().saveNations();
+
+        MessageUtils.send(sender, "<green>Set research '<gold>" + type.getDisplayName()
+                + "<green>' to level <white>" + level
+                + "<green> for nation '<gold>" + nation.getName() + "<green>'.</green>");
+    }
+
+    /**
+     * /nationcore admin research reset <nation_name>
+     *
+     * Clears all research level data for the nation and cancels any active research.
+     */
+    private void handleAdminResearchReset(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            MessageUtils.send(sender, "<red>Usage: /nationcore admin research reset <nation_name></red>");
+            return;
+        }
+
+        String nationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+
+        Nation nation = plugin.getNationManager().getNationByName(nationName);
+        if (nation == null) nation = plugin.getNationManager().getNation(nationName);
+        if (nation == null) {
+            MessageUtils.send(sender, "<red>Nation '" + nationName + "' not found.</red>");
+            return;
+        }
+
+        id.nationcore.models.NationResearchData researchData = nation.getResearchData();
+        researchData.getLevels().clear();
+        researchData.setActive(null);
+        researchData.setLastCompletedAt(0);
+        researchData.setTotalProjectsCompleted(0);
+        researchData.setTotalVaultSpent(0);
+        plugin.getDataManager().saveNations();
+
+        MessageUtils.send(sender, "<green>All research data for nation '<gold>" + nation.getName() + "<green>' has been reset.</green>");
+    }
+
 
     private void handleDiplomacy(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -1163,7 +1279,7 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                 case "admin":
                     if (sender.hasPermission("nation.admin")) {
                         completions.addAll(Arrays.asList(
-                                "set", "remove", "treasury", "reload", "confirm", "npc", "invoice"));
+                                "set", "remove", "treasury", "reload", "confirm", "npc", "invoice", "research"));
                     }
                     break;
                 case "treasury":
@@ -1195,13 +1311,68 @@ public class NationCommand implements CommandExecutor, TabCompleter {
                     completions.addAll(Arrays.asList("invite", "kick", "role", "list"));
                 } else if (sub2.equals("invoice")) {
                     completions.addAll(Arrays.asList("add", "remove"));
+                } else if (sub2.equals("research")) {
+                    completions.addAll(Arrays.asList("set", "reset"));
                 }
             }
         } else if (args.length >= 4) {
             String sub = args[0].toLowerCase();
             String sub2 = args[1].toLowerCase();
 
-            if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("leader")) {
+            // admin research set / reset — nation name completions
+            if (sub.equals("admin") && sub2.equals("research") && sender.hasPermission("nation.admin")) {
+                String researchSub = args[2].toLowerCase();
+                if (researchSub.equals("reset")) {
+                    // /nationcore admin research reset <nation_name...>
+                    for (Nation n : plugin.getNationManager().getAllNations()) {
+                        if (n.getName() != null) completions.add(n.getName());
+                    }
+                } else if (researchSub.equals("set")) {
+                    // /nationcore admin research set <nation_name...> <research_id> <level>
+                    // args[3..] — we try to find how much of the tail is already a valid nation name.
+                    // Once we have a nation match, the next arg is research_id, then level.
+                    Nation foundNation = null;
+                    int nationEndIndex = -1; // index of the last nation-name token (0-based in args)
+
+                    StringBuilder currentName = new StringBuilder();
+                    for (int i = 3; i < args.length; i++) {
+                        if (i > 3) currentName.append(" ");
+                        currentName.append(args[i]);
+                        Nation n = plugin.getNationManager().getNationByName(currentName.toString());
+                        if (n == null) n = plugin.getNationManager().getNation(args[i]);
+                        if (n != null) {
+                            foundNation = n;
+                            nationEndIndex = i;
+                        }
+                    }
+
+                    if (foundNation == null) {
+                        // Still typing the nation name
+                        for (Nation n : plugin.getNationManager().getAllNations()) {
+                            if (n.getName() != null) completions.add(n.getName());
+                        }
+                    } else {
+                        int researchIdIndex = nationEndIndex + 1; // 0-based in args
+                        int levelIndex      = nationEndIndex + 2;
+                        if (args.length == researchIdIndex + 1) {
+                            // Suggest research IDs
+                            for (id.nationcore.models.ResearchType rt : id.nationcore.models.ResearchType.values()) {
+                                completions.add(rt.getId());
+                            }
+                        } else if (args.length == levelIndex + 1) {
+                            // Suggest level numbers 0..maxLevel for the chosen research type
+                            id.nationcore.models.ResearchType rt =
+                                    id.nationcore.models.ResearchType.fromId(args[researchIdIndex]);
+                            if (rt != null) {
+                                int max = plugin.getResearchManager().getMaxLevel(rt);
+                                for (int lvl = 0; lvl <= max; lvl++) {
+                                    completions.add(String.valueOf(lvl));
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (sub.equals("admin") && sub2.equals("set") && args[2].equalsIgnoreCase("leader")) {
                 boolean isNationNameComplete = false;
                 if (args.length > 4) {
                     String potentialNationName = String.join(" ", Arrays.copyOfRange(args, 3, args.length - 1));

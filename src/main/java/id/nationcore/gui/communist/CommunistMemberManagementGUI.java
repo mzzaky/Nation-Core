@@ -1,7 +1,6 @@
 package id.nationcore.gui.communist;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,46 +15,30 @@ import org.bukkit.inventory.meta.SkullMeta;
 import id.nationcore.NationCore;
 import id.nationcore.models.CommunistGovernment;
 import id.nationcore.models.CommunistGovernment.PolitburoPosition;
+import id.nationcore.models.FakeMember;
 import id.nationcore.models.Nation;
 import id.nationcore.models.Nation.NationMember;
 import id.nationcore.models.Nation.NationRole;
 import id.nationcore.utils.MessageUtils;
 
-/**
- * Custom GUI for nation member management in a Communist government.
- *
- * <p>Layout (6 rows × 9 cols = 54 slots):</p>
- * <pre>
- *  Row 0 (0-8)   : header / filler
- *  Row 1-4       : member heads (slots 9-44, up to 36 entries per page)
- *  Row 5 (45-53) : navigation (prev / info / next / back / close)
- * </pre>
- *
- * <p>Clicking a member head opens an action sub-menu for that member.</p>
- *
- * <h3>Action sub-menu titles (prefix-based for identification):</h3>
- * <ul>
- *   <li>{@link #ACTION_TITLE_PREFIX} + playerName  — member action menu</li>
- *   <li>{@link #POLITBURO_PICK_TITLE_PREFIX} + playerName — position picker</li>
- * </ul>
- */
+@SuppressWarnings({"deprecation", "unused"})
 public class CommunistMemberManagementGUI {
 
-    // ── GUI title constants ────────────────────────────────────────────────
-    public static final String TITLE         = "§c§l⚑ MEMBER MANAGEMENT ⚑";
-    public static final String ACTION_TITLE_PREFIX        = "§c§l[ACTION] §f";
+    public static final String TITLE = "§c§l⚑ MEMBER MANAGEMENT ⚑";
+    public static final String ACTION_TITLE_PREFIX = "§c§l[ACTION] §f";
     public static final String POLITBURO_PICK_TITLE_PREFIX = "§c§l[POLITBURO] §f";
 
-    /** Slots in the main list used for member heads (rows 1-4). */
-    private static final int MEMBERS_PER_PAGE = 28;
+    private static final int MEMBERS_PER_PAGE = 27;
     private static final int[] MEMBER_SLOTS;
 
     static {
-        // Slots 10-16, 19-25, 28-34, 37-43 — leaving edges as glass pane borders
         List<Integer> slots = new ArrayList<>();
         for (int row = 1; row <= 4; row++) {
             for (int col = 1; col <= 7; col++) {
-                slots.add(row * 9 + col);
+                int slot = row * 9 + col;
+                if (slot != 43) {
+                    slots.add(slot);
+                }
             }
         }
         MEMBER_SLOTS = slots.stream().mapToInt(Integer::intValue).toArray();
@@ -67,47 +50,47 @@ public class CommunistMemberManagementGUI {
         this.plugin = plugin;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // MAIN LIST
-    // ════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Opens the main member list (page 0 = first page).
-     */
     public void open(Player viewer, Nation nation, int page) {
         if (nation == null) return;
         CommunistGovernment cg = nation.getCommunistGovernment();
 
         List<NationMember> members = new ArrayList<>(nation.getMembers().values());
-        // Sort: leader first, then officers, then citizens
-        members.sort((a, b) -> a.getRole().ordinal() - b.getRole().ordinal());
+        for (FakeMember npc : nation.getAllFakeMembers()) {
+            members.add(new NationMember(npc.getId(), npc.getName(), npc.getRole()));
+        }
+        // Sort hierarchy: 0=Secretary General, 1=Politburo, 2=Party Member, 3=Citizen
+        members.sort((a, b) -> {
+            int roleA = getRoleWeight(a.getUuid(), cg);
+            int roleB = getRoleWeight(b.getUuid(), cg);
+            return Integer.compare(roleA, roleB);
+        });
 
         int totalPages = Math.max(1, (int) Math.ceil(members.size() / (double) MEMBERS_PER_PAGE));
         page = Math.max(0, Math.min(page, totalPages - 1));
 
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
 
-        // ── Glass border ───────────────────────────────────────────────────
+        // Glass border (uses red stained glass for communist style)
         ItemStack border = createItem(Material.RED_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 54; i++) {
-            inv.setItem(i, border);
+        int[] borderSlots = {0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
+        for (int slot : borderSlots) {
+            inv.setItem(slot, border);
         }
 
-        // ── Header info (slot 4) ───────────────────────────────────────────
-        int nationMembers  = nation.getMemberCount();
-        int partyMembers   = cg != null ? cg.getPartyMemberCount() : 0;
+        // Header info
+        int partyMembers = cg != null ? cg.getPartyMemberCount() : 0;
         int politburoCount = cg != null ? cg.getPolitburo().size() : 0;
 
         inv.setItem(4, createItem(Material.WRITABLE_BOOK,
                 "§c§l⚑ " + nation.getName() + " — Member Management",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Nation Members : §f" + nationMembers,
-                "§7Party Members  : §f" + partyMembers,
-                "§7Politburo      : §f" + politburoCount + " / " + PolitburoPosition.values().length,
+                "§7Total Members  : §f" + nation.getMemberCount(),
+                "§7Party Members  : §f" + partyMembers + " / 5",
+                "§7Politburo      : §f" + politburoCount + " / 4",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Click a member to manage."));
 
-        // ── Member heads ───────────────────────────────────────────────────
+        // Member heads
         int startIndex = page * MEMBERS_PER_PAGE;
         for (int i = 0; i < MEMBERS_PER_PAGE; i++) {
             int memberIndex = startIndex + i;
@@ -117,48 +100,41 @@ public class CommunistMemberManagementGUI {
             inv.setItem(MEMBER_SLOTS[i], buildMemberHead(member, cg));
         }
 
-        // ── Navigation row (row 5) ─────────────────────────────────────────
-        // Previous page
+        // Navigation
         if (page > 0) {
-            inv.setItem(45, createItem(Material.ARROW,
+            inv.setItem(48, createItem(Material.ARROW,
                     "§e§l← Previous Page",
                     "§7Page " + page + " / " + totalPages));
         }
 
-        // Page indicator (slot 49)
         inv.setItem(49, createItem(Material.PAPER,
                 "§e§lPage " + (page + 1) + " / " + totalPages,
                 "§7" + members.size() + " members total"));
 
-        // Next page
         if (page < totalPages - 1) {
-            inv.setItem(53, createItem(Material.ARROW,
+            inv.setItem(50, createItem(Material.ARROW,
                     "§e§lNext Page →",
                     "§7Page " + (page + 2) + " / " + totalPages));
         }
 
-        // Back to Government GUI (slot 47)
-        inv.setItem(47, createItem(Material.SPECTRAL_ARROW,
+        inv.setItem(43, createItem(Material.SPECTRAL_ARROW,
                 "§c§l← Back",
                 "§7Return to Government Menu"));
 
         viewer.openInventory(inv);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // ACTION SUB-MENU
-    // ════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Opens an action menu for a specific member (kick / party / politburo).
-     *
-     * @param viewer   the player viewing the GUI
-     * @param nation   the nation the target belongs to
-     * @param targetUUID UUID of the member being managed
-     */
     public void openActionMenu(Player viewer, Nation nation, UUID targetUUID) {
         if (nation == null) return;
         NationMember member = nation.getMember(targetUUID);
+        boolean isNpc = false;
+        if (member == null && FakeMember.isNpcUUID(targetUUID)) {
+            FakeMember npc = nation.getFakeMember(targetUUID);
+            if (npc != null) {
+                member = new NationMember(npc.getId(), npc.getName(), npc.getRole());
+                isNpc = true;
+            }
+        }
         if (member == null) {
             MessageUtils.send(viewer, "§cMember not found.");
             return;
@@ -168,208 +144,283 @@ public class CommunistMemberManagementGUI {
         String name = member.getName();
         String title = ACTION_TITLE_PREFIX + name;
 
-        Inventory inv = Bukkit.createInventory(null, 27, title);
+        Inventory inv = Bukkit.createInventory(null, 54, title);
 
-        // Border
+        // Filler border
         ItemStack border = createItem(Material.RED_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) inv.setItem(i, border);
+        int[] borderSlots = {0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53};
+        for (int slot : borderSlots) inv.setItem(slot, border);
 
-        // ── Member profile (slot 4) ───────────────────────────────────────
-        boolean isParty     = cg != null && cg.isPartyMember(targetUUID);
+        boolean isSekjen = cg != null && cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(targetUUID);
+        boolean isParty = cg != null && cg.isPartyMember(targetUUID);
         boolean isPolitburo = cg != null && cg.getPolitburoMemberByUUID(targetUUID) != null;
-        boolean isSekjen    = cg != null && cg.hasSecretaryGeneral()
-                && cg.getSecretaryGeneralUUID().equals(targetUUID);
-        boolean isLeader    = nation.getLeaderUUID() != null
-                && nation.getLeaderUUID().equals(targetUUID);
+        boolean isLeader = nation.getLeaderUUID() != null && nation.getLeaderUUID().equals(targetUUID);
 
+        // Slot 4 — Player Head with profile info
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skull = (SkullMeta) head.getItemMeta();
         skull.setOwningPlayer(Bukkit.getOfflinePlayer(targetUUID));
         skull.setDisplayName("§e§l" + name);
 
+        // Current cabinet position (if any)
+        String cabinetPosText = "§7None";
+        if (cg != null) {
+            CommunistGovernment.PolitburoPosition pos = cg.getPositionByUUID(targetUUID);
+            if (pos != null) {
+                cabinetPosText = "§6" + pos.getDisplayName();
+            }
+        }
+
+        String roleText;
+        if (isSekjen) roleText = "§c§lSecretary General";
+        else if (isPolitburo) roleText = "§6§lPolitburo";
+        else if (isParty) roleText = "§a§lParty Member";
+        else roleText = "§7Citizen";
+
         List<String> profileLore = new ArrayList<>();
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        profileLore.add("§7Nation Role  : " + formatRole(member.getRole()));
-        profileLore.add("§7Party Member : " + (isParty     ? "§a✔ Yes" : "§c✘ No"));
-        profileLore.add("§7Politburo    : " + (isPolitburo ? "§a✔ " + getPolitburoPositionName(cg, targetUUID) : "§c✘ No"));
-        profileLore.add("§7Secretary    : " + (isSekjen    ? "§a✔ Yes" : "§c✘ No"));
+        profileLore.add("§7Nation Role  : " + roleText);
+        profileLore.add("§7Cabinet Pos  : " + cabinetPosText);
+        profileLore.add("§7Party Member : " + (isParty ? "§a✔ Yes" : "§c✘ No"));
+        if (isNpc) {
+            FakeMember npc = nation.getFakeMember(targetUUID);
+            if (npc != null) {
+                profileLore.add("§7Balance      : §e$" + MessageUtils.formatNumber(npc.getTaxBalance()));
+                profileLore.add("§7Debt         : §c$" + MessageUtils.formatNumber(npc.getTaxDebt()));
+            }
+        }
         profileLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         skull.setLore(profileLore);
         head.setItemMeta(skull);
         inv.setItem(4, head);
 
-        // ── Action buttons ────────────────────────────────────────────────
+        // Slot 21 — Party Member Action Button
+        if (isSekjen) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§7§lAppoint as Party Member",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7The Secretary General is already in the Party.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isPolitburo) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§7§lAppoint as Party Member",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThis member is in the Politburo and",
+                    "§ccannot be removed from the Party.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (isParty) {
+            inv.setItem(21, createItem(Material.BARRIER,
+                    "§c§lRemove Party Member Role",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Remove §f" + name + " §7from the Party.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to remove."));
+        } else {
+            inv.setItem(21, createItem(Material.CRIMSON_SIGN,
+                    "§c§lAppoint as Party Member",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name + " §7as a Party Member.",
+                    "§7Party members can vote in",
+                    "§7Secretary General elections.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
 
-        // 1. Kick (slot 10) — disabled for leader/sekjen
+        // Slot 22 — Send Message
+        long now = System.currentTimeMillis();
+        long cooldownMs = 60L * 60 * 1000;
+        java.util.Map<UUID, Long> cooldowns = plugin.getGUIListener().memberMessageCooldowns.get(viewer.getUniqueId());
+        Long lastSent = cooldowns != null ? cooldowns.get(targetUUID) : null;
+        long remaining = (lastSent != null && (now - lastSent) < cooldownMs) ? (cooldownMs - (now - lastSent)) : 0;
+
+        List<String> msgLore = new ArrayList<>();
+        msgLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        msgLore.add("§7Send a Secretary General message to §f" + name + "§7.");
+        msgLore.add("§7The message will be prefixed with your");
+        msgLore.add("§7Secretary General title.");
+        msgLore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        if (remaining > 0) {
+            msgLore.add("§e⏰ Cooldown: §c" + MessageUtils.formatTime(remaining));
+            msgLore.add("§7Wait until the cooldown ends.");
+        } else {
+            msgLore.add("§e⏰ Cooldown: §f1 hour per member");
+            msgLore.add("§bClick to compose message.");
+        }
+
+        inv.setItem(22, createItem(Material.WRITABLE_BOOK,
+                "§b§l✉ Send Message",
+                msgLore.toArray(new String[0])));
+
+        // Slot 23 — Kick Member
         if (!isLeader && !isSekjen) {
-            inv.setItem(10, createItem(Material.RED_CONCRETE,
-                    "§c§l✖ Kick from Nation",
+            inv.setItem(23, createItem(Material.BOOK,
+                    "§c§l✖ Kick Member",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                     "§7Remove §f" + name + " §7from the nation.",
                     "§c⚠ This action cannot be undone!",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§cClick to kick this player."));
+                    "§cClick to kick this member."));
         } else {
-            inv.setItem(10, createItem(Material.BARRIER,
+            inv.setItem(23, createItem(Material.BARRIER,
                     "§7§l✖ Kick Unavailable",
-                    "§7Cannot kick the nation leader / Secretary General."));
+                    "§7Cannot kick the nation leader or Secretary General."));
         }
 
-        // 2. Add to Party (slot 13) — only if not already party member
-        if (!isParty) {
-            inv.setItem(13, createItem(Material.LIME_CONCRETE,
-                    "§a§l★ Promote to Party",
-                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§7Grant §f" + name + " §7Party membership.",
-                    "§7Party members can vote in",
-                    "§7Secretary General elections.",
-                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§aClick to add to Party."));
-        } else {
-            inv.setItem(13, createItem(Material.YELLOW_CONCRETE,
-                    "§e§l★ Party Member",
-                    "§7" + name + " §7is already a Party member."));
-        }
+        // Helper: get current holder name for a cabinet position
+        java.util.function.Function<CommunistGovernment.PolitburoPosition, String> currentHolder = (pos) -> {
+            if (cg == null) return "§7None";
+            CommunistGovernment.PolitburoMember holder = cg.getPolitburoMember(pos);
+            if (holder == null) return "§7None";
+            String holderName = holder.getName();
+            return holderName != null ? "§f" + holderName : "§7Unknown";
+        };
 
-        // 3. Appoint to Politburo (slot 16) — only if already in party
-        if (isParty && !isSekjen) {
-            inv.setItem(16, createItem(Material.GOLD_BLOCK,
-                    "§6§l⬆ Appoint to Politburo",
+        // Slot 29 — Appoint as Minister of Propaganda
+        if (isSekjen) {
+            inv.setItem(29, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Propaganda",
                     "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§7Appoint §f" + name + " §7as a",
-                    "§7Politburo (Cabinet) minister.",
-                    "§7You will choose the position",
-                    "§7on the next screen.",
-                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                    "§6Click to select position."));
+                    "§cThe Secretary General cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
         } else if (!isParty) {
-            inv.setItem(16, createItem(Material.GRAY_CONCRETE,
-                    "§7§l⬆ Politburo Unavailable",
-                    "§7Must be a Party member first.",
-                    "§7Add to Party before appointing",
-                    "§7to the Politburo."));
+            inv.setItem(29, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Propaganda",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cMust be a Party member first.",
+                    "§cAdd to Party before appointing",
+                    "§cto the Politburo.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
         } else {
-            // is Sekjen — already highest rank
-            inv.setItem(16, createItem(Material.YELLOW_CONCRETE,
-                    "§e§l⬆ Secretary General",
-                    "§7" + name + " §7is the Secretary General."));
+            inv.setItem(29, createItem(Material.WRITTEN_BOOK,
+                    "§d§l📢 Appoint as Minister of Propaganda",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §dMinister of Propaganda§7.",
+                    "§7Current: " + currentHolder.apply(CommunistGovernment.PolitburoPosition.PROPAGANDA),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
         }
 
-        // ── Back button ───────────────────────────────────────────────────
-        inv.setItem(22, createItem(Material.SPECTRAL_ARROW,
+        // Slot 30 — Appoint as Minister of Defense
+        if (isSekjen) {
+            inv.setItem(30, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe Secretary General cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (!isParty) {
+            inv.setItem(30, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cMust be a Party member first.",
+                    "§cAdd to Party before appointing",
+                    "§cto the Politburo.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(30, createItem(Material.WRITTEN_BOOK,
+                    "§c§l🛡 Appoint as Minister of Defense",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §cMinister of Defense§7.",
+                    "§7Current: " + currentHolder.apply(CommunistGovernment.PolitburoPosition.DEFENSE),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
+
+        // Slot 32 — Appoint as Minister of Treasury
+        if (isSekjen) {
+            inv.setItem(32, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe Secretary General cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (!isParty) {
+            inv.setItem(32, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cMust be a Party member first.",
+                    "§cAdd to Party before appointing",
+                    "§cto the Politburo.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(32, createItem(Material.WRITTEN_BOOK,
+                    "§6§l💰 Appoint as Minister of Treasury",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §6Minister of Treasury§7.",
+                    "§7Current: " + currentHolder.apply(CommunistGovernment.PolitburoPosition.TREASURY),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
+
+        // Slot 33 — Appoint as Minister of Health
+        if (isSekjen) {
+            inv.setItem(33, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cThe Secretary General cannot be a Minister.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else if (!isParty) {
+            inv.setItem(33, createItem(Material.BARRIER,
+                    "§7§lAppoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§cMust be a Party member first.",
+                    "§cAdd to Party before appointing",
+                    "§cto the Politburo.",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
+        } else {
+            inv.setItem(33, createItem(Material.WRITTEN_BOOK,
+                    "§a§l💉 Appoint as Minister of Health",
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§7Appoint §f" + name,
+                    "§7as the §aMinister of Health§7.",
+                    "§7Current: " + currentHolder.apply(CommunistGovernment.PolitburoPosition.HEALTH),
+                    "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+                    "§eClick to appoint."));
+        }
+
+        // Slot 43 — Back
+        inv.setItem(43, createItem(Material.SPECTRAL_ARROW,
                 "§c§l← Back",
                 "§7Return to member list."));
 
         viewer.openInventory(inv);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // POLITBURO POSITION PICKER
-    // ════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Opens a position picker so the Sekjen can choose which Politburo slot
-     * to appoint the target player into.
-     *
-     * @param viewer      the Sekjen
-     * @param nation      the nation
-     * @param targetUUID  the player being appointed
-     */
-    public void openPolitburoPositionPicker(Player viewer, Nation nation, UUID targetUUID) {
-        if (nation == null) return;
-        NationMember member = nation.getMember(targetUUID);
-        if (member == null) return;
-
-        CommunistGovernment cg = nation.getCommunistGovernment();
-        String name = member.getName();
-        String title = POLITBURO_PICK_TITLE_PREFIX + name;
-
-        Inventory inv = Bukkit.createInventory(null, 27, title);
-
-        // Border
-        ItemStack border = createItem(Material.RED_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) inv.setItem(i, border);
-
-        // Header (slot 4)
-        inv.setItem(4, createItem(Material.GOLD_INGOT,
-                "§6§lAppoint: §f" + name,
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
-                "§7Select a Politburo position below.",
-                "§7If the slot is occupied it will",
-                "§7be replaced by §f" + name + "§7.",
-                "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"));
-
-        // Position buttons (slots 10, 12, 14, 16)
-        int[] positionSlots = {10, 12, 14, 16};
-        PolitburoPosition[] positions = PolitburoPosition.values();
-        Material[] positionMaterials = {
-                Material.MAGENTA_WOOL,    // PROPAGANDA
-                Material.RED_WOOL,        // DEFENSE
-                Material.GOLD_BLOCK,      // TREASURY
-                Material.LIME_WOOL        // HEALTH
-        };
-
-        for (int i = 0; i < positions.length && i < positionSlots.length; i++) {
-            PolitburoPosition pos = positions[i];
-            CommunistGovernment.PolitburoMember current = cg != null ? cg.getPolitburoMember(pos) : null;
-
-            List<String> lore = new ArrayList<>();
-            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-            if (current != null) {
-                lore.add("§7Current: §e" + current.getName());
-                lore.add("§c⚠ Will replace current minister");
-            } else {
-                lore.add("§7Status: §aVacant");
-            }
-            lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-            lore.add("§6Click to appoint to this slot.");
-
-            inv.setItem(positionSlots[i], createItem(positionMaterials[i],
-                    "§e§l" + pos.getDisplayName(),
-                    lore.toArray(new String[0])));
-        }
-
-        // Back (slot 22)
-        inv.setItem(22, createItem(Material.SPECTRAL_ARROW,
-                "§c§l← Back",
-                "§7Return to member actions."));
-
-        viewer.openInventory(inv);
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
-    // ITEM BUILDERS
-    // ════════════════════════════════════════════════════════════════════════
-
     private ItemStack buildMemberHead(NationMember member, CommunistGovernment cg) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         meta.setOwningPlayer(Bukkit.getOfflinePlayer(member.getUuid()));
 
-        boolean isParty     = cg != null && cg.isPartyMember(member.getUuid());
+        boolean isSekjen = cg != null && cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(member.getUuid());
         boolean isPolitburo = cg != null && cg.getPolitburoMemberByUUID(member.getUuid()) != null;
-        boolean isSekjen    = cg != null && cg.hasSecretaryGeneral()
-                && cg.getSecretaryGeneralUUID().equals(member.getUuid());
-        boolean isOnline    = Bukkit.getPlayer(member.getUuid()) != null;
+        boolean isParty = cg != null && cg.isPartyMember(member.getUuid());
+        boolean isOnline = Bukkit.getPlayer(member.getUuid()) != null;
 
-        // Prefix icon in name based on highest rank
         String prefix;
-        if (isSekjen)         prefix = "§c☆ ";
-        else if (isPolitburo) prefix = "§6★ ";
-        else if (isParty)     prefix = "§a▶ ";
-        else                  prefix = "§7· ";
+        String roleText;
+        if (isSekjen) {
+            prefix = "§c☆ ";
+            roleText = "§c§lSecretary General";
+        } else if (isPolitburo) {
+            prefix = "§6★ ";
+            roleText = "§6§lPolitburo";
+        } else if (isParty) {
+            prefix = "§a▶ ";
+            roleText = "§a§lParty Member";
+        } else {
+            prefix = "§7· ";
+            roleText = "§7Citizen";
+        }
 
         meta.setDisplayName(prefix + member.getName());
 
         List<String> lore = new ArrayList<>();
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("§7Status    : " + (isOnline ? "§aOnline" : "§8Offline"));
-        lore.add("§7Role      : " + formatRole(member.getRole()));
-        lore.add("§7Party     : " + (isParty     ? "§a✔ Member" : "§7—"));
+        lore.add("§7Role      : " + roleText);
         if (isPolitburo && cg != null) {
-            lore.add("§7Politburo : §6✔ " + getPolitburoPositionName(cg, member.getUuid()));
-        } else if (isSekjen) {
-            lore.add("§7Secretary : §c✔ General");
+            lore.add("§7Position  : §6" + getPolitburoPositionName(cg, member.getUuid()));
         }
         lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("§eClick to manage this member.");
@@ -393,16 +444,19 @@ public class CommunistMemberManagementGUI {
         return item;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // HELPERS
-    // ════════════════════════════════════════════════════════════════════════
-
-    private String formatRole(NationRole role) {
-        return switch (role) {
-            case LEADER  -> "§c§lLeader";
-            case OFFICER -> "§6Officer";
-            case CITIZEN -> "§7Citizen";
-        };
+    private int getRoleWeight(UUID uuid, CommunistGovernment cg) {
+        if (cg != null) {
+            if (cg.hasSecretaryGeneral() && cg.getSecretaryGeneralUUID().equals(uuid)) {
+                return 0; // Secretary General
+            }
+            if (cg.getPolitburoMemberByUUID(uuid) != null) {
+                return 1; // Politburo Minister
+            }
+            if (cg.isPartyMember(uuid)) {
+                return 2; // Party Member
+            }
+        }
+        return 3; // Citizen / Ordinary member
     }
 
     private String getPolitburoPositionName(CommunistGovernment cg, UUID uuid) {
@@ -411,25 +465,8 @@ public class CommunistMemberManagementGUI {
         return pos != null ? pos.getDisplayName() : "Unknown";
     }
 
-    /**
-     * Resolves the target player UUID from an action-menu title.
-     * Returns null if the title does not match.
-     */
     public static String extractNameFromActionTitle(String title, String prefix) {
         if (title == null || !title.startsWith(prefix)) return null;
         return title.substring(prefix.length());
-    }
-
-    /**
-     * Resolves the PolitburoPosition clicked in the position-picker inventory
-     * based on the slot number.
-     */
-    public static PolitburoPosition getPositionForPickerSlot(int slot) {
-        PolitburoPosition[] positions = PolitburoPosition.values();
-        int[] positionSlots = {10, 12, 14, 16};
-        for (int i = 0; i < positionSlots.length && i < positions.length; i++) {
-            if (positionSlots[i] == slot) return positions[i];
-        }
-        return null;
     }
 }

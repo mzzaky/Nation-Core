@@ -5,7 +5,6 @@ import id.nationcore.gui.caliphate.CaliphateGovernmentGUI;
 import id.nationcore.gui.caliphate.CaliphateGUIHandler;
 import id.nationcore.gui.caliphate.CaliphateMainMenu;
 import id.nationcore.gui.caliphate.CaliphateTreasuryMenu;
-import id.nationcore.gui.communist.CommunistExecutiveOrdersMenu;
 import id.nationcore.gui.communist.CommunistLeaderOrdersMenu;
 import id.nationcore.gui.communist.CommunistGovernmentGUI;
 import id.nationcore.gui.communist.CommunistGUIHandler;
@@ -345,9 +344,6 @@ public class GUIListener implements Listener {
             if (event.getClickedInventory() == event.getView().getTopInventory()) {
                 communist.handleLeaderOrdersGUI(player, clicked, event.getSlot());
             }
-        } else if (title.equals(CommunistExecutiveOrdersMenu.TITLE)) {
-            event.setCancelled(true);
-            communist.handleOrdersGUI(player, clicked, event.getSlot());
         } else if (title.equals(CommunistMemberManagementGUI.TITLE)) {
             event.setCancelled(true);
             communist.handleMemberManagementGUI(player, clicked, event.getSlot());
@@ -590,7 +586,6 @@ public class GUIListener implements Listener {
                 title.equals(CommunistDefenseOfficeGUI.TITLE) ||
                 title.equals(CommunistTreasuryOfficeGUI.TITLE) ||
                 title.equals(CommunistPropagandaOfficeGUI.TITLE) ||
-                title.equals(CommunistExecutiveOrdersMenu.TITLE) ||
                 title.equals(CommunistLeaderOrdersMenu.TITLE) ||
                 title.equals(MonarchyExecutiveOrdersMenu.TITLE) ||
                 title.equals(CaliphateExecutiveOrdersMenu.TITLE) ||
@@ -692,7 +687,7 @@ public class GUIListener implements Listener {
         if (n != null && n.getType() == GovernmentType.MONARCHY) {
             new MonarchyExecutiveOrdersMenu(plugin).open(player, n);
         } else if (n != null && n.getType() == GovernmentType.COMMUNIST) {
-            new CommunistExecutiveOrdersMenu(plugin).open(player, n);
+            // Deleted CommunistExecutiveOrdersMenu - Party Policy displays active directives directly in lore
         } else if (n != null && n.getType() == GovernmentType.CALIPHATE) {
             new CaliphateExecutiveOrdersMenu(plugin).open(player, n);
         } else {

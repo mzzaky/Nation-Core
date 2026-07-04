@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@SuppressWarnings("deprecation")
 public class CommunistHealthOfficeGUI extends NationMenuBase {
 
     public static final String TITLE = "§c§lMINISTER OF HEALTH OFFICE";
@@ -82,11 +83,14 @@ public class CommunistHealthOfficeGUI extends NationMenuBase {
 
     private ItemStack buildDecisionItem(Nation nation, CommunistDecisionType type, Player viewer) {
         CommunistGovernment gov = nation.getCommunistGovernment();
-        UUID ministerUUID = gov != null && gov.getPolitburoMember(type.getPosition()) != null
+        if (gov == null) {
+            return new ItemStack(Material.AIR);
+        }
+        UUID ministerUUID = gov.getPolitburoMember(type.getPosition()) != null
                 ? gov.getPolitburoMember(type.getPosition()).getUuid()
                 : null;
 
-        boolean active = gov != null && isCommunistDecisionStateActive(gov, type);
+        boolean active = isCommunistDecisionStateActive(gov, type);
         long cooldownRemaining = plugin.getCommunistManager().getDecisionCooldownRemaining(
                 nation, ministerUUID != null ? ministerUUID : viewer.getUniqueId(), type);
         boolean onCooldown = cooldownRemaining > 0;

@@ -1,0 +1,80 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#32
+====================================================
+Communist GUI Layout Upgrades & General Warnings/Deprecations Cleanup.
+
+[COMMUNIST TREASURY MENU LAYOUT UPGRADE]
+- Refactored CommunistTreasuryMenu.java to mirror the layout structure of RepublicTreasuryMenu.java:
+  → Upgraded main menu inventory size from 45 to 54 slots.
+  → Replaced the menu glass filler with RED_STAINED_GLASS_PANE to match the Communist faction colors.
+  → Arranged slots symmetrically: Balance Info (Slot 4), Daily Subsidy (Slot 20), Total Income (Slot 21), Food Subsidy (Slot 22), Contribute/Donate (Slot 23), Progressive Tax (Slot 24), Total Expenses (Slot 30), Transaction Logs (Slot 32), and Back Arrow (Slot 43).
+  → Reformatted the transaction logs display to reverse transactions (newest first) and use premium bordered lore formatting.
+- Updated CommonGUIHandler.java:
+  → Added a filter check to ignore clicks on RED_STAINED_GLASS_PANE when navigating the Communist treasury.
+
+[COMPILATION WARNINGS & DEPRECATIONS CLEANUP]
+- CommunistDefenseOfficeGUI.java:
+  → Added class-level deprecation warnings suppression.
+  → Added a null check on the 'gov' variable in buildDecisionItem to resolve potential null pointer warnings.
+- CommunistExecutiveOrdersMenu.java:
+  → Cleared unused import (GUIListener) and ensured necessary imports (PolitburoMember, MessageUtils) are preserved.
+  → Added class-level deprecation warnings suppression.
+  → Replaced deprecated ChatColor calls with direct unicode section signs (§) for colors in the menu title.
+- CommunistGovernmentGUI.java:
+  → Cleared unused import (java.util.UUID).
+  → Added class-level deprecation warnings suppression.
+- CommunistGUIHandler.java:
+  → Removed unnecessary @SuppressWarnings("deprecation") annotation on handlePolitburoPickerGUI.
+- CommunistHealthOfficeGUI.java:
+  → Added class-level deprecation warnings suppression.
+  → Added a null check on the 'gov' variable in buildDecisionItem to resolve potential null pointer warnings.
+- CommunistMainMenu.java:
+  → Cleared unused imports (GUIListener, ItemFlag, ItemMeta, PlayerData, PlayerTaxProfile).
+  → Added class-level deprecation warnings suppression.
+  → Replaced deprecated ChatColor calls with direct unicode section signs (§) for colors in the menu title.
+
+[COMMUNIST MEMBER MANAGEMENT GUI LAYOUT UPGRADE]
+- Refactored CommunistMemberManagementGUI.java to match RepublicMemberManagementGUI.java:
+  → Upgraded the Member Action Menu size from 27 to 54 slots.
+  → Replaced the menu glass filler with RED_STAINED_GLASS_PANE.
+  → Symmetrically arranged slot items: Player Profile Head (Slot 4), Appoint/Remove Party Member (Slot 21), Send Message (Slot 22), Kick Member (Slot 23), and Back Arrow (Slot 43).
+  → Added direct Politburo Minister appointment slots on the Action Menu: Propaganda (Slot 29), Defense (Slot 30), Treasury (Slot 32), and Health (Slot 33).
+  → Added dynamic remaining cooldown display to the "Send Message" lore if the action is currently on cooldown.
+  → Adjusted the main list pagination and back buttons (Slot 48 for Previous, Slot 49 for Info, Slot 50 for Next, Slot 43 for Back).
+  → Sorted members hierarchically: Secretary General -> Politburo Ministers -> Party Members -> Citizens.
+  → Integrated FakeMember/NPC listings and kick functionality.
+- Updated CommunistGUIHandler.java:
+  → Adjusted event handler logic to match the new slot layout positions (Slot 43 Back, Slot 48 Prev, Slot 50 Next).
+  → Rewrote handleMemberActionGUI to support the revised slot mapping and dynamic actions (Party Member toggle, Send Message cooldown checks, and Politburo direct appointments).
+  → Stubbed out the obsolete handlePolitburoPickerGUI method.
+- Updated CommunistMainMenu.java:
+  → Changed Party Members card lore from "Registered permanent party members" to "Appointed permanent party members".
+- Updated ChatListener.java:
+  → Styled message logs dynamically depending on the nation type, rendering "[SECRETARY GENERAL MESSAGE]" with a 🚩 prefix for Communist nations.
+
+[ADMIN RESEARCH COMMANDS & CRITICAL BUG FIXES]
+- Added new Admin Research Commands in NationCommand.java:
+  → /nationcore admin research set <nation_name> <research_id> <research_level>: Set a specific research type to a given level for a nation. Supports multi-word nation names.
+  → /nationcore admin research reset <nation_name>: Resets all research data and cancels active research for a nation. Supports multi-word nation names.
+  → Added full context-aware tab completion for the research subcommands (set/reset, nation name typing, research type selection, and available levels listing).
+- Fixed MiniMessage ParsingExceptionImpl crash:
+  → Converted legacy formatting codes (§c, §f) to modern MiniMessage tags (<red>, <white>) inside the messaging cooldown messages in RepublicGUIHandler.java and CommunistGUIHandler.java.
+- Cleaned up Compilation Warnings & Deprecations:
+  → CommunistPropagandaOfficeGUI.java: Suppressed deprecated createInventory warnings and added null check safety for the 'gov' variable.
+  → CommunistTreasuryOfficeGUI.java: Suppressed deprecated createInventory warnings and added null check safety for the 'gov' variable.
+  → CommunistSharedStorageGUI.java: Cleaned up unused imports (GUIListener, MainMenuRouter, UUID, etc.).
+  → ConfirmActionGUI.java: Removed unused imports, unused plugin field, and suppressed deprecated createInventory warnings.
+
+[COMMUNIST PARTY POLICY LORE & EXECUTIVE ORDERS MENU CLEANUP]
+- Removed CommunistExecutiveOrdersMenu.java entirely:
+  → Deleted the menu class and all associated code references.
+  → Cleaned up GUIListener.java to remove imports, click handlers, and opening logic for CommunistExecutiveOrdersMenu.
+  → Cleaned up CommunistGUIHandler.java to remove handleOrdersGUI and disabled the opening of the orders menu on PARTY_POLICY click.
+- Refactored CommunistMainMenu.java:
+  → Upgraded the Party Policy button (Slot 10) hover lore.
+  → Displays a modern list-based layout of all active directives (both Leader orders and Minister decisions) in English.
+  → Added a recent history section showing the 3 most recently activated orders.
+- Model and Manager additions:
+  → Added orderHistory field, getter/setter, and addOrderHistory logging logic to CommunistGovernment.java.
+  → Added getEnglishName() to CommunistDecisionType.java.
+  → Updated ExecutiveOrderManager.java (for leader orders) and CommunistManager.java (for minister decisions) to log successfully activated orders into the nation's history.
