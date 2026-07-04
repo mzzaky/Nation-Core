@@ -235,13 +235,13 @@ public class NationManager {
         }
 
         // Check vault requirements
-        double cost = plugin.getConfig().getDouble("nation.creation.cost", 1_000_000);
+        double cost = plugin.getNationCreationCost(type);
         if (plugin.getVaultHook().getBalance(founderUUID) < cost) {
             return Result.fail("You need at least $" + formatNumber(cost) + " to establish a nation.");
         }
 
         // Check playtime requirements (hours)
-        double minPlaytimeHours = plugin.getConfig().getDouble("nation.creation.min-playtime-hours", 0);
+        double minPlaytimeHours = plugin.getNationCreationMinPlaytime(type);
         PlayerData data = plugin.getDataManager().getOrCreatePlayerData(founderUUID, founder.getName());
         if (minPlaytimeHours > 0 && data.getPlaytimeHours() < minPlaytimeHours) {
             return Result.fail("You need at least " + minPlaytimeHours + " hours of playtime to establish a nation.");
@@ -265,7 +265,7 @@ public class NationManager {
 
         // Starting fund for nation treasury (calculated as percentage of creation cost).
         // Nilai diambil dari config sebagai persentase (0-100), lalu dikalikan dengan cost.
-        double startingTreasuryPercent = plugin.getConfig().getDouble("nation.creation.starting-treasury-percent", 0);
+        double startingTreasuryPercent = plugin.getNationCreationStartingTreasuryPercent(type);
         double startingFund = (cost * startingTreasuryPercent / 100.0);
         if (startingFund > 0) {
             nation.getTreasury().deposit(TransactionType.TERM_START_FUND, startingFund,

@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -142,12 +143,6 @@ public class GovernmentManager {
         // Reset term counters
         plugin.getDataManager().setLastExecutiveOrderTime(0);
         plugin.getDataManager().setGamesThisTerm(0);
-
-        // Add starting fund to treasury
-        double startingFund = plugin.getConfig().getDouble("treasury.starting-fund", 5000000);
-        plugin.getTreasuryManager().deposit(TransactionType.TERM_START_FUND, startingFund,
-                "Presidential term starting fund", uuid);
-
         // Create history record
         PresidentRecord record = new PresidentRecord(uuid, name, System.currentTimeMillis());
         plugin.getDataManager().getPresidentHistory().addRecord(record);
@@ -390,12 +385,14 @@ public class GovernmentManager {
     private void giveCabinetDailyRewards(Player player, CabinetPosition position, Government gov) {
         String configPath = switch (position) {
             case DEFENSE -> "cabinet.defense.daily-vault";
-            case TREASURY -> "cabinet.treasury-minister.daily-vault";
+            case TREASURY -> "cabinet.treasury.daily-vault";
+            case HEALTH -> "cabinet.health.daily-vault";
             default -> "cabinet.daily-salary";
         };
 
-        double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
-        double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
+        double vaultPoints = nationConfig != null ? nationConfig.getDouble(configPath, 30000) : 30000;
+        double salary = nationConfig != null ? nationConfig.getDouble("cabinet.daily-salary", 20000) : 20000;
         double totalPay = vaultPoints + salary;
 
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
@@ -421,28 +418,7 @@ public class GovernmentManager {
         }
     }
 
-    public void checkPresidentActivity() {
-        Government gov = getGovernment();
-        if (!gov.hasPresident())
-            return;
 
-        int inactiveDays = plugin.getConfig().getInt("auto-removal.inactive-days", 7);
-        long threshold = inactiveDays * 24L * 60 * 60 * 1000;
-
-        if (System.currentTimeMillis() - gov.getLastPresidentActivity() > threshold) {
-            MessageUtils.broadcast("<red>President <gold>" + gov.getPresidentName() +
-                    "</gold> has been removed for inactivity!</red>");
-            endPresidency("INACTIVE");
-            plugin.getElectionManager().startEmergencyElection();
-        }
-    }
-
-    public void updatePresidentActivity(UUID uuid) {
-        Government gov = getGovernment();
-        if (gov.hasPresident() && gov.getPresidentUUID().equals(uuid)) {
-            gov.setLastPresidentActivity(System.currentTimeMillis());
-        }
-    }
 
     public long getTermRemainingTime() {
         Government gov = getGovernment();
@@ -598,17 +574,7 @@ public class GovernmentManager {
         removeCabinet(nation, position);
     }
 
-    /**
-     * Update aktivitas presiden untuk nation pemain (jika ia presiden).
-     * Aman dipanggil untuk pemain non-presiden — no-op.
-     */
-    public void updatePresidentActivity(Nation nation, UUID uuid) {
-        if (nation == null) return;
-        Government gov = getGovernment(nation);
-        if (gov != null && gov.hasPresident() && gov.getPresidentUUID().equals(uuid)) {
-            gov.setLastPresidentActivity(System.currentTimeMillis());
-        }
-    }
+
 
     public long getTermRemainingTime(Nation nation) {
         Government gov = getGovernment(nation);
@@ -716,14 +682,6 @@ public class GovernmentManager {
         // Update PlayerData untuk presiden baru
         PlayerData data = plugin.getDataManager().getOrCreatePlayerData(uuid, name);
         data.setTimesServedAsPresident(data.getTimesServedAsPresident() + 1);
-
-        // Modal awal kas nation (term-start fund)
-        double startingFund = plugin.getConfig().getDouble("treasury.starting-fund", 5_000_000);
-        if (startingFund > 0) {
-            plugin.getTreasuryManager().deposit(nation, TransactionType.TERM_START_FUND, startingFund,
-                    "Presidential term starting fund — " + nation.getName(), uuid);
-        }
-
         broadcastToNation(nation, "<gold>" + name + " has been inaugurated as the new President of " +
                 nation.getName() + "!</gold>");
 
@@ -731,23 +689,5 @@ public class GovernmentManager {
         if (president != null) plugin.getBuffManager().applyPresidentBuffs(president);
     }
 
-    /**
-     * Aktivitas presiden inactive-check per-nation. Dipanggil oleh scheduler.
-     */
-    public void checkPresidentActivity(Nation nation) {
-        if (nation == null || nation.getType() != GovernmentType.REPUBLIC) return;
-        Government gov = nation.getRepublicGovernment();
-        if (gov == null || !gov.hasPresident()) return;
 
-        int inactiveDays = plugin.getConfig().getInt("auto-removal.inactive-days", 7);
-        long threshold = inactiveDays * 24L * 60 * 60 * 1000;
-
-        if (System.currentTimeMillis() - gov.getLastPresidentActivity() > threshold) {
-            broadcastToNation(nation, "<red>President <gold>" + gov.getPresidentName() +
-                    "</gold> of " + nation.getName() + " has been removed for inactivity!</red>");
-            endPresidency(nation, "INACTIVE");
-            // Trigger emergency election bila ada ElectionManager nation-aware
-            plugin.getElectionManager().startEmergencyElection(nation);
-        }
-    }
 }

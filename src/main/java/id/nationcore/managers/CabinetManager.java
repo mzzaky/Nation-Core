@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -57,7 +58,8 @@ public class CabinetManager {
         }
         
         // Check cooldown
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<CabinetDecision.DecisionType, Long> playerCooldowns = decisionCooldowns.computeIfAbsent(ministerId, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type);
         if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) {
@@ -71,7 +73,8 @@ public class CabinetManager {
     }
     
     public long getRemainingCooldown(UUID ministerId, CabinetDecision.DecisionType type) {
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<CabinetDecision.DecisionType, Long> playerCooldowns = decisionCooldowns.get(ministerId);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type);
@@ -552,7 +555,8 @@ public class CabinetManager {
         UUID currentMinister = gov.getCabinetMember(required);
         if (currentMinister == null || !currentMinister.equals(ministerId)) return false;
 
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(nation.getType());
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<CabinetDecision.DecisionType, Long> playerCooldowns =
                 decisionCooldowns.computeIfAbsent(ministerId, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type);

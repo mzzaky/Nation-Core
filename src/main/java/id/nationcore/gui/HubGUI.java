@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import id.nationcore.NationCore;
 import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
+import id.nationcore.models.GovernmentType;
 
 /**
  * Hub Menu — list of all nations registered on the server.
@@ -112,15 +113,41 @@ public class HubGUI {
             List<String> lore = new ArrayList<>();
             lore.add(ChatColor.translateAlternateColorCodes('&', "&7Establish a new nation and become its leader."));
             lore.add("");
-            double cost = plugin.getConfig().getDouble("nation.creation.cost", 1_000_000);
-            double minHours = plugin.getConfig().getDouble("nation.creation.min-playtime-hours", 0);
             lore.add(ChatColor.translateAlternateColorCodes('&', "&7Requirements:"));
-            lore.add(ChatColor.translateAlternateColorCodes('&',
-                    "&7• Balance: &6$" + String.format("%,.0f", cost)));
-            if (minHours > 0) {
-                lore.add(ChatColor.translateAlternateColorCodes('&',
-                        "&7• Playtime: &6" + minHours + " hours"));
+
+            double minCost = Double.MAX_VALUE;
+            double maxCost = 0;
+            double minHours = Double.MAX_VALUE;
+            double maxHours = 0;
+
+            for (GovernmentType type : GovernmentType.values()) {
+                double c = plugin.getNationCreationCost(type);
+                if (c < minCost) minCost = c;
+                if (c > maxCost) maxCost = c;
+
+                double h = plugin.getNationCreationMinPlaytime(type);
+                if (h < minHours) minHours = h;
+                if (h > maxHours) maxHours = h;
             }
+
+            if (minCost == maxCost) {
+                lore.add(ChatColor.translateAlternateColorCodes('&',
+                        "&7• Balance: &6$" + String.format("%,.0f", minCost)));
+            } else {
+                lore.add(ChatColor.translateAlternateColorCodes('&',
+                        "&7• Balance: &6$" + String.format("%,.0f", minCost) + " - $" + String.format("%,.0f", maxCost)));
+            }
+
+            if (maxHours > 0) {
+                if (minHours == maxHours) {
+                    lore.add(ChatColor.translateAlternateColorCodes('&',
+                            "&7• Playtime: &6" + minHours + " hours"));
+                } else {
+                    lore.add(ChatColor.translateAlternateColorCodes('&',
+                            "&7• Playtime: &6" + minHours + " - " + maxHours + " hours"));
+                }
+            }
+
             lore.add("");
             lore.add(ChatColor.translateAlternateColorCodes('&', "&eClick to choose government type"));
             meta.setLore(lore);

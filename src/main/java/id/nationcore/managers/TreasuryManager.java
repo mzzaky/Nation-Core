@@ -56,11 +56,6 @@ public class TreasuryManager {
         return getTreasury().withdraw(type, amount, description, player);
     }
 
-    public void addTax(double originalAmount, UUID player) {
-        double taxRate = plugin.getConfig().getDouble("treasury.transaction-tax", 0.05);
-        double tax = originalAmount * taxRate;
-        deposit(TransactionType.TAX_INCOME, tax, "Transaction tax", player);
-    }
 
     public List<Transaction> getRecentTransactions(int count) {
         return getTreasury().getRecentTransactions(count);
@@ -106,9 +101,4 @@ public class TreasuryManager {
         return getTreasury(nation).withdraw(type, amount, description, player);
     }
 
-    public void addTax(Nation nation, double originalAmount, UUID player) {
-        double taxRate = plugin.getConfig().getDouble("treasury.transaction-tax", 0.05);
-        double tax = originalAmount * taxRate;
-        deposit(nation, TransactionType.TAX_INCOME, tax, "Transaction tax", player);
-    }
 }

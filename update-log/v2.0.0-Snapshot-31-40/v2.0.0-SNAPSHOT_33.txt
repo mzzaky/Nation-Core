@@ -1,0 +1,82 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#33
+====================================================
+Per-Faction Nation Creation & Recall Configurations Migration, and Treasury Configurations Cleanup.
+
+[PER-FACTION NATION CREATION CONFIGURATIONS]
+- Migrated nation creation requirements from global config.yml to individual government configurations:
+  → Configured creation cost, min-playtime-hours, and starting-treasury-percent in nations/democracy.yaml, nations/comunist.yaml, nations/monarcy.yaml, and nations/caliphate.yaml.
+  → Deleted the nation.creation configuration block from the main config.yml.
+- Updated NationCore.java:
+  → Implemented reloadNationConfigs() which creates the nations/ subdirectory in the plugin data folder, copies default templates from resources, loads configurations, and logs successful load counts.
+  → Overrode reloadConfig() to trigger nation configs reload.
+  → Added getters: getNationCreationCost(GovernmentType), getNationCreationMinPlaytime(GovernmentType), and getNationCreationStartingTreasuryPercent(GovernmentType).
+- Updated GovernmentType.java:
+  → Added getConfigFileName() to map each enum value to its YAML config path.
+- Updated GUI Menus:
+  → CreateNationGUI.java: Dynamically displays the specific creation cost, playtime, and starting treasury requirements in the lore of each government type icon.
+  → HubGUI.java: Dynamically calculates and displays cost and playtime ranges across all factions in the "Create New Nation" button.
+- Updated Validation Handlers:
+  → CommonGUIHandler.java: Validates Vault balances against faction-specific creation costs during type selection.
+  → NationManager.java: Validates final nation creation using the custom cost, min-playtime hours, and starting treasury percentage of the chosen government type.
+
+[TREASURY & RECALL CONFIGURATIONS CLEANUP]
+- Treasury Cleanups:
+  → Removed obsolete treasury.starting-fund and treasury.transaction-tax configurations from config.yml.
+  → GovernmentManager.java: Removed the starting fund deposit logic on both global and nation-specific presidential inaugurations.
+  → TreasuryManager.java: Removed the unused addTax(double, UUID) and addTax(Nation, double, UUID) methods.
+- Recall Configurations Relocation:
+  → Removed the global recall configuration block from config.yml.
+  → democracy.yaml: Transferred all recall configurations (cooldown-days: 15, signature-deposit: 50000, collection-days: 7, voting-days: 3, required-percentage: 60, required-signature-percentage: 30) here.
+  → NationCore.java: Added getters to retrieve recall settings from democracy.yaml.
+  → RecallManager.java: Updated petition validation, refunding, and signature requirements logic to retrieve configurations from democracy.yaml instead of config.yml.
+  → RepublicRecallGUI.java: Updated rules info, requirements layout, and confirmation menus to dynamically load settings from democracy.yaml.
+
+[PER-NATION CABINET CONFIGURATIONS & BUFF REFACTORING]
+- Cabinet Configurations Relocation:
+  → Removed the cabinet configuration block entirely from global config.yml.
+  → Moved the cabinet settings to nations/democracy.yaml, nations/comunist.yaml, and nations/monarcy.yaml for individual configuration.
+  → Removed appointment-cooldown-days setting from cabinet configurations.
+  → Renamed treasury-minister config block to treasury in all nation configuration files.
+- Updated NationCore.java:
+  → Added getNationConfig(GovernmentType) getter to access loaded nation configurations.
+- Updated BuffManager.java:
+  → Restricted passive cabinet buffs so that players in Monarchy or Caliphate nations do not receive them.
+  → Loaded attributes (damage, defense, extra-hearts) from the respective nation configurations.
+  → Implemented Regeneration I and Speed I potion effects for the HEALTH cabinet position.
+  → Mapped PolitburoPosition.HEALTH to CabinetPosition.HEALTH to align buff reuse.
+- Updated Managers & GUI Menus:
+  → Refactored daily salary, daily vault, and decision cooldown lookup paths to load configurations dynamically from the respective nation configuration files.
+  → Updated imports for YamlConfiguration and GovernmentType.
+    → Affected files: GovernmentManager.java, MonarchyManager.java, CommunistManager.java, CabinetManager.java, RepublicSalaryMenu.java, MonarchySalaryMenu.java, CommunistSalaryMenu.java.
+
+[COMMUNIST & ELECTION CONFIGURATION RELOCATION, AUTO-REMOVAL REMOVAL, AND EXECUTIVE ORDER HARDCODING]
+- Communist Configuration Relocation & Politbiro Refactoring:
+  → Relocated communist settings (election-cycle-days, tax-phase-minutes, tax-amount, free-food, minister-weekly-salary, market-event-bonus) from config.yml to nations/comunist.yaml.
+  → Renamed cabinet to politbiro in nations/comunist.yaml.
+  → Added propaganda section under politbiro in nations/comunist.yaml.
+  → BuffManager.java: Implemented applyPolitburoBuffs() giving the Minister of Propaganda GLOWING and HERO_OF_THE_VILLAGE effects, and updated config lookups to read from the new politbiro namespace.
+  → CommunistManager.java & CommunistSalaryMenu.java: Refactored salary and decision cooldown checks to use the politbiro config keys and support the PROPAGANDA position.
+- Election Configuration Relocation:
+  → Removed the global election: block from config.yml.
+  → Appended election: configuration block to nations/democracy.yaml.
+  → ElectionManager.java: Redirected all election configurations (candidate limits, registration fees, vote weights, voter rewards, phase durations) to load from democracy.yaml via a new getElectionConfig() helper.
+  → Added strict REPUBLIC guard checks on voting, endorsements, and broadcasts to enforce the election system runs only for Democracy nations.
+- Executive Orders Hardcoding:
+  → Deleted the executive-orders: section from config.yml.
+  → ExecutiveOrderManager.java: Hardcoded the executive order cooldown to 7 days and cost to 1,000,000.0.
+- Removal of Inactivity Auto-Removal Mechanism:
+  → Removed the auto-removal: section from config.yml.
+  → NationCore.java: Removed the scheduled task timer that executed the hourly president activity checks.
+  → GovernmentManager.java: Deleted checkPresidentActivity() and updatePresidentActivity() methods.
+
+[DEMOCRACY SPECIFIC SETTINGS MIGRATION (PRESIDENT, GAMES, APPROVAL)]
+- President, Presidential Games, and Approval Settings Relocation:
+  → Removed the president, presidential-games, and approval settings blocks from the main config.yml.
+  → Appended these configurations directly to nations/democracy.yaml.
+- Dynamic Configuration Merging:
+  → NationCore.java: Modified reloadNationConfigs() to automatically copy the president, presidential-games, and approval configuration sections from the Republic (democracy.yaml) configuration to the main configuration object at runtime.
+  → This preserves backward compatibility for all existing managers/GUIs accessing these settings via plugin.getConfig() without requiring code changes.
+- Syntax Error Fix:
+  → NationCore.java: Fixed a missing closing brace on the GovernmentType iteration loop inside reloadNationConfigs().
+

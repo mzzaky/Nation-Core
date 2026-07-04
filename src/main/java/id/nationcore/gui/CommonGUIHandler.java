@@ -648,7 +648,7 @@ public class CommonGUIHandler {
             player.closeInventory();
             return;
         }
-        double cost = plugin.getConfig().getDouble("nation.creation.cost", 1_000_000);
+        double cost = plugin.getNationCreationCost(selected);
         if (plugin.getVaultHook().getBalance(player.getUniqueId()) < cost) {
             MessageUtils.send(player, "<red>You need at least $" +
                     String.format("%,.0f", cost) + " to establish a nation.</red>");

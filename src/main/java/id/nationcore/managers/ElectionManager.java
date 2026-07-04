@@ -18,6 +18,7 @@ import id.nationcore.models.GovernmentType;
 import id.nationcore.models.Nation;
 import id.nationcore.models.PlayerData;
 import id.nationcore.utils.MessageUtils;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 public class ElectionManager {
 
@@ -25,6 +26,10 @@ public class ElectionManager {
 
     public ElectionManager(NationCore plugin) {
         this.plugin = plugin;
+    }
+
+    private YamlConfiguration getElectionConfig() {
+        return plugin.getNationConfig(GovernmentType.REPUBLIC);
     }
 
     public Election getElection() {
@@ -170,10 +175,11 @@ public class ElectionManager {
         MessageUtils.broadcastAnnouncement("ELECTION RESULTS", results.toString());
 
         // Refund deposits
+        YamlConfiguration config = getElectionConfig();
         for (Candidate candidate : election.getCandidates().values()) {
             double refundRate = candidate.getUuid().equals(winner.getUuid())
-                    ? plugin.getConfig().getDouble("election.registration-refund-winner", 1.0)
-                    : plugin.getConfig().getDouble("election.registration-refund-loser", 0.5);
+                    ? (config != null ? config.getDouble("election.registration-refund-winner", 1.0) : 1.0)
+                    : (config != null ? config.getDouble("election.registration-refund-loser", 0.5) : 0.5);
 
             double refund = candidate.getDepositPaid() * refundRate;
             if (refund > 0) {
@@ -202,9 +208,10 @@ public class ElectionManager {
 
     private void giveVoterRewards() {
         Election election = getElection();
-        double participationReward = plugin.getConfig().getDouble("election.voter-rewards.participation", 10000);
-        double lotteryBonus = plugin.getConfig().getDouble("election.voter-rewards.lottery-bonus", 50000);
-        int lotteryWinners = plugin.getConfig().getInt("election.voter-rewards.lottery-winners", 10);
+        YamlConfiguration config = getElectionConfig();
+        double participationReward = config != null ? config.getDouble("election.voter-rewards.participation", 10000) : 10000;
+        double lotteryBonus = config != null ? config.getDouble("election.voter-rewards.lottery-bonus", 50000) : 50000;
+        int lotteryWinners = config != null ? config.getInt("election.voter-rewards.lottery-winners", 10) : 10;
 
         List<UUID> voters = new ArrayList<>(election.getVotes().keySet());
 
@@ -260,7 +267,8 @@ public class ElectionManager {
         }
 
         // Check max candidates
-        int maxCandidates = plugin.getConfig().getInt("election.max-candidates", 3);
+        YamlConfiguration config = getElectionConfig();
+        int maxCandidates = config != null ? config.getInt("election.max-candidates", 3) : 3;
         if (election.getCandidates().size() >= maxCandidates) {
             MessageUtils.send(player,
                     "<red>The maximum number of candidates (" + maxCandidates + ") has been reached.</red>");
@@ -287,7 +295,8 @@ public class ElectionManager {
         }
 
         // Check fee
-        double registrationFee = plugin.getConfig().getDouble("election.registration-fee", 500000);
+        YamlConfiguration config2 = getElectionConfig();
+        double registrationFee = config2 != null ? config2.getDouble("election.registration-fee", 500000) : 500000;
         if (!plugin.getVaultHook().has(uuid, registrationFee)) {
             MessageUtils.send(player, "<red>You need <gold>" + plugin.getVaultHook().format(registrationFee) +
                     "</gold> to register as a candidate.</red>");
@@ -455,29 +464,30 @@ public class ElectionManager {
     }
 
     public double calculateVoteWeight(Player player) {
-        double weight = plugin.getConfig().getDouble("election.vote-weights.base", 1.0);
+        YamlConfiguration config = getElectionConfig();
+        double weight = config != null ? config.getDouble("election.vote-weights.base", 1.0) : 1.0;
         PlayerData data = plugin.getDataManager().getOrCreatePlayerData(player.getUniqueId(), player.getName());
 
         // Playtime bonus
-        double playtimeThreshold = plugin.getConfig().getDouble("election.vote-weights.playtime-threshold-hours", 200);
+        double playtimeThreshold = config != null ? config.getDouble("election.vote-weights.playtime-threshold-hours", 200) : 200;
         if (data.getPlaytimeHours() >= playtimeThreshold) {
-            weight += plugin.getConfig().getDouble("election.vote-weights.playtime-bonus", 0.5);
+            weight += config != null ? config.getDouble("election.vote-weights.playtime-bonus", 0.5) : 0.5;
         }
 
         // Level bonus
-        int levelThreshold = plugin.getConfig().getInt("election.vote-weights.level-threshold", 75);
+        int levelThreshold = config != null ? config.getInt("election.vote-weights.level-threshold", 75) : 75;
         if (player.getLevel() >= levelThreshold) {
-            weight += plugin.getConfig().getDouble("election.vote-weights.level-bonus", 0.5);
+            weight += config != null ? config.getDouble("election.vote-weights.level-bonus", 0.5) : 0.5;
         }
 
         // Balance bonus
-        double balanceThreshold = plugin.getConfig().getDouble("election.vote-weights.balance-threshold", 1000000);
+        double balanceThreshold = config != null ? config.getDouble("election.vote-weights.balance-threshold", 1000000) : 1000000;
         if (plugin.getVaultHook().getBalance(player.getUniqueId()) >= balanceThreshold) {
-            weight += plugin.getConfig().getDouble("election.vote-weights.balance-bonus", 0.5);
+            weight += config != null ? config.getDouble("election.vote-weights.balance-bonus", 0.5) : 0.5;
         }
 
         // Cap at max weight
-        double maxWeight = plugin.getConfig().getDouble("election.vote-weights.max-weight", 2.5);
+        double maxWeight = config != null ? config.getDouble("election.vote-weights.max-weight", 2.5) : 2.5;
         return Math.min(weight, maxWeight);
     }
 
@@ -496,7 +506,8 @@ public class ElectionManager {
         }
 
         // Check cooldown
-        long cooldownHours = plugin.getConfig().getLong("election.campaign.broadcast-cooldown-hours", 6);
+        YamlConfiguration config = getElectionConfig();
+        long cooldownHours = config != null ? config.getLong("election.campaign.broadcast-cooldown-hours", 6) : 6;
         long cooldownMillis = cooldownHours * 60 * 60 * 1000;
         if (System.currentTimeMillis() - candidate.getLastCampaignBroadcast() < cooldownMillis) {
             long remaining = cooldownMillis - (System.currentTimeMillis() - candidate.getLastCampaignBroadcast());
@@ -506,7 +517,7 @@ public class ElectionManager {
         }
 
         // Check fee
-        double cost = plugin.getConfig().getDouble("election.campaign.broadcast-cost", 10000);
+        double cost = config != null ? config.getDouble("election.campaign.broadcast-cost", 10000) : 10000;
         if (!plugin.getVaultHook().has(player.getUniqueId(), cost)) {
             MessageUtils.send(player, "<red>Campaign broadcast costs " + plugin.getVaultHook().format(cost) + "</red>");
             return false;
@@ -534,11 +545,12 @@ public class ElectionManager {
     }
 
     private int getPhaseDuration(ElectionPhase phase) {
+        YamlConfiguration config = getElectionConfig();
         return switch (phase) {
-            case REGISTRATION -> plugin.getConfig().getInt("election.registration-days", 3);
-            case CAMPAIGN -> plugin.getConfig().getInt("election.campaign-days", 7);
-            case VOTING -> plugin.getConfig().getInt("election.voting-days", 3);
-            case INAUGURATION -> plugin.getConfig().getInt("election.inauguration-days", 1);
+            case REGISTRATION -> config != null ? config.getInt("election.registration-days", 3) : 3;
+            case CAMPAIGN -> config != null ? config.getInt("election.campaign-days", 7) : 7;
+            case VOTING -> config != null ? config.getInt("election.voting-days", 3) : 3;
+            case INAUGURATION -> config != null ? config.getInt("election.inauguration-days", 1) : 1;
             default -> 0;
         };
     }
@@ -742,10 +754,11 @@ public class ElectionManager {
         MessageUtils.broadcastAnnouncement("HASIL PEMILU — " + nation.getName(), results.toString());
 
         // Refund deposits
+        YamlConfiguration config = getElectionConfig();
         for (Candidate candidate : election.getCandidates().values()) {
             double rate = candidate.getUuid().equals(winner.getUuid())
-                    ? plugin.getConfig().getDouble("election.registration-refund-winner", 1.0)
-                    : plugin.getConfig().getDouble("election.registration-refund-loser", 0.5);
+                    ? (config != null ? config.getDouble("election.registration-refund-winner", 1.0) : 1.0)
+                    : (config != null ? config.getDouble("election.registration-refund-loser", 0.5) : 0.5);
             double refund = candidate.getDepositPaid() * rate;
             if (refund > 0) {
                 plugin.getVaultHook().deposit(candidate.getUuid(), refund);
@@ -767,9 +780,10 @@ public class ElectionManager {
     }
 
     private void giveVoterRewards(Nation nation, Election election) {
-        double participation = plugin.getConfig().getDouble("election.voter-rewards.participation", 10000);
-        double lottery = plugin.getConfig().getDouble("election.voter-rewards.lottery-bonus", 50000);
-        int lotteryWinners = plugin.getConfig().getInt("election.voter-rewards.lottery-winners", 10);
+        YamlConfiguration config = getElectionConfig();
+        double participation = config != null ? config.getDouble("election.voter-rewards.participation", 10000) : 10000;
+        double lottery = config != null ? config.getDouble("election.voter-rewards.lottery-bonus", 50000) : 50000;
+        int lotteryWinners = config != null ? config.getInt("election.voter-rewards.lottery-winners", 10) : 10;
 
         List<UUID> voters = new ArrayList<>(election.getVotes().keySet());
         for (UUID uuid : voters) {
@@ -808,14 +822,15 @@ public class ElectionManager {
             MessageUtils.send(player, "<red>Anda sudah terdaftar sebagai kandidat.</red>");
             return false;
         }
-        int max = plugin.getConfig().getInt("election.max-candidates", 3);
+        YamlConfiguration config = getElectionConfig();
+        int max = config != null ? config.getInt("election.max-candidates", 3) : 3;
         if (election.getCandidates().size() >= max) {
             MessageUtils.send(player, "<red>Slot kandidat penuh (" + max + ").</red>");
             return false;
         }
         if (!meetsRequirements(player)) return false;
 
-        double fee = plugin.getConfig().getDouble("election.registration-fee", 500_000);
+        double fee = config != null ? config.getDouble("election.registration-fee", 500_000) : 500_000;
         if (!plugin.getVaultHook().has(uuid, fee)) {
             MessageUtils.send(player, "<red>Anda butuh " + plugin.getVaultHook().format(fee) +
                     " untuk mendaftar.</red>");
@@ -835,6 +850,10 @@ public class ElectionManager {
 
     public boolean endorseCandidate(Player endorser, Nation nation, UUID candidateUUID) {
         if (nation == null) return endorseCandidate(endorser, candidateUUID);
+        if (nation.getType() != GovernmentType.REPUBLIC) {
+            MessageUtils.send(endorser, "<red>Endorsement hanya untuk pemerintahan Republik.</red>");
+            return false;
+        }
         if (!nation.isMember(endorser.getUniqueId())) {
             MessageUtils.send(endorser, "<red>Anda bukan anggota nation ini.</red>");
             return false;
@@ -873,6 +892,10 @@ public class ElectionManager {
 
     public boolean castVote(Player voter, Nation nation, UUID candidateUUID) {
         if (nation == null) return castVote(voter, candidateUUID);
+        if (nation.getType() != GovernmentType.REPUBLIC) {
+            MessageUtils.send(voter, "<red>Voting hanya untuk pemerintahan Republik.</red>");
+            return false;
+        }
         if (!nation.isMember(voter.getUniqueId())) {
             MessageUtils.send(voter, "<red>Anda bukan anggota nation ini.</red>");
             return false;
@@ -909,6 +932,10 @@ public class ElectionManager {
 
     public boolean setCampaignMessage(Player player, Nation nation, String message) {
         if (nation == null) return setCampaignMessage(player, message);
+        if (nation.getType() != GovernmentType.REPUBLIC) {
+            MessageUtils.send(player, "<red>Pesan kampanye hanya untuk pemerintahan Republik.</red>");
+            return false;
+        }
         Election election = nation.getElection();
         Candidate candidate = election.getCandidate(player.getUniqueId());
         if (candidate == null) {
@@ -919,7 +946,8 @@ public class ElectionManager {
             MessageUtils.send(player, "<red>Pesan kampanye hanya bisa di fase kampanye.</red>");
             return false;
         }
-        long cooldownHours = plugin.getConfig().getLong("election.campaign.broadcast-cooldown-hours", 6);
+        YamlConfiguration config = getElectionConfig();
+        long cooldownHours = config != null ? config.getLong("election.campaign.broadcast-cooldown-hours", 6) : 6;
         long cooldownMs = cooldownHours * 60 * 60 * 1000;
         if (System.currentTimeMillis() - candidate.getLastCampaignBroadcast() < cooldownMs) {
             long remaining = cooldownMs - (System.currentTimeMillis() - candidate.getLastCampaignBroadcast());
@@ -927,7 +955,7 @@ public class ElectionManager {
                     MessageUtils.formatTime(remaining) + "</red>");
             return false;
         }
-        double cost = plugin.getConfig().getDouble("election.campaign.broadcast-cost", 10000);
+        double cost = config != null ? config.getDouble("election.campaign.broadcast-cost", 10000) : 10000;
         if (!plugin.getVaultHook().has(player.getUniqueId(), cost)) {
             MessageUtils.send(player, "<red>Biaya broadcast: " + plugin.getVaultHook().format(cost) + "</red>");
             return false;

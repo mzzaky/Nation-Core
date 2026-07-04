@@ -63,7 +63,7 @@ public class CommunistListener implements Listener {
         if (last != null && now - last < 1000) return;
         lastTradeBonus.put(player.getUniqueId(), now);
 
-        double bonus = plugin.getConfig().getDouble("nation.communist.market-event-bonus", 25);
+        double bonus = plugin.getCommunistMarketEventBonus();
         plugin.getVaultHook().deposit(player.getUniqueId(), bonus);
         MessageUtils.send(player, "<gold>🛒 Market Event: <green>+$" +
                 MessageUtils.formatNumber(bonus) + "</green> dari trade.");

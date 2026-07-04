@@ -1,0 +1,134 @@
+creation:
+  # Cost of founding a nation (withdrawn from the founder's Vault balance).
+  cost: 500000
+  # Minimum playtime hours before a player can found a nation.
+  # Set to 0 to disable playtime requirements.
+  min-playtime-hours: 0
+  # Percentage of starting capital that goes directly into the new nation's treasury (0-100).
+  # Calculated as a percentage of the cost value. Example: 50 = 50% of the cost.
+  starting-treasury-percent: 80
+
+# Recall Settings
+recall:
+  # Cooldown between recall attempts (days).
+  cooldown-days: 15
+  # Cost (deposit) required to start a recall petition.
+  signature-deposit: 50000
+  # Duration of the signature collection phase (days).
+  collection-days: 7
+  # Duration of the voting phase (days).
+  voting-days: 3
+  # Percentage of 'Yes' votes required to successfully remove the leader (0-100).
+  required-percentage: 60
+  # Percentage of member signatures required to trigger the voting phase (0-100).
+  required-signature-percentage: 30
+
+# Cabinet Settings
+cabinet:
+  daily-salary: 20000
+  defense:
+    prefix: "&4[MoD]"
+    damage-multiplier: 1.12
+    defense-multiplier: 1.10
+    vault-multiplier: 1.15
+    extra-hearts: 1.5
+    daily-vault: 30000
+    decision-cooldown-hours: 48
+  treasury:
+    prefix: "&2[MoT]"
+    vault-multiplier: 1.25
+    sell-bonus: 1.10
+    buy-discount: 0.90
+    daily-vault: 50000
+    decision-cooldown-hours: 48
+  health:
+    prefix: "&d[MoH]"
+    extra-hearts: 1.0
+    daily-vault: 25000
+    decision-cooldown-hours: 48
+
+# Election Settings
+election:
+  registration-days: 3
+  max-candidates: 3 # Maximum number of candidates that can register
+  campaign-days: 7
+  voting-days: 3
+  inauguration-days: 1
+  
+  registration-fee: 500000
+  registration-refund-winner: 1.0 # 100%
+  registration-refund-loser: 0.5 # 50%
+  
+  campaign:
+    broadcast-cooldown-hours: 6
+    broadcast-cost: 10000
+    endorsement-points: 10
+  
+  vote-weights:
+    base: 1.0
+    playtime-bonus: 0.5
+    playtime-threshold-hours: 200
+    level-bonus: 0.5
+    level-threshold: 75
+    balance-bonus: 0.5
+    balance-threshold: 1000000
+    max-weight: 2.5
+  
+  voter-rewards:
+    participation: 10000
+    lottery-bonus: 50000
+    lottery-winners: 10
+
+# President Settings Fixed
+president:
+  term-length-days: 30
+  max-consecutive-terms: 2
+  cooldown-after-max-terms: 1 # terms to wait before running again
+  
+  # Requirements to run Fixed
+  requirements:
+    min-level: 100
+    min-playtime-hours: 100
+    min-vault-balance: 500000
+    min-endorsements: 10
+    no-punishment-days: 30
+  
+  # Buffs Fixed
+  buffs:
+    damage-multiplier: 1.15 # +15%
+    defense-multiplier: 1.12 # +12%
+    vault-multiplier: 1.20 # +20%
+    xp-multiplier: 1.10 # +10%
+    extra-hearts: 2
+    hunger-immunity: true
+    night-vision: true
+  
+  # Daily Rewards Fixed
+  daily-rewards:
+    vault-points: 50000
+    diamond-blocks: 5
+    netherite-ingots: 3
+    enchanted-golden-apples: 10
+
+# Presidential Games Fixed
+presidential-games:
+  cost: 100000
+  max-per-term: 2
+  duration-days: 7
+  death-penalty: 5000
+  safe-zone-immunity-seconds: 10
+  afk-kick-minutes: 3
+  
+  killstreak-rewards:
+    5: 10000
+    10: 25000
+    25: 100000
+    50: 250000
+
+# Approval Rating
+approval:
+  rating-cooldown-days: 7
+  high-approval-threshold: 4.0
+  low-approval-threshold: 2.0
+
+

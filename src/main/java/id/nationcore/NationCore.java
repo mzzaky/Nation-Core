@@ -1,6 +1,8 @@
 package id.nationcore;
 
 import java.io.File;
+import java.util.Map;
+import java.util.EnumMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -10,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import id.nationcore.models.PlayerData;
+import id.nationcore.models.GovernmentType;
 
 import id.nationcore.commands.NationCommand;
 import id.nationcore.gui.GUIListener;
@@ -69,6 +72,7 @@ public class NationCore extends JavaPlugin {
     private VaultHook vaultHook;
     private GUIListener guiListener;
     private YamlConfiguration languageConfig;
+    private final Map<GovernmentType, YamlConfiguration> nationConfigs = new EnumMap<>(GovernmentType.class);
 
     @Override
     public void onEnable() {
@@ -79,6 +83,8 @@ public class NationCore extends JavaPlugin {
             saveResource("language.yml", false);
         }
         languageConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "language.yml"));
+
+        reloadNationConfigs();
 
         MessageUtils.loadLanguage();
 
@@ -214,13 +220,6 @@ public class NationCore extends JavaPlugin {
 
         // Check daily rewards - Moved to Manual Claim in GUI
 
-        // Check president activity every hour (legacy + per-nation REPUBLIC)
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
-            governmentManager.checkPresidentActivity();
-            for (id.nationcore.models.Nation n : nationManager.getAllNations()) {
-                governmentManager.checkPresidentActivity(n);
-            }
-        }, 20L * 60 * 60, 20L * 60 * 60);
 
         // Broadcast campaign messages every 5 minutes during campaign phase
         Bukkit.getScheduler().runTaskTimer(this, () -> {
@@ -427,5 +426,147 @@ public class NationCore extends JavaPlugin {
      */
     public void reloadGUI() {
         getLogger().info("GUI sekarang hardcoded — tidak ada YAML untuk di-reload.");
+    }
+
+    @Override
+    public void reloadConfig() {
+        super.reloadConfig();
+        reloadNationConfigs();
+    }
+
+    public void reloadNationConfigs() {
+        File nationsFolder = new File(getDataFolder(), "nations");
+        if (!nationsFolder.exists()) {
+            nationsFolder.mkdirs();
+        }
+
+        int loadedCount = 0;
+        for (GovernmentType type : GovernmentType.values()) {
+            String fileName = type.getConfigFileName();
+            File file = new File(nationsFolder, fileName);
+            if (!file.exists()) {
+                saveResource("nations/" + fileName, false);
+            }
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+            nationConfigs.put(type, config);
+            loadedCount++;
+        }
+        getLogger().info("Loaded " + loadedCount + " nation type configurations from the nations/ folder.");
+
+        // Merge Republic (democracy.yaml) specific president/games/approval settings into the main configuration instance
+        YamlConfiguration republicConfig = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (republicConfig != null) {
+            for (String key : new String[]{"president", "presidential-games", "approval"}) {
+                if (republicConfig.contains(key)) {
+                    getConfig().set(key, republicConfig.get(key));
+                }
+            }
+        }
+    }
+
+    public double getNationCreationCost(GovernmentType type) {
+        YamlConfiguration config = nationConfigs.get(type);
+        if (config == null) return 500000.0;
+        return config.getDouble("creation.cost", 500000.0);
+    }
+
+    public double getNationCreationMinPlaytime(GovernmentType type) {
+        YamlConfiguration config = nationConfigs.get(type);
+        if (config == null) return 0.0;
+        return config.getDouble("creation.min-playtime-hours", 0.0);
+    }
+
+    public double getNationCreationStartingTreasuryPercent(GovernmentType type) {
+        YamlConfiguration config = nationConfigs.get(type);
+        if (config == null) return 80.0;
+        return config.getDouble("creation.starting-treasury-percent", 80.0);
+    }
+
+    public long getRecallCooldownDays() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 15;
+        return config.getLong("recall.cooldown-days", 15);
+    }
+
+    public double getRecallSignatureDeposit() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 50000;
+        return config.getDouble("recall.signature-deposit", 50000);
+    }
+
+    public long getRecallCollectionDays() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 7;
+        return config.getLong("recall.collection-days", 7);
+    }
+
+    public long getRecallVotingDays() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 3;
+        return config.getLong("recall.voting-days", 3);
+    }
+
+    public double getRecallRequiredPercentage() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 60;
+        return config.getDouble("recall.required-percentage", 60);
+    }
+
+    public double getRecallRequiredSignaturePercentage() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
+        if (config == null) return 30;
+        return config.getDouble("recall.required-signature-percentage", 30);
+    }
+
+    public long getCommunistElectionCycleDays() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 7;
+        return config.getLong("communist.election-cycle-days", 7);
+    }
+
+    public long getCommunistTaxPhaseMinutes() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 140;
+        return config.getLong("communist.tax-phase-minutes", 140);
+    }
+
+    public double getCommunistTaxAmount() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 50.0;
+        return config.getDouble("communist.tax-amount", 50.0);
+    }
+
+    public long getCommunistFreeFoodIntervalHours() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 24;
+        return config.getLong("communist.free-food-interval-hours", 24);
+    }
+
+    public double getCommunistFreeFoodCostPerPlayer() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 1000.0;
+        return config.getDouble("communist.free-food-cost-per-player", 1000.0);
+    }
+
+    public int getCommunistFreeFoodBread() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 16;
+        return config.getInt("communist.free-food-bread", 16);
+    }
+
+    public double getCommunistMinisterWeeklySalary() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 10000.0;
+        return config.getDouble("communist.minister-weekly-salary", 10000.0);
+    }
+
+    public double getCommunistMarketEventBonus() {
+        YamlConfiguration config = nationConfigs.get(GovernmentType.COMMUNIST);
+        if (config == null) return 25.0;
+        return config.getDouble("communist.market-event-bonus", 25.0);
+    }
+
+    public YamlConfiguration getNationConfig(GovernmentType type) {
+        return nationConfigs.get(type);
     }
 }

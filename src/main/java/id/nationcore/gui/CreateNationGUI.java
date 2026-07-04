@@ -23,7 +23,7 @@ import id.nationcore.models.GovernmentType;
 public class CreateNationGUI {
 
     public static final String CREATE_TITLE = ChatColor.translateAlternateColorCodes('&',
-            "&8» &aChoose Government Type");
+            "&8Choose Government Type");
 
     public static final int SLOT_REPUBLIC = 10;
     public static final int SLOT_COMMUNIST = 12;
@@ -66,6 +66,19 @@ public class CreateNationGUI {
             lore.add("");
             for (String line : type.getHighlights()) {
                 lore.add(ChatColor.translateAlternateColorCodes('&', line));
+            }
+            lore.add("");
+            lore.add(ChatColor.translateAlternateColorCodes('&', "&eRequirements & Cost:"));
+            double cost = plugin.getNationCreationCost(type);
+            double minHours = plugin.getNationCreationMinPlaytime(type);
+            double startingTreasury = plugin.getNationCreationStartingTreasuryPercent(type);
+            
+            lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Creation Cost: &6$" + String.format("%,.0f", cost)));
+            if (minHours > 0) {
+                lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Min Playtime: &6" + minHours + " hours"));
+            }
+            if (startingTreasury > 0) {
+                lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Starting Treasury: &6" + String.format("%.0f", startingTreasury) + "%"));
             }
             lore.add("");
             lore.add(ChatColor.translateAlternateColorCodes('&',

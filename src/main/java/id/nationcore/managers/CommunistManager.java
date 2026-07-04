@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -327,7 +328,7 @@ public class CommunistManager {
      * candidate with the most votes. If no votes, current Secretary General remains.
      */
     public void checkAllPartyElections() {
-        long cycleDays = plugin.getConfig().getLong("nation.communist.election-cycle-days", 7);
+        long cycleDays = plugin.getCommunistElectionCycleDays();
         long cycleMs = cycleDays * 24L * 60 * 60 * 1000;
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
@@ -392,7 +393,7 @@ public class CommunistManager {
     public long getElectionCycleRemaining(Nation nation) {
         CommunistGovernment cg = getGovernment(nation);
         if (cg == null) return 0;
-        long cycleDays = plugin.getConfig().getLong("nation.communist.election-cycle-days", 7);
+        long cycleDays = plugin.getCommunistElectionCycleDays();
         long cycleMs = cycleDays * 24L * 60 * 60 * 1000;
         long elapsed = System.currentTimeMillis() - cg.getElectionCycleStart();
         return Math.max(0, cycleMs - elapsed);
@@ -411,9 +412,9 @@ public class CommunistManager {
      * forced (no system debt). Phase 4C can add debt mechanism if needed.
      */
     public void checkAllTaxPhases() {
-        long phaseMinutes = plugin.getConfig().getLong("nation.communist.tax-phase-minutes", 140);
+        long phaseMinutes = plugin.getCommunistTaxPhaseMinutes();
         long phaseMs = phaseMinutes * 60 * 1000;
-        double baseTaxAmount = plugin.getConfig().getDouble("nation.communist.tax-amount", 50);
+        double baseTaxAmount = plugin.getCommunistTaxAmount();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.COMMUNIST) continue;
@@ -475,10 +476,10 @@ public class CommunistManager {
     // ==========================================================
 
     public void checkAllFreeFoodDistributions() {
-        long intervalMs = plugin.getConfig().getLong("nation.communist.free-food-interval-hours", 24)
+        long intervalMs = plugin.getCommunistFreeFoodIntervalHours()
                 * 60 * 60 * 1000;
-        int breadCount = plugin.getConfig().getInt("nation.communist.free-food-bread", 16);
-        double costPerPlayer = plugin.getConfig().getDouble("nation.communist.free-food-cost-per-player", 1000);
+        int breadCount = plugin.getCommunistFreeFoodBread();
+        double costPerPlayer = plugin.getCommunistFreeFoodCostPerPlayer();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.COMMUNIST) continue;
@@ -651,7 +652,9 @@ public class CommunistManager {
         PolitburoMember member = cg.getPolitburoMember(required);
         if (member == null || !member.getUuid().equals(uuid)) return false;
 
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+        String posName = required != null ? required.name().toLowerCase() : "propaganda";
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("politbiro." + posName + ".decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<String, Long> playerCooldowns = cg.getDecisionCooldowns()
                 .computeIfAbsent(uuid, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type.name());
@@ -663,7 +666,9 @@ public class CommunistManager {
     public long getDecisionCooldownRemaining(Nation nation, UUID uuid, CommunistDecisionType type) {
         CommunistGovernment cg = getGovernment(nation);
         if (cg == null) return 0;
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+        String posName = type.getPosition() != null ? type.getPosition().name().toLowerCase() : "propaganda";
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("politbiro." + posName + ".decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<String, Long> playerCooldowns = cg.getDecisionCooldowns().get(uuid);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type.name());
@@ -1047,7 +1052,7 @@ public class CommunistManager {
      */
     public void checkPolitburoSalaries() {
         long weekMs = 7L * 24 * 60 * 60 * 1000;
-        double weeklySalary = plugin.getConfig().getDouble("nation.communist.minister-weekly-salary", 10_000);
+        double weeklySalary = plugin.getCommunistMinisterWeeklySalary();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.COMMUNIST) continue;
@@ -1156,13 +1161,15 @@ public class CommunistManager {
         if (member != null) {
             CommunistGovernment.PolitburoPosition position = member.getPosition();
             String configPath = switch (position) {
-                case DEFENSE -> "cabinet.defense.daily-vault";
-                case TREASURY -> "cabinet.treasury-minister.daily-vault";
-                default -> "cabinet.daily-salary";
+                case PROPAGANDA -> "politbiro.propaganda.daily-vault";
+                case DEFENSE -> "politbiro.defense.daily-vault";
+                case TREASURY -> "politbiro.treasury.daily-vault";
+                case HEALTH -> "politbiro.health.daily-vault";
             };
 
-            double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
-            double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+            YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+            double vaultPoints = nationConfig != null ? nationConfig.getDouble(configPath, 25000) : 25000;
+            double salary = nationConfig != null ? nationConfig.getDouble("politbiro.daily-salary", 20000) : 20000;
             double totalPay = vaultPoints + salary;
 
             if (plugin.getTreasuryManager().canAfford(nation, totalPay)) {

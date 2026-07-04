@@ -1,0 +1,68 @@
+creation:
+  # Cost of founding a nation (withdrawn from the founder's Vault balance).
+  cost: 500000
+  # Minimum playtime hours before a player can found a nation.
+  # Set to 0 to disable playtime requirements.
+  min-playtime-hours: 0
+  # Percentage of starting capital that goes directly into the new nation's treasury (0-100).
+  # Calculated as a percentage of the cost value. Example: 50 = 50% of the cost.
+  starting-treasury-percent: 80
+
+# Politbiro Settings
+politbiro:
+  daily-salary: 20000
+  propaganda:
+    prefix: "&d[Propaganda]"
+    damage-multiplier: 1.0
+    defense-multiplier: 1.0
+    vault-multiplier: 1.0
+    extra-hearts: 0.0
+    daily-vault: 25000
+    decision-cooldown-hours: 48
+  defense:
+    prefix: "&4[Defense]"
+    damage-multiplier: 1.12
+    defense-multiplier: 1.10
+    vault-multiplier: 1.15
+    extra-hearts: 1.5
+    daily-vault: 30000
+    decision-cooldown-hours: 48
+  treasury:
+    prefix: "&6[Treasury]"
+    vault-multiplier: 1.25
+    sell-bonus: 1.10
+    buy-discount: 0.90
+    daily-vault: 50000
+    decision-cooldown-hours: 48
+  health:
+    prefix: "&a[Health]"
+    extra-hearts: 1.0
+    daily-vault: 25000
+    decision-cooldown-hours: 48
+
+
+# Communist Settings
+communist:
+  # Duration of one General Secretary election cycle (real days). Default 7 days.
+  # Party members vote each cycle, the winner automatically becomes the new General Secretary.
+  election-cycle-days: 7
+
+  # Communist Tax: collected every phase (default 7 Minecraft days = 140 minutes
+  # real time, because 1 MC day = 20 minutes). Default tax value of 50 dollars
+  # per member per phase.
+  tax-phase-minutes: 140
+  tax-amount: 50
+
+  # Free Food: at this interval, the nation's treasury pays the cost-per-player
+  # to distribute bread-count loaves to each online member.
+  free-food-interval-hours: 24
+  free-food-cost-per-player: 1000
+  free-food-bread: 16
+
+  # Politburo Salary: paid from the nation's treasury every 7 real days.
+  minister-weekly-salary: 10000
+
+  # Market Event Bonus: for every villager transaction while the effect is active,
+  # nation members receive a money bonus equal to this value.
+  market-event-bonus: 25
+

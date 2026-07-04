@@ -45,14 +45,14 @@ public class RecallManager {
         if (currentPetition != null && !currentPetition.isExpired()) return false;
         
         // Check cooldown from last failed recall
-        long cooldownMs = plugin.getConfig().getLong("recall.cooldown-days", 15) * 86400000L;
+        long cooldownMs = plugin.getRecallCooldownDays() * 86400000L;
         if (System.currentTimeMillis() - lastFailedRecall < cooldownMs) return false;
         
         // Check if initiator has enough money for deposit
         Player initiator = Bukkit.getPlayer(initiatorId);
         if (initiator == null) return false;
         
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         return plugin.getVaultHook().getBalance(initiator.getUniqueId()) >= deposit;
     }
     
@@ -65,11 +65,11 @@ public class RecallManager {
         Government gov = plugin.getDataManager().getGovernment();
         
         // Take deposit
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         plugin.getVaultHook().withdraw(initiator.getUniqueId(), deposit);
         
         // Create petition
-        long collectionDays = plugin.getConfig().getLong("recall.collection-days", 7);
+        long collectionDays = plugin.getRecallCollectionDays();
         currentPetition = new RecallPetition(
             gov.getPresidentUUID(),
             initiatorId,
@@ -132,7 +132,7 @@ public class RecallManager {
         if (signer == null) return false;
         
         // Check deposit
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         if (plugin.getVaultHook().getBalance(signer.getUniqueId()) < deposit) {
             MessageUtils.send(signer, "<red>You need $" + MessageUtils.formatNumber(deposit) + " to sign the petition!");
             return false;
@@ -190,7 +190,7 @@ public class RecallManager {
     private void startRecallVote() {
         currentPetition.setPhase(RecallPetition.RecallPhase.VOTING);
         
-        long votingDays = plugin.getConfig().getLong("recall.voting-days", 3);
+        long votingDays = plugin.getRecallVotingDays();
         currentPetition.setVotingEndTime(System.currentTimeMillis() + votingDays * 86400000L);
         
         String presidentName = Bukkit.getOfflinePlayer(currentPetition.getTargetId()).getName();
@@ -270,7 +270,7 @@ public class RecallManager {
         }
         
         double removePercentage = (double) removeVotes / totalVotes * 100;
-        double requiredPercentage = plugin.getConfig().getDouble("recall.required-percentage", 60);
+        double requiredPercentage = plugin.getRecallRequiredPercentage();
         
         String presidentName = Bukkit.getOfflinePlayer(currentPetition.getTargetId()).getName();
         
@@ -366,7 +366,7 @@ public class RecallManager {
     }
     
     public int getRequiredSignatures() {
-        double percentage = plugin.getConfig().getDouble("recall.required-signature-percentage", 30) / 100.0;
+        double percentage = plugin.getRecallRequiredSignaturePercentage() / 100.0;
         int activePlayers = getActivePlayerCount();
         return Math.max(1, (int) Math.ceil(activePlayers * percentage));
     }
@@ -435,7 +435,7 @@ public class RecallManager {
     }
     
     public long getCooldownRemaining() {
-        long cooldownMs = plugin.getConfig().getLong("recall.cooldown-days", 15) * 86400000L;
+        long cooldownMs = plugin.getRecallCooldownDays() * 86400000L;
         long remaining = cooldownMs - (System.currentTimeMillis() - lastFailedRecall);
         return Math.max(0, remaining);
     }
@@ -470,13 +470,13 @@ public class RecallManager {
         RecallPetition existing = nation.getRecallPetition();
         if (existing != null && !existing.isExpired()) return false;
 
-        long cooldownMs = plugin.getConfig().getLong("recall.cooldown-days", 15) * 86400000L;
+        long cooldownMs = plugin.getRecallCooldownDays() * 86400000L;
         long lastFailed = lastFailedRecallByNation.getOrDefault(nation.getId(), 0L);
         if (System.currentTimeMillis() - lastFailed < cooldownMs) return false;
-
+ 
         Player initiator = Bukkit.getPlayer(initiatorId);
         if (initiator == null) return false;
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         return plugin.getVaultHook().getBalance(initiator.getUniqueId()) >= deposit;
     }
 
@@ -486,10 +486,10 @@ public class RecallManager {
         if (initiator == null) return false;
 
         Government gov = nation.getRepublicGovernment();
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         plugin.getVaultHook().withdraw(initiator.getUniqueId(), deposit);
-
-        long collectionDays = plugin.getConfig().getLong("recall.collection-days", 7);
+ 
+        long collectionDays = plugin.getRecallCollectionDays();
         RecallPetition petition = new RecallPetition(
                 gov.getPresidentUUID(), initiatorId, reason,
                 collectionDays * 86400000L);
@@ -528,7 +528,7 @@ public class RecallManager {
 
         Player signer = Bukkit.getPlayer(signerId);
         if (signer == null) return false;
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         if (plugin.getVaultHook().getBalance(signer.getUniqueId()) < deposit) {
             MessageUtils.send(signer, "<red>Anda butuh $" + MessageUtils.formatNumber(deposit) +
                     " untuk menandatangani.</red>");
@@ -575,7 +575,7 @@ public class RecallManager {
     private void startRecallVote(Nation nation) {
         RecallPetition petition = nation.getRecallPetition();
         petition.setPhase(RecallPetition.RecallPhase.VOTING);
-        long votingDays = plugin.getConfig().getLong("recall.voting-days", 3);
+        long votingDays = plugin.getRecallVotingDays();
         petition.setVotingEndTime(System.currentTimeMillis() + votingDays * 86400000L);
 
         String presidentName = Bukkit.getOfflinePlayer(petition.getTargetId()).getName();
@@ -651,7 +651,7 @@ public class RecallManager {
         }
 
         double removePct = (double) removeVotes / total * 100;
-        double required = plugin.getConfig().getDouble("recall.required-percentage", 60);
+        double required = plugin.getRecallRequiredPercentage();
         String presidentName = Bukkit.getOfflinePlayer(petition.getTargetId()).getName();
 
         MessageUtils.broadcast("<gold>═══════════════════════════════════════");
@@ -723,7 +723,7 @@ public class RecallManager {
     }
 
     public int getRequiredSignatures(Nation nation) {
-        double pct = plugin.getConfig().getDouble("recall.required-signature-percentage", 30) / 100.0;
+        double pct = plugin.getRecallRequiredSignaturePercentage() / 100.0;
         int memberCount = nation != null ? nation.getMemberCount() : getActivePlayerCount();
         return Math.max(1, (int) Math.ceil(memberCount * pct));
     }

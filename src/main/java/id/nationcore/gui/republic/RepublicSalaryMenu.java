@@ -6,6 +6,7 @@ import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -13,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import id.nationcore.NationCore;
 import id.nationcore.gui.GovernmentGUIUtils;
 import id.nationcore.models.Government;
+import id.nationcore.models.GovernmentType;
 import id.nationcore.utils.MessageUtils;
 
 public class RepublicSalaryMenu {
@@ -72,12 +74,14 @@ public class RepublicSalaryMenu {
                 Government.CabinetPosition position = cabinetMember.getPosition();
                 String configPath = switch (position) {
                     case DEFENSE -> "cabinet.defense.daily-vault";
-                    case TREASURY -> "cabinet.treasury-minister.daily-vault";
+                    case TREASURY -> "cabinet.treasury.daily-vault";
+                    case HEALTH -> "cabinet.health.daily-vault";
                     default -> "cabinet.daily-salary";
                 };
 
-                double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
-                double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+                YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
+                double vaultPoints = nationConfig != null ? nationConfig.getDouble(configPath, 30000) : 30000;
+                double salary = nationConfig != null ? nationConfig.getDouble("cabinet.daily-salary", 20000) : 20000;
                 double totalPay = vaultPoints + salary;
 
                 lore.add("§7• §6" + MessageUtils.formatNumber((long) totalPay) + " §eVault Points");

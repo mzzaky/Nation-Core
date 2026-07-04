@@ -109,7 +109,7 @@ public class RepublicRecallGUI {
                 if (isMember && !petition.hasSigned(player.getUniqueId())
                         && !petition.getTargetId().equals(player.getUniqueId())) {
 
-                    double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+                    double deposit = plugin.getRecallSignatureDeposit();
                     double balance = plugin.getVaultHook().getBalance(player.getUniqueId());
                     boolean canAfford = balance >= deposit;
 
@@ -257,9 +257,9 @@ public class RepublicRecallGUI {
         Inventory inv = Bukkit.createInventory(null, 27, LegacyComponentSerializer.legacySection().deserialize(RECALL_CONFIRM_TITLE));
 
         Government gov = plugin.getDataManager().getGovernment();
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         int requiredSignatures = plugin.getRecallManager().getRequiredSignatures();
-        long collectionDays = plugin.getConfig().getLong("recall.collection-days", 7);
+        long collectionDays = plugin.getRecallCollectionDays();
 
         // Warning Header (Slot 4)
         ItemStack warningItem = createItem(Material.TNT, "§4§l⚠ START RECALL PETITION ⚠",
@@ -393,12 +393,12 @@ public class RepublicRecallGUI {
     }
 
     private ItemStack createConfigInfoItem() {
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
-        double requiredPercentage = plugin.getConfig().getDouble("recall.required-percentage", 60);
-        double signaturePercentage = plugin.getConfig().getDouble("recall.required-signature-percentage", 30);
-        long collectionDays = plugin.getConfig().getLong("recall.collection-days", 7);
-        long votingDays = plugin.getConfig().getLong("recall.voting-days", 3);
-        long cooldownDays = plugin.getConfig().getLong("recall.cooldown-days", 15);
+        double deposit = plugin.getRecallSignatureDeposit();
+        double requiredPercentage = plugin.getRecallRequiredPercentage();
+        double signaturePercentage = plugin.getRecallRequiredSignaturePercentage();
+        long collectionDays = plugin.getRecallCollectionDays();
+        long votingDays = plugin.getRecallVotingDays();
+        long cooldownDays = plugin.getRecallCooldownDays();
 
         return createItem(Material.BOOK, "§e§l📖 RECALL RULES",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
@@ -515,7 +515,7 @@ public class RepublicRecallGUI {
         int totalVotes = removeVotes + keepVotes;
         double removePercent = totalVotes > 0 ? (double) removeVotes / totalVotes * 100 : 0;
         double keepPercent = totalVotes > 0 ? (double) keepVotes / totalVotes * 100 : 0;
-        double requiredPercentage = plugin.getConfig().getDouble("recall.required-percentage", 60);
+        double requiredPercentage = plugin.getRecallRequiredPercentage();
 
         // Vote Stats Header (Slot 19)
         ItemStack voteHeader = createItem(Material.NETHER_STAR, "§6§l🗳 VOTE RESULTS",
@@ -609,7 +609,7 @@ public class RepublicRecallGUI {
 
         // Can potentially start a petition
         boolean isPresident = gov.getPresidentUUID().equals(player.getUniqueId());
-        double deposit = plugin.getConfig().getDouble("recall.signature-deposit", 50000);
+        double deposit = plugin.getRecallSignatureDeposit();
         double balance = plugin.getVaultHook().getBalance(player.getUniqueId());
         boolean canAfford = balance >= deposit;
 
@@ -668,9 +668,9 @@ public class RepublicRecallGUI {
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
                 "§7Signatures needed: §f" + requiredSigs,
                 "§7Deposit per signer: §6" + MessageUtils.formatNumber(deposit),
-                "§7Collection time: §f" + plugin.getConfig().getLong("recall.collection-days", 7) + " days",
-                "§7Voting time: §f" + plugin.getConfig().getLong("recall.voting-days", 3) + " days",
-                "§7Removal threshold: §f60% votes",
+                "§7Collection time: §f" + plugin.getRecallCollectionDays() + " days",
+                "§7Voting time: §f" + plugin.getRecallVotingDays() + " days",
+                "§7Removal threshold: §f" + String.format("%.0f", plugin.getRecallRequiredPercentage()) + "% votes",
                 "§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         inv.setItem(24, reqItem);
     }

@@ -1,209 +1,34 @@
 # NationCore Configuration
-# Version 1.5.0
+# Version 2.0.0
 
 # General Settings
 general:
   prefix: "&6[NationCore]&r"
   language: "en"
 
-# ============================================================
-# Multi-Nation System (sejak v1.5)
-# ============================================================
-# Mengatur pembuatan dan pengelolaan nation. Nation adalah
-# entitas pemain-driven baru yang menggantikan model "satu
-# pemerintahan global" pada versi sebelumnya.
 nation:
-  creation:
-    # Biaya pendirian nation (ditarik dari saldo Vault founder).
-    cost: 1000000
-    # Jam playtime minimum sebelum pemain boleh mendirikan nation.
-    # Set ke 0 untuk menonaktifkan persyaratan playtime.
-    min-playtime-hours: 0
-    # Persentase modal awal yang langsung masuk ke kas nation baru (0-100).
-    # Dihitung dari nilai cost sebagai persentase. Contoh: 50 = 50% dari cost.
-    starting-treasury-percent: 50
-    
   capital:
-    # Radius default ibukota dalam blok dari titik klaim.
+    # Default capital radius in blocks from the claim point.
     default-radius: 50
-    # Apakah teritori ibukota dilindungi dari grief non-anggota.
+    # Whether the capital territory is protected from non-member griefing.
     protect: true
-    # Biaya klaim ibukota (ditarik dari kas nation). Set 0 untuk gratis.
+    # Capital claiming cost (withdrawn from the nation's treasury). Set to 0 for free.
     claim-cost: 0
 
   # ============================================================
   # Border Management — territory expansion & capital relocation
   # ============================================================
-  # Mengatur fitur Border Management (menu per-jenis nation). Semua
-  # biaya di bawah ditarik dari saldo Vault PEMIMPIN, bukan kas nation.
+  # Configure Border Management features (menu per nation type). All
+  # costs below are withdrawn from the LEADER's Vault balance, not the nation's treasury.
   territory:
-    # Biaya klaim satu chunk teritori baru (ditarik dari Vault pemimpin).
+    # Cost to claim one chunk of new territory (withdrawn from the leader's Vault).
     claim-cost: 25000
-    # Biaya memindahkan ibukota ke chunk yang sudah dimiliki.
+    # Cost of relocating the capital to an already owned chunk.
     capital-relocate-cost: 50000
-    # Cooldown real-time (jam) antar pemindahan ibukota.
+    # Real-time cooldown (hours) between capital relocations.
     capital-relocate-cooldown-hours: 24
 
-  # ============================================================
-  # Komunis-specific settings (sejak v1.5)
-  # ============================================================
-  communist:
-    # Lama satu cycle pemilihan Sekjen (hari real). Default 7 hari.
-    # Anggota Partai vote tiap cycle, pemenang otomatis jadi Sekjen baru.
-    election-cycle-days: 7
 
-    # Pajak Komunis: ditagih setiap fase (default 7 hari Minecraft = 140 menit
-    # real time, karena 1 hari MC = 20 menit). Nilai pajak default 50 dollar
-    # per anggota per fase.
-    tax-phase-minutes: 140
-    tax-amount: 50
-
-    # Free Food: setiap interval ini, kas nation membayar cost-per-player
-    # untuk membagikan bread-count loaf ke setiap anggota online.
-    free-food-interval-hours: 24
-    free-food-cost-per-player: 1000
-    free-food-bread: 16
-
-    # Gaji Politbiro: dibayar dari kas nation tiap 7 hari real time.
-    minister-weekly-salary: 10000
-
-    # Bonus Market Event: untuk setiap transaksi villager saat efek aktif,
-    # anggota nation menerima bonus uang sebesar nilai ini.
-    market-event-bonus: 25
-
-# President Settings Fixed
-president:
-  term-length-days: 30
-  max-consecutive-terms: 2
-  cooldown-after-max-terms: 1 # terms to wait before running again
-  
-  # Requirements to run Fixed
-  requirements:
-    min-level: 100
-    min-playtime-hours: 100
-    min-vault-balance: 500000
-    min-endorsements: 10
-    no-punishment-days: 30
-  
-  # Buffs Fixed
-  buffs:
-    damage-multiplier: 1.15 # +15%
-    defense-multiplier: 1.12 # +12%
-    vault-multiplier: 1.20 # +20%
-    xp-multiplier: 1.10 # +10%
-    extra-hearts: 2
-    hunger-immunity: true
-    night-vision: true
-  
-  # Daily Rewards Fixed
-  daily-rewards:
-    vault-points: 50000
-    diamond-blocks: 5
-    netherite-ingots: 3
-    enchanted-golden-apples: 10
-
-# Cabinet Settings
-cabinet:
-  appointment-cooldown-days: 3
-  daily-salary: 20000
-  
-  # Minister of Defense
-  defense:
-    prefix: "&4[MoD]"
-    damage-multiplier: 1.12
-    defense-multiplier: 1.10
-    vault-multiplier: 1.15
-    extra-hearts: 1.5
-    daily-vault: 30000
-    decision-cooldown-hours: 48
-  
-  # Minister of Treasury
-  treasury-minister:
-    prefix: "&2[MoT]"
-    vault-multiplier: 1.25
-    sell-bonus: 1.10
-    buy-discount: 0.90
-    daily-vault: 50000
-    decision-cooldown-hours: 48
-  
-
-
-# Election Settings
-election:
-  registration-days: 3
-  max-candidates: 3 # Maximum number of candidates that can register
-  campaign-days: 7
-  voting-days: 3
-  inauguration-days: 1
-  
-  registration-fee: 500000
-  registration-refund-winner: 1.0 # 100%
-  registration-refund-loser: 0.5 # 50%
-  
-  campaign:
-    broadcast-cooldown-hours: 6
-    broadcast-cost: 10000
-    endorsement-points: 10
-  
-  vote-weights:
-    base: 1.0
-    playtime-bonus: 0.5
-    playtime-threshold-hours: 200
-    level-bonus: 0.5
-    level-threshold: 75
-    balance-bonus: 0.5
-    balance-threshold: 1000000
-    max-weight: 2.5
-  
-  voter-rewards:
-    participation: 10000
-    lottery-bonus: 50000
-    lottery-winners: 10
-
-# Executive Orders
-executive-orders:
-  cooldown-days: 7
-  cost: 1000000
-
-# Presidential Games Fixed
-presidential-games:
-  cost: 100000
-  max-per-term: 2
-  duration-days: 7
-  death-penalty: 5000
-  safe-zone-immunity-seconds: 10
-  afk-kick-minutes: 3
-  
-  killstreak-rewards:
-    5: 10000
-    10: 25000
-    25: 100000
-    50: 250000
-
-# Treasury Settings
-treasury:
-  starting-fund: 5000000
-  transaction-tax: 0.05 # 5%
-
-# Recall Settings
-recall:
-  signature-threshold: 0.30 # 30% of active players
-  signature-deposit: 50000
-  collection-days: 7
-  removal-threshold: 0.60 # 60% to remove
-  cooldown-after-failure-days: 15
-
-
-
-# Approval Rating
-approval:
-  rating-cooldown-days: 7
-  high-approval-threshold: 4.0
-  low-approval-threshold: 2.0
-
-# Auto-removal
-auto-removal:
-  inactive-days: 7
 
 # ============================================================
 # Cross-Plugin Integration (soft-depend)

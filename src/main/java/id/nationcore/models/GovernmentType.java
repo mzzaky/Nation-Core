@@ -148,4 +148,13 @@ public enum GovernmentType {
             default -> null;
         };
     }
+
+    public String getConfigFileName() {
+        return switch (this) {
+            case REPUBLIC -> "democracy.yaml";
+            case COMMUNIST -> "comunist.yaml";
+            case MONARCHY -> "monarcy.yaml";
+            case CALIPHATE -> "caliphate.yaml";
+        };
+    }
 }

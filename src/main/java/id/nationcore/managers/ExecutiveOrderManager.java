@@ -39,14 +39,14 @@ public class ExecutiveOrderManager {
     }
 
     public boolean isOrderOnCooldown(ExecutiveOrderType type) {
-        long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+        long cooldownDays = 7;
         long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
         long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
         return System.currentTimeMillis() - lastOrderTime < cooldownMillis;
     }
 
     public long getOrderCooldownRemaining(ExecutiveOrderType type) {
-        long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+        long cooldownDays = 7;
         long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
         long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
         long elapsed = System.currentTimeMillis() - lastOrderTime;
@@ -70,7 +70,7 @@ public class ExecutiveOrderManager {
         }
 
         // Check cooldown
-        long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+        long cooldownDays = 7;
         long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
         long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
 
@@ -87,7 +87,7 @@ public class ExecutiveOrderManager {
         }
 
         // Check treasury
-        double cost = plugin.getConfig().getDouble("executive-orders.cost", 1000000);
+        double cost = 1000000.0;
         if (!plugin.getTreasuryManager().canAfford(cost)) {
             MessageUtils.send(president, "executive_orders.insufficient_funds", "amount",
                     plugin.getVaultHook().format(cost));
@@ -342,7 +342,7 @@ public class ExecutiveOrderManager {
     public boolean isOrderOnCooldown(Nation nation, ExecutiveOrderType type) {
         // Royal prerogative: monarchies have no cooldown between orders.
         if (nation != null && nation.getType() == GovernmentType.MONARCHY) return false;
-        long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+        long cooldownDays = 7;
         long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
         long lastOrderTime = nation != null ? nation.getLastExecutiveOrderTime()
                 : plugin.getDataManager().getLastExecutiveOrderTime();
@@ -350,7 +350,7 @@ public class ExecutiveOrderManager {
     }
 
     public long getOrderCooldownRemaining(Nation nation, ExecutiveOrderType type) {
-        long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+        long cooldownDays = 7;
         long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
         long lastOrderTime = nation != null ? nation.getLastExecutiveOrderTime()
                 : plugin.getDataManager().getLastExecutiveOrderTime();
@@ -397,7 +397,7 @@ public class ExecutiveOrderManager {
         // no cooldown between orders. Republic and Communist nations still
         // honour the configured cooldown.
         if (nation.getType() != GovernmentType.MONARCHY) {
-            long cooldownDays = plugin.getConfig().getLong("executive-orders.cooldown-days", 7);
+            long cooldownDays = 7;
             long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
             if (System.currentTimeMillis() - nation.getLastExecutiveOrderTime() < cooldownMillis) {
                 long remaining = cooldownMillis - (System.currentTimeMillis() - nation.getLastExecutiveOrderTime());
@@ -412,7 +412,7 @@ public class ExecutiveOrderManager {
             return false;
         }
 
-        double cost = plugin.getConfig().getDouble("executive-orders.cost", 1000000);
+        double cost = 1000000.0;
         if (!plugin.getTreasuryManager().canAfford(nation, cost)) {
             MessageUtils.send(president, "executive_orders.insufficient_funds",
                     "amount", plugin.getVaultHook().format(cost));

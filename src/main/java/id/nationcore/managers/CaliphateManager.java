@@ -213,9 +213,9 @@ public class CaliphateManager {
     // ---------------------------------------------------------------
 
     public void checkAllTaxPhases() {
-        long phaseMinutes = plugin.getConfig().getLong("nation.communist.tax-phase-minutes", 140);
+        long phaseMinutes = plugin.getCommunistTaxPhaseMinutes();
         long phaseMs = phaseMinutes * 60 * 1000;
-        double baseTaxAmount = plugin.getConfig().getDouble("nation.communist.tax-amount", 50);
+        double baseTaxAmount = plugin.getCommunistTaxAmount();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.CALIPHATE) continue;
@@ -269,10 +269,10 @@ public class CaliphateManager {
     }
 
     public void checkAllZakatDistributions() {
-        long intervalMs = plugin.getConfig().getLong("nation.communist.free-food-interval-hours", 24)
+        long intervalMs = plugin.getCommunistFreeFoodIntervalHours()
                 * 60 * 60 * 1000;
-        int breadCount = plugin.getConfig().getInt("nation.communist.free-food-bread", 16);
-        double costPerPlayer = plugin.getConfig().getDouble("nation.communist.free-food-cost-per-player", 1000);
+        int breadCount = plugin.getCommunistFreeFoodBread();
+        double costPerPlayer = plugin.getCommunistFreeFoodCostPerPlayer();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.CALIPHATE) continue;

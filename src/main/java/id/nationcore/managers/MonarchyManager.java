@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.ArrayList;
 
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import id.nationcore.NationCore;
@@ -200,7 +201,8 @@ public class MonarchyManager {
         MonarchyGovernment mg = getGovernment(nation);
         if (mg == null) return 0;
         if (mg.hasKing() && mg.getKingUUID().equals(uuid)) return 0;
-        long cooldownMs = plugin.getConfig().getLong("cabinet.decision-cooldown-hours", 48) * 3600000L;
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.MONARCHY);
+        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
         Map<String, Long> playerCooldowns = mg.getDecisionCooldowns().get(uuid);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type.name());
@@ -496,9 +498,9 @@ public class MonarchyManager {
     // ---------------------------------------------------------------
 
     public void checkAllTaxPhases() {
-        long phaseMinutes = plugin.getConfig().getLong("nation.communist.tax-phase-minutes", 140);
+        long phaseMinutes = plugin.getCommunistTaxPhaseMinutes();
         long phaseMs = phaseMinutes * 60 * 1000;
-        double baseTaxAmount = plugin.getConfig().getDouble("nation.communist.tax-amount", 50);
+        double baseTaxAmount = plugin.getCommunistTaxAmount();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.MONARCHY) continue;
@@ -552,10 +554,10 @@ public class MonarchyManager {
     }
 
     public void checkAllAlmsDistributions() {
-        long intervalMs = plugin.getConfig().getLong("nation.communist.free-food-interval-hours", 24)
+        long intervalMs = plugin.getCommunistFreeFoodIntervalHours()
                 * 60 * 60 * 1000;
-        int breadCount = plugin.getConfig().getInt("nation.communist.free-food-bread", 16);
-        double costPerPlayer = plugin.getConfig().getDouble("nation.communist.free-food-cost-per-player", 1000);
+        int breadCount = plugin.getCommunistFreeFoodBread();
+        double costPerPlayer = plugin.getCommunistFreeFoodCostPerPlayer();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.MONARCHY) continue;
@@ -601,7 +603,7 @@ public class MonarchyManager {
 
     public void checkCouncilSalaries() {
         long weekMs = 7L * 24 * 60 * 60 * 1000;
-        double weeklySalary = plugin.getConfig().getDouble("nation.communist.minister-weekly-salary", 10_000);
+        double weeklySalary = plugin.getCommunistMinisterWeeklySalary();
 
         for (Nation nation : plugin.getNationManager().getAllNations()) {
             if (nation.getType() != GovernmentType.MONARCHY) continue;
@@ -723,12 +725,14 @@ public class MonarchyManager {
             MonarchyGovernment.HighCouncilPosition position = member.getPosition();
             String configPath = switch (position) {
                 case MARSHAL -> "cabinet.defense.daily-vault";
-                case CHANCELLOR -> "cabinet.treasury-minister.daily-vault";
+                case CHANCELLOR -> "cabinet.treasury.daily-vault";
+                case SAINT -> "cabinet.health.daily-vault";
                 default -> "cabinet.daily-salary";
             };
 
-            double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
-            double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+            YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.MONARCHY);
+            double vaultPoints = nationConfig != null ? nationConfig.getDouble(configPath, 30000) : 30000;
+            double salary = nationConfig != null ? nationConfig.getDouble("cabinet.daily-salary", 20000) : 20000;
             double totalPay = vaultPoints + salary;
 
             if (plugin.getTreasuryManager().canAfford(nation, totalPay)) {

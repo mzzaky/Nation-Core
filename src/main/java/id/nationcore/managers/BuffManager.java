@@ -12,6 +12,7 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.CommunistGovernment;
@@ -37,6 +38,7 @@ public class BuffManager {
     // Track applied buffs
     private final Map<UUID, Boolean> presidentBuffsApplied = new HashMap<>();
     private final Map<UUID, Government.CabinetPosition> cabinetBuffsApplied = new HashMap<>();
+    private final Map<UUID, PolitburoPosition> politburoBuffsApplied = new HashMap<>();
 
     public BuffManager(NationCore plugin) {
         this.plugin = plugin;
@@ -152,14 +154,26 @@ public class BuffManager {
         // Remove any existing cabinet buffs first
         removeCabinetBuffs(player);
 
+        Nation nation = plugin.getNationManager().getNationOf(playerId);
+        GovernmentType type = GovernmentType.REPUBLIC;
+        if (nation != null) {
+            if (nation.getType() == GovernmentType.MONARCHY || nation.getType() == GovernmentType.CALIPHATE) {
+                return;
+            }
+            type = nation.getType();
+        }
+
+        YamlConfiguration nationConfig = plugin.getNationConfig(type);
+        if (nationConfig == null)
+            return;
+
         // Get position-specific buffs from config
-        String configKey = position == Government.CabinetPosition.TREASURY ? "treasury-minister"
-                : position.name().toLowerCase();
+        String configKey = position.name().toLowerCase();
         String basePath = "cabinet." + configKey + ".";
 
-        double damageBonus = plugin.getConfig().getDouble(basePath + "damage-multiplier", 1.0) - 1.0;
-        double defenseBonus = plugin.getConfig().getDouble(basePath + "defense-multiplier", 1.0) - 1.0;
-        double extraHeartsBase = plugin.getConfig().getDouble(basePath + "extra-hearts", 0.0);
+        double damageBonus = nationConfig.getDouble(basePath + "damage-multiplier", 1.0) - 1.0;
+        double defenseBonus = nationConfig.getDouble(basePath + "defense-multiplier", 1.0) - 1.0;
+        double extraHeartsBase = nationConfig.getDouble(basePath + "extra-hearts", 0.0);
         int extraHearts = (int) extraHeartsBase;
 
         // Apply damage buff if any
@@ -223,10 +237,132 @@ public class BuffManager {
 
         cabinetBuffsApplied.remove(playerId);
 
+        // Remove Politburo buffs
+        PolitburoPosition pPos = politburoBuffsApplied.get(playerId);
+        if (pPos != null) {
+            removePolitburoPotionEffects(player, pPos);
+        }
+        politburoBuffsApplied.remove(playerId);
+
         // Ensure health doesn't exceed new max
         AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealth != null && player.getHealth() > maxHealth.getValue()) {
             player.setHealth(maxHealth.getValue());
+        }
+    }
+
+    public void applyPolitburoBuffs(Player player, PolitburoPosition position) {
+        if (player == null || !player.isOnline() || position == null)
+            return;
+
+        UUID playerId = player.getUniqueId();
+
+        // Remove any existing cabinet/politburo buffs first
+        removeCabinetBuffs(player);
+
+        Nation nation = plugin.getNationManager().getNationOf(playerId);
+        if (nation == null || nation.getType() != GovernmentType.COMMUNIST)
+            return;
+
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+        if (nationConfig == null)
+            return;
+
+        // Get position-specific buffs from config
+        String configKey = position.name().toLowerCase();
+        String basePath = "politbiro." + configKey + ".";
+
+        double damageBonus = nationConfig.getDouble(basePath + "damage-multiplier", 1.0) - 1.0;
+        double defenseBonus = nationConfig.getDouble(basePath + "defense-multiplier", 1.0) - 1.0;
+        double extraHeartsBase = nationConfig.getDouble(basePath + "extra-hearts", 0.0);
+        int extraHearts = (int) extraHeartsBase;
+
+        // Apply damage buff if any
+        if (damageBonus > 0) {
+            AttributeInstance attackDamage = player.getAttribute(Attribute.ATTACK_DAMAGE);
+            if (attackDamage != null) {
+                AttributeModifier damageModifier = new AttributeModifier(
+                        new NamespacedKey(plugin, CABINET_DAMAGE_KEY),
+                        damageBonus,
+                        AttributeModifier.Operation.MULTIPLY_SCALAR_1);
+                attackDamage.addModifier(damageModifier);
+            }
+        }
+
+        // Apply defense buff if any
+        if (defenseBonus > 0) {
+            AttributeInstance armorToughness = player.getAttribute(Attribute.ARMOR_TOUGHNESS);
+            if (armorToughness != null) {
+                AttributeModifier defenseModifier = new AttributeModifier(
+                        new NamespacedKey(plugin, CABINET_DEFENSE_KEY),
+                        defenseBonus * 10,
+                        AttributeModifier.Operation.ADD_NUMBER);
+                armorToughness.addModifier(defenseModifier);
+            }
+        }
+
+        // Apply extra health if any
+        if (extraHearts > 0) {
+            AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
+            if (maxHealth != null) {
+                AttributeModifier healthModifier = new AttributeModifier(
+                        new NamespacedKey(plugin, CABINET_HEALTH_KEY),
+                        extraHearts * 2,
+                        AttributeModifier.Operation.ADD_NUMBER);
+                maxHealth.addModifier(healthModifier);
+            }
+        }
+
+        // Apply position-specific potion effects
+        applyPolitburoPotionEffects(player, position);
+
+        politburoBuffsApplied.put(playerId, position);
+    }
+
+    private void applyPolitburoPotionEffects(Player player, PolitburoPosition position) {
+        switch (position) {
+            case PROPAGANDA -> {
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false, true));
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE, Integer.MAX_VALUE, 1, false, false, true));
+            }
+            case DEFENSE -> {
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.STRENGTH, Integer.MAX_VALUE, 0, false, false, true));
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.RESISTANCE, Integer.MAX_VALUE, 0, false, false, true));
+            }
+            case TREASURY -> {
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.LUCK, Integer.MAX_VALUE, 1, false, false, true));
+            }
+            case HEALTH -> {
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, 0, false, false, true));
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 0, false, false, true));
+            }
+        }
+    }
+
+    private void removePolitburoPotionEffects(Player player, PolitburoPosition position) {
+        switch (position) {
+            case PROPAGANDA -> {
+                player.removePotionEffect(PotionEffectType.GLOWING);
+                player.removePotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
+            }
+            case DEFENSE -> {
+                player.removePotionEffect(PotionEffectType.STRENGTH);
+                player.removePotionEffect(PotionEffectType.RESISTANCE);
+            }
+            case TREASURY -> {
+                player.removePotionEffect(PotionEffectType.LUCK);
+            }
+            case HEALTH -> {
+                player.removePotionEffect(PotionEffectType.REGENERATION);
+                player.removePotionEffect(PotionEffectType.SPEED);
+            }
         }
     }
 
@@ -244,6 +380,13 @@ public class BuffManager {
                 player.addPotionEffect(
                         new PotionEffect(PotionEffectType.LUCK, Integer.MAX_VALUE, 1, false, false, true));
             }
+            case HEALTH -> {
+                // Health minister gets Regeneration I and Speed I
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, 0, false, false, true));
+                player.addPotionEffect(
+                        new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 0, false, false, true));
+            }
             default -> {}
         }
     }
@@ -256,6 +399,10 @@ public class BuffManager {
             }
             case TREASURY -> {
                 player.removePotionEffect(PotionEffectType.LUCK);
+            }
+            case HEALTH -> {
+                player.removePotionEffect(PotionEffectType.REGENERATION);
+                player.removePotionEffect(PotionEffectType.SPEED);
             }
             default -> {}
         }
@@ -308,11 +455,11 @@ public class BuffManager {
         for (PolitburoMember member : cg.getPolitburo().values()) {
             Player p = Bukkit.getPlayer(member.getUuid());
             if (p == null || !p.isOnline()) continue;
-            Government.CabinetPosition mapped = mapPolitburoToCabinet(member.getPosition());
-            if (!cabinetBuffsApplied.containsKey(p.getUniqueId())) {
-                applyCabinetBuffs(p, mapped);
+            PolitburoPosition pos = member.getPosition();
+            if (!politburoBuffsApplied.containsKey(p.getUniqueId())) {
+                applyPolitburoBuffs(p, pos);
             } else {
-                applyCabinetPotionEffects(p, mapped);
+                applyPolitburoPotionEffects(p, pos);
             }
         }
     }
@@ -331,7 +478,7 @@ public class BuffManager {
             case PROPAGANDA -> Government.CabinetPosition.TREASURY;
             case DEFENSE    -> Government.CabinetPosition.DEFENSE;
             case TREASURY   -> Government.CabinetPosition.TREASURY;
-            case HEALTH     -> Government.CabinetPosition.DEFENSE;
+            case HEALTH     -> Government.CabinetPosition.HEALTH;
         };
     }
 
@@ -396,7 +543,7 @@ public class BuffManager {
                 }
                 PolitburoPosition pos = cg.getPositionByUUID(playerId);
                 if (pos != null) {
-                    applyCabinetBuffs(player, mapPolitburoToCabinet(pos));
+                    applyPolitburoBuffs(player, pos);
                     MessageUtils.send(player, "<gold>🎖 Buffs Politbiro " + nation.getName() + " aktif!");
                     return;
                 }
@@ -426,6 +573,7 @@ public class BuffManager {
         // Clear tracking (buffs will be re-applied on join)
         presidentBuffsApplied.remove(playerId);
         cabinetBuffsApplied.remove(playerId);
+        politburoBuffsApplied.remove(playerId);
     }
 
     public void removeAllBuffs(Player player) {
@@ -439,6 +587,14 @@ public class BuffManager {
 
     public boolean hasCabinetBuffs(UUID playerId) {
         return cabinetBuffsApplied.containsKey(playerId);
+    }
+
+    public boolean hasPolitburoBuffs(UUID playerId) {
+        return politburoBuffsApplied.containsKey(playerId);
+    }
+
+    public PolitburoPosition getPolitburoPosition(UUID playerId) {
+        return politburoBuffsApplied.get(playerId);
     }
 
     public Government.CabinetPosition getCabinetPosition(UUID playerId) {

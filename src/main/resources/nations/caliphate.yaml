@@ -1,0 +1,9 @@
+creation:
+  # Cost of founding a nation (withdrawn from the founder's Vault balance).
+  cost: 500000
+  # Minimum playtime hours before a player can found a nation.
+  # Set to 0 to disable playtime requirements.
+  min-playtime-hours: 0
+  # Percentage of starting capital that goes directly into the new nation's treasury (0-100).
+  # Calculated as a percentage of the cost value. Example: 50 = 50% of the cost.
+  starting-treasury-percent: 80

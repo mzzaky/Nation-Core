@@ -6,6 +6,7 @@ import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -13,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import id.nationcore.NationCore;
 import id.nationcore.gui.GovernmentGUIUtils;
 import id.nationcore.models.CommunistGovernment;
+import id.nationcore.models.GovernmentType;
 import id.nationcore.utils.MessageUtils;
 
 public class CommunistSalaryMenu {
@@ -76,13 +78,15 @@ public class CommunistSalaryMenu {
             } else if (member != null) {
                 CommunistGovernment.PolitburoPosition position = member.getPosition();
                 String configPath = switch (position) {
-                    case DEFENSE -> "cabinet.defense.daily-vault";
-                    case TREASURY -> "cabinet.treasury-minister.daily-vault";
-                    default -> "cabinet.daily-salary";
+                    case PROPAGANDA -> "politbiro.propaganda.daily-vault";
+                    case DEFENSE -> "politbiro.defense.daily-vault";
+                    case TREASURY -> "politbiro.treasury.daily-vault";
+                    case HEALTH -> "politbiro.health.daily-vault";
                 };
 
-                double vaultPoints = plugin.getConfig().getDouble(configPath, 30000);
-                double salary = plugin.getConfig().getDouble("cabinet.daily-salary", 20000);
+                YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+                double vaultPoints = nationConfig != null ? nationConfig.getDouble(configPath, 25000) : 25000;
+                double salary = nationConfig != null ? nationConfig.getDouble("politbiro.daily-salary", 20000) : 20000;
                 double totalPay = vaultPoints + salary;
 
                 lore.add("§7• §6" + MessageUtils.formatNumber((long) totalPay) + " §eVault Points");

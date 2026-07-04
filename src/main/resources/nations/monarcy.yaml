@@ -1,0 +1,33 @@
+creation:
+  # Cost of founding a nation (withdrawn from the founder's Vault balance).
+  cost: 500000
+  # Minimum playtime hours before a player can found a nation.
+  # Set to 0 to disable playtime requirements.
+  min-playtime-hours: 0
+  # Percentage of starting capital that goes directly into the new nation's treasury (0-100).
+  # Calculated as a percentage of the cost value. Example: 50 = 50% of the cost.
+  starting-treasury-percent: 80
+
+# Cabinet Settings
+cabinet:
+  daily-salary: 20000
+  defense:
+    prefix: "&4[MoD]"
+    damage-multiplier: 1.12
+    defense-multiplier: 1.10
+    vault-multiplier: 1.15
+    extra-hearts: 1.5
+    daily-vault: 30000
+    decision-cooldown-hours: 48
+  treasury:
+    prefix: "&2[MoT]"
+    vault-multiplier: 1.25
+    sell-bonus: 1.10
+    buy-discount: 0.90
+    daily-vault: 50000
+    decision-cooldown-hours: 48
+  health:
+    prefix: "&d[MoH]"
+    extra-hearts: 1.0
+    daily-vault: 25000
+    decision-cooldown-hours: 48
