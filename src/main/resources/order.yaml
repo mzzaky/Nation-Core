@@ -1,0 +1,555 @@
+# =====================================================================
+#  NATION CORE - EXECUTIVE ORDER CATALOGUE (order.yaml)
+# =====================================================================
+# Central management file for EVERY executive order registered in the
+# plugin. Editing a value here immediately affects that order across all
+# governments (Republic, Communist, Monarchy, Caliphate).
+#
+# The KEY of each entry is the internal order id. It must NOT be renamed
+# because it is referenced by the per-nation configs in nations/*.yaml
+# (see the "executive_order" section of each government file).
+#
+# Fields
+#   status    : true/false  -> master switch. false completely disables
+#                              the order (hidden from menus, cannot be issued).
+#   display   : the name shown in every executive-order menu / broadcast.
+#   lore      : descriptive lines rendered inside the order card.
+#   cooldown  : per-order cooldown in DAYS before it can be re-issued by the
+#               same nation. (Monarchy ignores cooldowns — royal prerogative.)
+#   cost      : treasury cost (in dollars) to authorize the order.
+#   attribute : OPTIONAL. Order-specific tuning values. Only the attributes
+#               relevant to an order have any effect (see comments below).
+#                 duration -> active duration in HOURS (0 = instant order).
+#                 damage   -> combat/PvP multiplier for combat-type orders.
+#                 vault    -> economy value (multiplier OR flat payout,
+#                             depending on the order — see each entry).
+# =====================================================================
+
+golden_age:
+  status: true
+  display: "Golden Age Decree"
+  lore:
+  - "The leader declares a Golden Age of prosperity."
+  - "+25% XP gain, boosted vault points and rarer drops"
+  - "for every citizen of the nation."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 48   # hours the buff stays active
+    vault: 1.25    # vault-point multiplier while active
+
+war_economy:
+  status: true
+  display: "War Economy"
+  lore:
+  - "The nation calls its warriors to arms."
+  - "Double PvP kill rewards and increased PvP damage."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 72   # hours the buff stays active
+    damage: 1.5    # PvP damage multiplier while active
+
+economic_recovery:
+  status: true
+  display: "Economic Recovery Plan"
+  lore:
+  - "The Treasury opens its coffers to aid citizens in need."
+  - "A one-time stimulus per player and a shop discount."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 36    # hours the shop discount stays active
+    vault: 50000    # flat stimulus paid to each online citizen
+
+environmental_protection:
+  status: true
+  display: "Environmental Protection Act"
+  lore:
+  - "The land's bounty is blessed by decree."
+  - "Triple farming, fishing and breeding drops."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 48   # hours the buff stays active
+
+education_advancement:
+  status: true
+  display: "Education Advancement"
+  lore:
+  - "Knowledge is power! The leader invests in your growth."
+  - "3x XP gain, cheaper enchanting and free anvil use."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 48   # hours the buff stays active
+
+purge_protocol:
+  status: true
+  display: "Purge Protocol"
+  lore:
+  - "Survival of the fittest. May the strongest prevail."
+  - "Full PvP enabled, random respawn, no keep-inventory."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 6    # hours the purge stays active
+
+presidential_pardon:
+  status: true
+  display: "Presidential Pardon"
+  lore:
+  - "In the spirit of mercy, past transgressions are forgiven."
+  - "Clears one punishment from every online citizen."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 0    # instant order (no active duration)
+
+tax_suspension:
+  status: true
+  display: "Tax Suspension"
+  lore:
+  - "By decree, all tax obligations are suspended for the people!"
+  - "Tax collection is disabled for the duration."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 48   # hours tax stays suspended
+
+tax_surge:
+  status: true
+  display: "Tax Surge"
+  lore:
+  - "The nation demands more! Tax rates are raised to fund the treasury."
+  - "Tax rate increased to 5x the base rate for the duration."
+  cooldown: 7
+  cost: 1000000
+  attribute:
+    duration: 24   # hours the surge stays active
+
+# =====================================================================
+#  MINISTER / OFFICE ORDERS
+# ---------------------------------------------------------------------
+# The orders below are the sector orders each office (minister / council
+# seat) may issue. They keep their existing in-game effects; only their
+# status (enable/disable), display name, lore, cooldown (days) and cost
+# are managed here. cooldown is tracked independently per order id.
+# =====================================================================
+# ------------------------- REPUBLIC CABINET --------------------------
+# Minister of Defence
+declare_war:
+  status: true
+  display: "Declare War Event"
+  lore:
+  - "Opens a PvP war zone with doubled loot drops."
+  cooldown: 2
+  cost: 100000
+military_draft:
+  status: true
+  display: "Military Draft"
+  lore:
+  - "Starts a mandatory PvP tournament."
+  cooldown: 2
+  cost: 100000
+defense_protocol:
+  status: true
+  display: "Defense Protocol"
+  lore:
+  - "-20% damage taken server-wide."
+  cooldown: 2
+  cost: 100000
+armory_discount:
+  status: true
+  display: "Armory Discount"
+  lore:
+  - "30% off weapons & armor at NPC shops."
+  cooldown: 2
+  cost: 100000
+border_patrol:
+  status: true
+  display: "Border Patrol"
+  lore:
+  - "Elite guards protect the spawn area."
+  cooldown: 2
+  cost: 100000
+# Minister of Treasury
+tax_holiday:
+  status: true
+  display: "Tax Holiday"
+  lore:
+  - "No server tax for 24 hours."
+  cooldown: 2
+  cost: 100000
+economic_stimulus:
+  status: true
+  display: "Economic Stimulus"
+  lore:
+  - "10k vault points to all online players."
+  cooldown: 2
+  cost: 100000
+auction_boost:
+  status: true
+  display: "Auction Boost"
+  lore:
+  - "Double auction limits, reduced fees."
+  cooldown: 2
+  cost: 100000
+treasury_bonus:
+  status: true
+  display: "Treasury Bonus"
+  lore:
+  - "+50% vault points from mobs & mining."
+  cooldown: 2
+  cost: 100000
+market_crash:
+  status: true
+  display: "Market Crash"
+  lore:
+  - "40% discount at the admin shop."
+  cooldown: 2
+  cost: 100000
+# Minister of Health
+quarantine_protocol:
+  status: true
+  display: "Quarantine Protocol"
+  lore:
+  - "Non-members cannot enter nation territory for 10 minutes."
+  cooldown: 2
+  cost: 100000
+field_medicine:
+  status: true
+  display: "Field Medicine"
+  lore:
+  - "Members receive Regeneration II for 5 minutes."
+  cooldown: 2
+  cost: 100000
+vaccination_drive:
+  status: true
+  display: "Vaccination Drive"
+  lore:
+  - "Members become immune to poison & wither for 1 hour."
+  cooldown: 2
+  cost: 100000
+emergency_rations:
+  status: true
+  display: "Emergency Rations"
+  lore:
+  - "Distribute treasury food to members below 50% hunger."
+  cooldown: 2
+  cost: 100000
+plague:
+  status: true
+  display: "Plague"
+  lore:
+  - "Enemies in territory get Weakness II + Hunger for 30s. Active 10m."
+  cooldown: 2
+  cost: 100000
+
+
+
+
+
+
+# ------------------------ COMMUNIST POLITBURO ------------------------
+# Minister of Propaganda
+prop_global_broadcast:
+  status: true
+  display: "Global Broadcast"
+  lore:
+  - "A red broadcast in the nation's name to the whole server."
+  cooldown: 2
+  cost: 50000
+prop_national_broadcast:
+  status: true
+  display: "National Broadcast"
+  lore:
+  - "A system message to every member of the nation."
+  cooldown: 2
+  cost: 50000
+prop_leader_glorification:
+  status: true
+  display: "Leader Glorification"
+  lore:
+  - "Party members gain Strength I + Resistance I for 30 minutes."
+  cooldown: 2
+  cost: 300000
+prop_media_censorship:
+  status: true
+  display: "Media Censorship"
+  lore:
+  - "Replace a targeted member's next public chat message."
+  cooldown: 2
+  cost: 250000
+prop_mobilization:
+  status: true
+  display: "Propaganda Mobilization"
+  lore:
+  - "Forcibly summon every nation member to the minister's location."
+  cooldown: 2
+  cost: 150000
+# Minister of Defence
+def_declare_war:
+  status: true
+  display: "Declare War"
+  lore:
+  - "Begin a war against another nation."
+  cooldown: 2
+  cost: 50000
+def_military_draft:
+  status: true
+  display: "Military Draft"
+  lore:
+  - "Issue basic war equipment to every nation member."
+  cooldown: 2
+  cost: 50000
+def_defense_protocol:
+  status: true
+  display: "Defense Protocol"
+  lore:
+  - "Grants every nation member -20% damage taken for 30 minutes."
+  cooldown: 2
+  cost: 50000
+def_offense_protocol:
+  status: true
+  display: "Offense Protocol"
+  lore:
+  - "Grants every nation member +20% damage dealt for 30 minutes."
+  cooldown: 2
+  cost: 50000
+def_military_emergency:
+  status: true
+  display: "Military Emergency"
+  lore:
+  - "Reveal trespassers in territory (glow + Weakness II for 5 minutes)."
+  cooldown: 2
+  cost: 50000
+# Minister of Treasury
+tre_distribution_program:
+  status: true
+  display: "Distribution Program"
+  lore:
+  - "Suspend the communist tax for the next 3 phases."
+  cooldown: 2
+  cost: 50000
+tre_economic_stimulus:
+  status: true
+  display: "Economic Stimulus"
+  lore:
+  - "Pay $10,000 to every nation member."
+  cooldown: 2
+  cost: 50000
+tre_education_program:
+  status: true
+  display: "Education Program"
+  lore:
+  - "Grants +10 XP levels to every nation member."
+  cooldown: 2
+  cost: 50000
+tre_tax_intensification:
+  status: true
+  display: "Tax Intensification"
+  lore:
+  - "Double the communist tax (200%) for the next 3 phases."
+  cooldown: 2
+  cost: 50000
+tre_market_event:
+  status: true
+  display: "Market Event"
+  lore:
+  - "Every villager trade rewards members a $25 bonus for 30 minutes."
+  cooldown: 2
+  cost: 50000
+# Minister of Health
+hea_quarantine_protocol:
+  status: true
+  display: "Quarantine Protocol"
+  lore:
+  - "Non-members cannot enter territory for 10 minutes."
+  cooldown: 2
+  cost: 500000
+hea_field_medicine:
+  status: true
+  display: "Field Medicine"
+  lore:
+  - "Members gain Regeneration II for 5 minutes."
+  cooldown: 2
+  cost: 500000
+hea_vaccination_drive:
+  status: true
+  display: "Vaccination Drive"
+  lore:
+  - "Members become immune to poison & wither for 1 hour."
+  cooldown: 2
+  cost: 500000
+hea_emergency_rations:
+  status: true
+  display: "Emergency Rations"
+  lore:
+  - "Distribute treasury food to members below 50% hunger."
+  cooldown: 2
+  cost: 500000
+hea_plague:
+  status: true
+  display: "Plague"
+  lore:
+  - "Enemies in territory get Weakness II + Hunger for 30s. Active 10m."
+  cooldown: 2
+  cost: 500000
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------- MONARCHY COUNCIL --------------------------
+# Herald
+her_royal_proclamation:
+  status: true
+  display: "Royal Proclamation"
+  lore:
+  - "A red broadcast in the King's name to every subject on the server."
+  cooldown: 2
+  cost: 50000
+her_royal_decree:
+  status: true
+  display: "Royal Decree"
+  lore:
+  - "Send an official decree to every member of the kingdom."
+  cooldown: 2
+  cost: 50000
+her_glorify_king:
+  status: true
+  display: "Glorify the King"
+  lore:
+  - "Royal Soldiers gain Strength I + Resistance I for 30 minutes."
+  cooldown: 2
+  cost: 300000
+her_censor_press:
+  status: true
+  display: "Censor the Press"
+  lore:
+  - "Replace the next public chat message of every targeted subject."
+  cooldown: 2
+  cost: 250000
+her_royal_mobilisation:
+  status: true
+  display: "Royal Mobilisation"
+  lore:
+  - "Summon every member of the kingdom to the Herald's location."
+  cooldown: 2
+  cost: 150000
+# Marshal
+mar_declare_war:
+  status: true
+  display: "Declare War"
+  lore:
+  - "Open hostilities against another nation."
+  cooldown: 2
+  cost: 50000
+mar_royal_conscription:
+  status: true
+  display: "Royal Conscription"
+  lore:
+  - "Issue royal armaments to every nation member."
+  cooldown: 2
+  cost: 50000
+mar_defense_order:
+  status: true
+  display: "Defense Order"
+  lore:
+  - "Grants every nation member -20% damage taken for 30 minutes."
+  cooldown: 2
+  cost: 50000
+mar_offense_order:
+  status: true
+  display: "Offense Order"
+  lore:
+  - "Grants every nation member +20% damage dealt for 30 minutes."
+  cooldown: 2
+  cost: 50000
+mar_military_vigilance:
+  status: true
+  display: "Military Vigilance"
+  lore:
+  - "Reveal trespassers in royal territory (glow + Weakness II for 5 minutes)."
+  cooldown: 2
+  cost: 50000
+# Chancellor
+cha_royal_almsgiving:
+  status: true
+  display: "Royal Almsgiving"
+  lore:
+  - "Suspend the royal tax for the next 3 phases."
+  cooldown: 2
+  cost: 50000
+cha_royal_stimulus:
+  status: true
+  display: "Royal Stimulus"
+  lore:
+  - "Pay $10,000 from the treasury to every member of the kingdom."
+  cooldown: 2
+  cost: 50000
+cha_royal_tutelage:
+  status: true
+  display: "Royal Tutelage"
+  lore:
+  - "Grants +10 XP levels to every nation member."
+  cooldown: 2
+  cost: 50000
+cha_tax_intensification:
+  status: true
+  display: "Tax Intensification"
+  lore:
+  - "Double the royal tax (200%) for the next 3 phases."
+  cooldown: 2
+  cost: 50000
+cha_royal_market:
+  status: true
+  display: "Royal Market Festival"
+  lore:
+  - "Every villager trade rewards a $25 bonus to nation members for 30 minutes."
+  cooldown: 2
+  cost: 50000
+# Saint
+sai_royal_quarantine:
+  status: true
+  display: "Royal Quarantine"
+  lore:
+  - "Non-members cannot enter royal territory for 10 minutes."
+  cooldown: 2
+  cost: 500000
+sai_royal_healing:
+  status: true
+  display: "Royal Healing"
+  lore:
+  - "Grants every nation member Regeneration II for 5 minutes."
+  cooldown: 2
+  cost: 500000
+sai_holy_vaccination:
+  status: true
+  display: "Holy Vaccination"
+  lore:
+  - "Grants every nation member immunity to poison & wither for 1 hour."
+  cooldown: 2
+  cost: 500000
+sai_royal_provisions:
+  status: true
+  display: "Royal Provisions"
+  lore:
+  - "Distribute treasury bread to every member below 50% hunger."
+  cooldown: 2
+  cost: 500000
+sai_cursed_plague:
+  status: true
+  display: "Cursed Plague"
+  lore:
+  - "Enemies in royal territory suffer Weakness II + Hunger for 30s. Active 10m."
+  cooldown: 2
+  cost: 500000

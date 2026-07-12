@@ -31,3 +31,46 @@ cabinet:
     extra-hearts: 1.0
     daily-vault: 25000
     decision-cooldown-hours: 48
+
+# =====================================================================
+# Executive Orders available in this kingdom.
+# The High Council issues Royal Decisions from their own consoles; only
+# the King may issue nation-wide executive orders. List under "king" the
+# order ids (defined in order.yaml) the crown may authorize. The King is
+# exempt from executive-order cooldowns (royal prerogative).
+# =====================================================================
+executive_order:
+  king:
+  - golden_age
+  - war_economy
+  - economic_recovery
+  - environmental_protection
+  - education_advancement
+  - purge_protocol
+  - presidential_pardon
+  - tax_suspension
+  - tax_surge
+  herald:
+  - her_royal_proclamation
+  - her_royal_decree
+  - her_glorify_king
+  - her_censor_press
+  - her_royal_mobilisation
+  marshal:
+  - mar_declare_war
+  - mar_royal_conscription
+  - mar_defense_order
+  - mar_offense_order
+  - mar_military_vigilance
+  chancellor:
+  - cha_royal_almsgiving
+  - cha_royal_stimulus
+  - cha_royal_tutelage
+  - cha_tax_intensification
+  - cha_royal_market
+  saint:
+  - sai_royal_quarantine
+  - sai_royal_healing
+  - sai_holy_vaccination
+  - sai_royal_provisions
+  - sai_cursed_plague

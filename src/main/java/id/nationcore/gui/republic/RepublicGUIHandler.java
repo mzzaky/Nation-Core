@@ -2,6 +2,8 @@ package id.nationcore.gui.republic;
 
 import id.nationcore.gui.GUIListener;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -357,34 +359,6 @@ public class RepublicGUIHandler {
             return;
         }
 
-        if (RepublicExecutiveOrdersMenu.handleTabClick(player, slot)) {
-            gui.openOrdersGUI(player);
-            return;
-        }
-
-        CabinetDecision.DecisionType type = RepublicExecutiveOrdersMenu.getDecisionAtSlot(player, slot);
-        if (type == null) {
-            ExecutiveOrder.ExecutiveOrderType eoType = RepublicExecutiveOrdersMenu.getExecutiveOrderAtSlot(player,
-                    slot);
-            if (eoType == null)
-                return;
-
-            if (clicked.getType() != Material.WRITABLE_BOOK) {
-                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
-                return;
-            }
-
-            gui.confirmActionGUI.open(player, "Issue Decree: " + eoType.getDisplayName(), () -> {
-                plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
-            });
-            return;
-        }
-
-        if (clicked.getType() != Material.YELLOW_CONCRETE) {
-            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
-            return;
-        }
-
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation == null) {
             MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
@@ -392,24 +366,28 @@ public class RepublicGUIHandler {
             return;
         }
 
-        player.closeInventory();
-        UUID targetId = player.getUniqueId();
-        if (player.hasPermission("nation.admin")) {
-            Government gov = nation.getRepublicGovernment();
-            if (gov != null) {
-                UUID ministerUUID = gov.getCabinetMember(type.getPosition().toGovernmentPosition());
-                if (ministerUUID != null) {
-                    targetId = ministerUUID;
-                }
-            }
+        ExecutiveOrder.ExecutiveOrderType eoType = id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), RepublicExecutiveOrdersMenu.POSITION_KEY),
+                RepublicExecutiveOrdersMenu.ORDER_SLOTS, slot);
+        if (eoType == null)
+            return;
+
+        if (clicked.getType() != Material.WRITABLE_BOOK) {
+            MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            return;
         }
 
-        boolean success = plugin.getCabinetManager().executeDecision(nation, targetId, type);
-        if (success) {
-            MessageUtils.send(player, "<green>Decision successfully executed!</green>");
-        } else {
-            MessageUtils.send(player, "<red>Failed to execute decision. Check requirements and cooldown.</red>");
-        }
+        gui.confirmActionGUI.open(player, "Issue Decree: " + plugin.getExecutiveOrderManager().getOrderDisplay(eoType), () -> {
+            plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
+        });
+    }
+
+    /** Confirm + issue an executive order clicked from a minister office console. */
+    private void handleOfficeExecutiveOrder(Player player, ExecutiveOrder.ExecutiveOrderType eoType) {
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+        gui.confirmActionGUI.open(player, "Issue Decree: " + plugin.getExecutiveOrderManager().getOrderDisplay(eoType), () -> {
+            plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
+        });
     }
 
     public void handleMemberManagementGUI(Player player, ItemStack clicked, int slot) {
@@ -667,14 +645,28 @@ public class RepublicGUIHandler {
             return;
         }
 
-        CabinetDecision.DecisionType type = switch (slot) {
-            case 20 -> CabinetDecision.DecisionType.QUARANTINE_PROTOCOL;
-            case 22 -> CabinetDecision.DecisionType.FIELD_MEDICINE;
-            case 24 -> CabinetDecision.DecisionType.VACCINATION_DRIVE;
-            case 30 -> CabinetDecision.DecisionType.EMERGENCY_RATIONS;
-            case 32 -> CabinetDecision.DecisionType.PLAGUE;
-            default -> null;
-        };
+        ExecutiveOrder.ExecutiveOrderType eoType = id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_health"),
+                id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (eoType != null) {
+            handleOfficeExecutiveOrder(player, eoType);
+            return;
+        }
+
+        org.bukkit.configuration.file.YamlConfiguration config = plugin.getNationConfig(nation.getType());
+        List<String> orderKeys = config != null ? config.getStringList("executive_order.minister_of_health") : new ArrayList<>();
+        int[] decisionSlots = {20, 22, 24, 30, 32};
+        CabinetDecision.DecisionType type = null;
+        for (int i = 0; i < decisionSlots.length && i < orderKeys.size(); i++) {
+            if (slot == decisionSlots[i]) {
+                try {
+                    type = CabinetDecision.DecisionType.valueOf(orderKeys.get(i).trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // skip
+                }
+                break;
+            }
+        }
 
         if (type != null) {
             handleOfficeDecisionClick(player, nation, type);
@@ -695,14 +687,28 @@ public class RepublicGUIHandler {
             return;
         }
 
-        CabinetDecision.DecisionType type = switch (slot) {
-            case 20 -> CabinetDecision.DecisionType.DECLARE_WAR;
-            case 22 -> CabinetDecision.DecisionType.MILITARY_DRAFT;
-            case 24 -> CabinetDecision.DecisionType.DEFENSE_PROTOCOL;
-            case 30 -> CabinetDecision.DecisionType.ARMORY_DISCOUNT;
-            case 32 -> CabinetDecision.DecisionType.BORDER_PATROL;
-            default -> null;
-        };
+        ExecutiveOrder.ExecutiveOrderType eoType = id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_defence"),
+                id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (eoType != null) {
+            handleOfficeExecutiveOrder(player, eoType);
+            return;
+        }
+
+        org.bukkit.configuration.file.YamlConfiguration config = plugin.getNationConfig(nation.getType());
+        List<String> orderKeys = config != null ? config.getStringList("executive_order.minister_of_defence") : new ArrayList<>();
+        int[] decisionSlots = {20, 22, 24, 30, 32};
+        CabinetDecision.DecisionType type = null;
+        for (int i = 0; i < decisionSlots.length && i < orderKeys.size(); i++) {
+            if (slot == decisionSlots[i]) {
+                try {
+                    type = CabinetDecision.DecisionType.valueOf(orderKeys.get(i).trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // skip
+                }
+                break;
+            }
+        }
 
         if (type != null) {
             handleOfficeDecisionClick(player, nation, type);
@@ -723,14 +729,28 @@ public class RepublicGUIHandler {
             return;
         }
 
-        CabinetDecision.DecisionType type = switch (slot) {
-            case 20 -> CabinetDecision.DecisionType.TAX_HOLIDAY;
-            case 22 -> CabinetDecision.DecisionType.ECONOMIC_STIMULUS;
-            case 24 -> CabinetDecision.DecisionType.AUCTION_BOOST;
-            case 30 -> CabinetDecision.DecisionType.TREASURY_BONUS;
-            case 32 -> CabinetDecision.DecisionType.MARKET_CRASH;
-            default -> null;
-        };
+        ExecutiveOrder.ExecutiveOrderType eoType = id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_treasury"),
+                id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (eoType != null) {
+            handleOfficeExecutiveOrder(player, eoType);
+            return;
+        }
+
+        org.bukkit.configuration.file.YamlConfiguration config = plugin.getNationConfig(nation.getType());
+        List<String> orderKeys = config != null ? config.getStringList("executive_order.minister_of_treasury") : new ArrayList<>();
+        int[] decisionSlots = {20, 22, 24, 30, 32};
+        CabinetDecision.DecisionType type = null;
+        for (int i = 0; i < decisionSlots.length && i < orderKeys.size(); i++) {
+            if (slot == decisionSlots[i]) {
+                try {
+                    type = CabinetDecision.DecisionType.valueOf(orderKeys.get(i).trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // skip
+                }
+                break;
+            }
+        }
 
         if (type != null) {
             handleOfficeDecisionClick(player, nation, type);

@@ -1,19 +1,22 @@
 package id.nationcore.managers;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.CaliphateGovernment;
+import id.nationcore.models.CommunistGovernment;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.ExecutiveOrder.ExecutiveOrderType;
 import id.nationcore.models.ExecutiveOrder.NationType;
+import id.nationcore.models.Government;
 import id.nationcore.models.GovernmentType;
+import id.nationcore.models.MonarchyGovernment;
 import id.nationcore.models.Nation;
 import id.nationcore.models.RepublicExecutiveOrder;
 import id.nationcore.models.PlayerData;
@@ -25,9 +28,239 @@ public class ExecutiveOrderManager {
 
     private final NationCore plugin;
 
+    /** Office slots reused by every minister-office console for its executive-order row. */
+    public static final int[] OFFICE_ORDER_SLOTS = {10, 11, 12, 13, 14, 15, 16};
+
+    private static final long DAY_MILLIS = 24L * 60 * 60 * 1000;
+
     public ExecutiveOrderManager(NationCore plugin) {
         this.plugin = plugin;
     }
+
+    // ==========================================================
+    // order.yaml catalogue accessors
+    // ==========================================================
+
+    private YamlConfiguration cfg() {
+        return plugin.getOrderConfig();
+    }
+
+    private String key(ExecutiveOrderType type) {
+        return type.name().toLowerCase();
+    }
+
+    /** Master switch — a disabled order is hidden everywhere and cannot be issued. */
+    public boolean isOrderEnabled(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        return c == null || c.getBoolean(key(type) + ".status", true);
+    }
+
+    /** Configured display name (falls back to the hardcoded default). */
+    public String getOrderDisplay(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        if (c == null) return type.getDisplayName();
+        return c.getString(key(type) + ".display", type.getDisplayName());
+    }
+
+    /** Configured descriptive lore lines (falls back to the hardcoded effect text). */
+    public List<String> getOrderLore(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        if (c != null) {
+            List<String> lore = c.getStringList(key(type) + ".lore");
+            if (lore != null && !lore.isEmpty()) return lore;
+        }
+        List<String> fallback = new ArrayList<>();
+        fallback.add(type.getEffectDescription());
+        return fallback;
+    }
+
+    /** Configured treasury cost. */
+    public double getOrderCost(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        return c == null ? 1_000_000.0 : c.getDouble(key(type) + ".cost", 1_000_000.0);
+    }
+
+    /** Configured per-order cooldown in days. */
+    public long getOrderCooldownDays(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        return c == null ? 7L : c.getLong(key(type) + ".cooldown", 7L);
+    }
+
+    /** Configured active duration in millis (attribute.duration, in hours). */
+    public long getOrderDurationMillis(ExecutiveOrderType type) {
+        YamlConfiguration c = cfg();
+        if (c != null && c.contains(key(type) + ".attribute.duration")) {
+            double hours = c.getDouble(key(type) + ".attribute.duration", 0);
+            return (long) (hours * 60 * 60 * 1000);
+        }
+        return type.getDefaultDuration();
+    }
+
+    /** Read an order-specific tuning attribute (attribute.&lt;name&gt;). */
+    public double getOrderAttribute(ExecutiveOrderType type, String attribute, double def) {
+        YamlConfiguration c = cfg();
+        return c == null ? def : c.getDouble(key(type) + ".attribute." + attribute, def);
+    }
+
+    // ----------------------------------------------------------
+    // Generic (String-id) catalogue accessors — also used by the
+    // minister/council sector-order engines (Cabinet/Politburo/Council)
+    // so every order in the plugin is centrally managed through order.yaml.
+    // ----------------------------------------------------------
+
+    /** Master switch for any registered order id (fallback: enabled). */
+    public boolean isOrderEnabled(String id) {
+        YamlConfiguration c = cfg();
+        return c == null || c.getBoolean(id + ".status", true);
+    }
+
+    /** Configured display name for any registered order id. */
+    public String getOrderDisplay(String id, String def) {
+        YamlConfiguration c = cfg();
+        return c == null ? def : c.getString(id + ".display", def);
+    }
+
+    /** Configured lore lines for any registered order id (fallback used if unset). */
+    public List<String> getOrderLore(String id, List<String> def) {
+        YamlConfiguration c = cfg();
+        if (c != null) {
+            List<String> lore = c.getStringList(id + ".lore");
+            if (lore != null && !lore.isEmpty()) return lore;
+        }
+        return def;
+    }
+
+    /** Configured cost for any registered order id. */
+    public double getOrderCost(String id, double def) {
+        YamlConfiguration c = cfg();
+        return c == null ? def : c.getDouble(id + ".cost", def);
+    }
+
+    /** Configured cooldown (days) for any registered order id. */
+    public long getOrderCooldownDays(String id, long def) {
+        YamlConfiguration c = cfg();
+        return c == null ? def : c.getLong(id + ".cooldown", def);
+    }
+
+    /** Whether the given order id is listed under an office in the nation config. */
+    public boolean isOrderInOffice(GovernmentType government, String office, String id) {
+        if (government == null || office == null || id == null) return false;
+        YamlConfiguration c = plugin.getNationConfig(government);
+        if (c == null) return false;
+        for (String s : c.getStringList("executive_order." + office)) {
+            if (s != null && s.trim().equalsIgnoreCase(id)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * A sector order (minister/council decision) is shown/executable only when it
+     * is enabled in order.yaml AND listed under its office in the nation config.
+     */
+    public boolean isSectorOrderVisible(GovernmentType government, String office, String id) {
+        return isOrderEnabled(id) && isOrderInOffice(government, office, id);
+    }
+
+    // ==========================================================
+    // Per-position configuration (nations/*.yaml -> executive_order.<pos>)
+    // ==========================================================
+
+    /**
+     * The enabled executive orders a given office may issue in the given
+     * government, in the order they are declared in the nation config.
+     */
+    public List<ExecutiveOrderType> getOrdersForPosition(GovernmentType government, String positionKey) {
+        List<ExecutiveOrderType> result = new ArrayList<>();
+        if (government == null || positionKey == null) return result;
+        YamlConfiguration c = plugin.getNationConfig(government);
+        if (c == null) return result;
+        for (String id : c.getStringList("executive_order." + positionKey)) {
+            if (id == null || id.isBlank()) continue;
+            try {
+                ExecutiveOrderType type = ExecutiveOrderType.valueOf(id.trim().toUpperCase());
+                if (isOrderEnabled(type)) result.add(type);
+            } catch (IllegalArgumentException ignored) {
+                // Unknown id in config — skip silently.
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Resolve which office (config position key) a player holds in the given
+     * nation, or {@code null} if they hold no order-issuing office.
+     */
+    public String resolvePositionKey(Nation nation, UUID uuid) {
+        if (nation == null || uuid == null) return null;
+        switch (nation.getType()) {
+            case REPUBLIC -> {
+                Government g = nation.getRepublicGovernment();
+                if (g == null) return null;
+                if (g.hasPresident() && uuid.equals(g.getPresidentUUID())) return "president";
+                if (uuid.equals(g.getCabinetMember(Government.CabinetPosition.HEALTH))) return "minister_of_health";
+                if (uuid.equals(g.getCabinetMember(Government.CabinetPosition.DEFENSE))) return "minister_of_defence";
+                if (uuid.equals(g.getCabinetMember(Government.CabinetPosition.TREASURY))) return "minister_of_treasury";
+                return null;
+            }
+            case COMMUNIST -> {
+                CommunistGovernment g = nation.getCommunistGovernment();
+                if (g == null) return null;
+                if (g.hasSecretaryGeneral() && uuid.equals(g.getSecretaryGeneralUUID())) return "secretary_general";
+                if (matchesPolitburo(g, CommunistGovernment.PolitburoPosition.PROPAGANDA, uuid)) return "minister_of_propaganda";
+                if (matchesPolitburo(g, CommunistGovernment.PolitburoPosition.DEFENSE, uuid)) return "minister_of_defence";
+                if (matchesPolitburo(g, CommunistGovernment.PolitburoPosition.TREASURY, uuid)) return "minister_of_treasury";
+                if (matchesPolitburo(g, CommunistGovernment.PolitburoPosition.HEALTH, uuid)) return "minister_of_health";
+                return null;
+            }
+            case MONARCHY -> {
+                MonarchyGovernment g = nation.getMonarchyGovernment();
+                if (g != null && g.hasKing() && uuid.equals(g.getKingUUID())) return "king";
+                return null;
+            }
+            case CALIPHATE -> {
+                CaliphateGovernment g = nation.getCaliphateGovernment();
+                if (g != null && g.hasCaliph() && uuid.equals(g.getCaliphUUID())) return "caliph";
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesPolitburo(CommunistGovernment g, CommunistGovernment.PolitburoPosition pos, UUID uuid) {
+        var member = g.getPolitburoMember(pos);
+        return member != null && uuid.equals(member.getUuid());
+    }
+
+    /** Human-readable title for a config position key. */
+    public String prettyPosition(String positionKey) {
+        if (positionKey == null) return "Leader";
+        return switch (positionKey) {
+            case "president" -> "President";
+            case "secretary_general" -> "Secretary General";
+            case "king" -> "King";
+            case "caliph" -> "Caliph";
+            case "minister_of_health" -> "Minister of Health";
+            case "minister_of_defence" -> "Minister of Defence";
+            case "minister_of_treasury" -> "Minister of Treasury";
+            case "minister_of_propaganda" -> "Minister of Propaganda";
+            default -> positionKey;
+        };
+    }
+
+    /** Map an inventory slot to an order using the given ordered list + slot layout. */
+    public static ExecutiveOrderType orderAtSlot(List<ExecutiveOrderType> orders, int[] slots, int slot) {
+        if (orders == null || slots == null) return null;
+        for (int i = 0; i < slots.length; i++) {
+            if (slots[i] == slot) {
+                return i < orders.size() ? orders.get(i) : null;
+            }
+        }
+        return null;
+    }
+
+    // ==========================================================
+    // Legacy global helpers (nation == null fallback path)
+    // ==========================================================
 
     public List<ExecutiveOrder> getActiveOrders() {
         return plugin.getDataManager().getActiveOrders();
@@ -39,15 +272,13 @@ public class ExecutiveOrderManager {
     }
 
     public boolean isOrderOnCooldown(ExecutiveOrderType type) {
-        long cooldownDays = 7;
-        long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
+        long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
         long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
         return System.currentTimeMillis() - lastOrderTime < cooldownMillis;
     }
 
     public long getOrderCooldownRemaining(ExecutiveOrderType type) {
-        long cooldownDays = 7;
-        long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
+        long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
         long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
         long elapsed = System.currentTimeMillis() - lastOrderTime;
         return Math.max(0, cooldownMillis - elapsed);
@@ -63,85 +294,69 @@ public class ExecutiveOrderManager {
     public boolean issueOrder(Player president, ExecutiveOrderType type) {
         UUID uuid = president.getUniqueId();
 
-        // Check if president
         if (!plugin.getGovernmentManager().isPresident(uuid)) {
             MessageUtils.send(president, "executive_orders.only_president");
             return false;
         }
 
-        // Check cooldown
-        long cooldownDays = 7;
-        long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
-        long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
+        if (!isOrderEnabled(type)) {
+            MessageUtils.send(president, "<red>This executive order is currently disabled.</red>");
+            return false;
+        }
 
+        long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
+        long lastOrderTime = plugin.getDataManager().getLastExecutiveOrderTime();
         if (System.currentTimeMillis() - lastOrderTime < cooldownMillis) {
             long remaining = cooldownMillis - (System.currentTimeMillis() - lastOrderTime);
             MessageUtils.send(president, "executive_orders.cooldown", "time", MessageUtils.formatTime(remaining));
             return false;
         }
 
-        // Check if order already active
         if (isOrderActive(type)) {
             MessageUtils.send(president, "executive_orders.already_active");
             return false;
         }
 
-        // Check treasury
-        double cost = 1000000.0;
+        double cost = getOrderCost(type);
         if (!plugin.getTreasuryManager().canAfford(cost)) {
             MessageUtils.send(president, "executive_orders.insufficient_funds", "amount",
                     plugin.getVaultHook().format(cost));
             return false;
         }
 
-        // Withdraw from treasury
         plugin.getTreasuryManager().withdraw(TransactionType.EXECUTIVE_ORDER, cost,
-                "Executive Order: " + type.getDisplayName(), uuid);
+                "Executive Order: " + getOrderDisplay(type), uuid);
 
-        // Create and activate order
-        ExecutiveOrder order = new RepublicExecutiveOrder(type, uuid, type.getDefaultDuration());
+        ExecutiveOrder order = new RepublicExecutiveOrder(type, uuid, getOrderDurationMillis(type));
         getActiveOrders().add(order);
         plugin.getDataManager().setLastExecutiveOrderTime(System.currentTimeMillis());
 
-        // Update history record
         PresidentRecord record = plugin.getDataManager().getPresidentHistory().getLatestRecord();
         if (record != null) {
             record.setExecutiveOrdersIssued(record.getExecutiveOrdersIssued() + 1);
         }
 
-        // Apply effects (legacy path — no nation context)
         applyOrderEffects(null, order);
-
-        // Broadcast
-        MessageUtils.broadcastAnnouncement("EXECUTIVE ORDER: " + type.getDisplayName(),
-                "<italic><yellow>\"" + type.getFlavorText() + "\"</yellow></italic>\n\n" +
-                        "<gray>Effect: " + type.getEffectDescription() + "</gray>\n" +
-                        "<gray>Duration: " + MessageUtils.formatTimeShort(type.getDefaultDuration()) + "</gray>");
-
-        MessageUtils.broadcastTitle("<gold>⚡ EXECUTIVE ORDER ⚡</gold>",
-                "<yellow>" + type.getDisplayName() + "</yellow>", 20, 100, 20);
-        MessageUtils.broadcastSound(Sound.ENTITY_ENDER_DRAGON_GROWL);
-
-        // Spawn lightning effect at president's location for dramatic effect
+        broadcastOrder("EXECUTIVE ORDER", null, type);
         president.getWorld().strikeLightningEffect(president.getLocation());
-
         return true;
     }
 
+    // ==========================================================
+    // Effect application / expiry
+    // ==========================================================
+
     private void applyOrderEffects(Nation nation, ExecutiveOrder order) {
         if (nation == null) return;
-        
+
         switch (order.getType()) {
             case GOLDEN_AGE -> {
-                // Buffs applied through buff manager - usually per player anyway
+                // Passive multipliers handled by the effect getters.
             }
-
-            case WAR_ECONOMY -> {
+            case WAR_ECONOMY ->
                 MessageUtils.sendToNation(nation, "<red>War Economy is now active for " + nation.getName() + "! PvP rewards doubled!</red>");
-            }
             case ECONOMIC_RECOVERY -> {
-                // Give stimulus to all online members of this nation
-                double stimulus = 50000;
+                double stimulus = getOrderAttribute(ExecutiveOrderType.ECONOMIC_RECOVERY, "vault", 50000);
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     if (nation.isMember(player.getUniqueId())) {
                         PlayerData data = plugin.getDataManager().getOrCreatePlayerData(
@@ -155,19 +370,16 @@ public class ExecutiveOrderManager {
                     }
                 }
             }
-
             case ENVIRONMENTAL_PROTECTION -> {
-                // Multipliers handled in listeners
+                // Multipliers handled in listeners.
             }
             case EDUCATION_ADVANCEMENT -> {
-                // Multipliers handled in listeners
+                // Multipliers handled in listeners.
             }
-            case PURGE_PROTOCOL -> {
+            case PURGE_PROTOCOL ->
                 MessageUtils.sendToNationTitle(nation, "<dark_red>⚠️ PURGE ACTIVE ⚠️</dark_red>",
                         "<red>Full PvP enabled for " + nation.getName() + "!</red>", 20, 100, 20);
-            }
             case PRESIDENTIAL_PARDON -> {
-                // Clear one punishment from all online members of this nation
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     if (nation.isMember(player.getUniqueId())) {
                         PlayerData data = plugin.getDataManager().getPlayerData(player.getUniqueId());
@@ -178,13 +390,25 @@ public class ExecutiveOrderManager {
                     }
                 }
             }
-            case TAX_SUSPENSION -> {
+            case TAX_SUSPENSION ->
                 MessageUtils.sendToNation(nation, "<green>Tax Suspension is now active for " + nation.getName() + "! All tax collection has been halted!</green>");
-            }
-            case TAX_SURGE -> {
+            case TAX_SURGE ->
                 MessageUtils.sendToNation(nation, "<red>Tax Surge is now active for " + nation.getName() + "! Tax rates are raised to 5x the base rate!</red>");
-            }
         }
+    }
+
+    private void broadcastOrder(String prefix, Nation nation, ExecutiveOrderType type) {
+        String label = nation != null ? prefix + " (" + nation.getName() + ")" : prefix;
+        StringBuilder effect = new StringBuilder();
+        for (String line : getOrderLore(type)) {
+            if (effect.length() > 0) effect.append(" ");
+            effect.append(line);
+        }
+        long duration = getOrderDurationMillis(type);
+        MessageUtils.broadcastAnnouncement(label + ": " + getOrderDisplay(type),
+                "<italic><yellow>\"" + type.getFlavorText() + "\"</yellow></italic>\n\n" +
+                        "<gray>Effect: " + effect + "</gray>\n" +
+                        "<gray>Duration: " + (duration == 0 ? "Instant" : MessageUtils.formatTimeShort(duration)) + "</gray>");
     }
 
     public void checkExpirations() {
@@ -193,7 +417,6 @@ public class ExecutiveOrderManager {
         globalOrders.removeIf(order -> {
             if (order.isExpired() && order.isActive()) {
                 order.setActive(false);
-                // legacy global has no nation context
                 return true;
             }
             return false;
@@ -214,31 +437,29 @@ public class ExecutiveOrderManager {
     }
 
     private void expireOrder(Nation nation, ExecutiveOrder order) {
-        MessageUtils.sendToNation(nation, "<gray>Executive Order <yellow>" + order.getType().getDisplayName() +
+        MessageUtils.sendToNation(nation, "<gray>Executive Order <yellow>" + getOrderDisplay(order.getType()) +
                 "</yellow> has expired.</gray>");
 
-        // Remove effects
         switch (order.getType()) {
-
-            case PURGE_PROTOCOL -> {
+            case PURGE_PROTOCOL ->
                 MessageUtils.sendToNation(nation, "<green>The Purge has ended for " + nation.getName() + ". Normal rules restored.</green>");
-            }
-            case TAX_SUSPENSION -> {
+            case TAX_SUSPENSION ->
                 MessageUtils.sendToNation(nation, "<yellow>Tax Suspension has ended for " + nation.getName() + ". Normal tax collection has resumed.</yellow>");
-            }
-            case TAX_SURGE -> {
+            case TAX_SURGE ->
                 MessageUtils.sendToNation(nation, "<yellow>Tax Surge has ended for " + nation.getName() + ". Tax rates have returned to normal.</yellow>");
-            }
             default -> {
             }
         }
     }
 
-    // Effect getters for listeners (Context-aware)
+    // ==========================================================
+    // Effect getters for listeners (context-aware, config-tunable)
+    // ==========================================================
+
     public double getXPMultiplier(Player player) {
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation == null) return 1.0;
-        
+
         double multiplier = 1.0;
         if (isOrderActive(nation, ExecutiveOrderType.GOLDEN_AGE)) {
             multiplier *= 1.25;
@@ -252,10 +473,10 @@ public class ExecutiveOrderManager {
     public double getVaultMultiplier(Player player) {
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation == null) return 1.0;
-        
+
         double multiplier = 1.0;
         if (isOrderActive(nation, ExecutiveOrderType.GOLDEN_AGE)) {
-            multiplier *= 1.25;
+            multiplier *= getOrderAttribute(ExecutiveOrderType.GOLDEN_AGE, "vault", 1.25);
         }
         return multiplier;
     }
@@ -263,7 +484,7 @@ public class ExecutiveOrderManager {
     public double getRareDropMultiplier(Player player) {
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation == null) return 1.0;
-        
+
         double multiplier = 1.0;
         if (isOrderActive(nation, ExecutiveOrderType.GOLDEN_AGE)) {
             multiplier *= 1.15;
@@ -287,7 +508,7 @@ public class ExecutiveOrderManager {
     public double getPvPDamageMultiplier(Player player) {
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation != null && isOrderActive(nation, ExecutiveOrderType.WAR_ECONOMY)) {
-            return 1.5;
+            return getOrderAttribute(ExecutiveOrderType.WAR_ECONOMY, "damage", 1.5);
         }
         return 1.0;
     }
@@ -319,7 +540,6 @@ public class ExecutiveOrderManager {
         if (order == null) {
             return false;
         }
-
         order.setActive(false);
         expireOrder(nation, order);
         nation.getActiveOrders().remove(order);
@@ -327,7 +547,7 @@ public class ExecutiveOrderManager {
     }
 
     // ==========================================================
-    // Context-aware (per-nation) overloads — Phase 2
+    // Context-aware (per-nation) overloads
     // ==========================================================
 
     public List<ExecutiveOrder> getActiveOrders(Nation nation) {
@@ -342,17 +562,16 @@ public class ExecutiveOrderManager {
     public boolean isOrderOnCooldown(Nation nation, ExecutiveOrderType type) {
         // Royal prerogative: monarchies have no cooldown between orders.
         if (nation != null && nation.getType() == GovernmentType.MONARCHY) return false;
-        long cooldownDays = 7;
-        long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
-        long lastOrderTime = nation != null ? nation.getLastExecutiveOrderTime()
+        long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
+        long lastOrderTime = nation != null ? nation.getOrderCooldown(type.name())
                 : plugin.getDataManager().getLastExecutiveOrderTime();
         return System.currentTimeMillis() - lastOrderTime < cooldownMillis;
     }
 
     public long getOrderCooldownRemaining(Nation nation, ExecutiveOrderType type) {
-        long cooldownDays = 7;
-        long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
-        long lastOrderTime = nation != null ? nation.getLastExecutiveOrderTime()
+        if (nation != null && nation.getType() == GovernmentType.MONARCHY) return 0L;
+        long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
+        long lastOrderTime = nation != null ? nation.getOrderCooldown(type.name())
                 : plugin.getDataManager().getLastExecutiveOrderTime();
         long elapsed = System.currentTimeMillis() - lastOrderTime;
         return Math.max(0, cooldownMillis - elapsed);
@@ -365,26 +584,59 @@ public class ExecutiveOrderManager {
                 .orElse(null);
     }
 
-/**
-      * Mengeluarkan executive order dengan kas & cooldown nation pemain.
-      * Bila pemain bukan presiden nation atau nation null, fallback ke
-      * legacy {@link #issueOrder(Player, ExecutiveOrderType)}.
-      */
-    public boolean issueOrderForNation(Player president, ExecutiveOrderType type) {
-        Nation nation = plugin.getNationManager().getNationOf(president.getUniqueId());
-        if (nation == null) return issueOrder(president, type);
+    /**
+     * Issue an executive order on behalf of the player, charged to their
+     * nation's treasury. Authorization is per-office: the player may only
+     * issue an order that is listed under the office they hold in the nation
+     * config (order.yaml + nations/*.yaml). Admins bypass the office check.
+     * Falls back to {@link #issueOrder(Player, ExecutiveOrderType)} when the
+     * player is not in a nation.
+     */
+    public boolean issueOrderForNation(Player player, ExecutiveOrderType type) {
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) return issueOrder(player, type);
 
-        boolean isRepublicLeader = plugin.getGovernmentManager().isPresident(nation, president.getUniqueId());
-        boolean isCommunistLeader = plugin.getCommunistManager().isSecretaryGeneral(nation, president.getUniqueId());
-        boolean isKing = plugin.getMonarchyManager() != null
-                && plugin.getMonarchyManager().isKing(nation, president.getUniqueId());
-        boolean isCaliph = plugin.getCaliphateManager() != null
-                && plugin.getCaliphateManager().isCaliph(nation, president.getUniqueId());
+        boolean isAdmin = player.hasPermission("nation.admin");
 
-        if (!isRepublicLeader && !isCommunistLeader && !isKing && !isCaliph) {
-            MessageUtils.send(president, "executive_orders.only_leader");
+        if (!isOrderEnabled(type)) {
+            MessageUtils.send(player, "<red>This executive order is currently disabled.</red>");
             return false;
         }
+
+        String positionKey = resolvePositionKey(nation, player.getUniqueId());
+        if (!isAdmin) {
+            if (positionKey == null || !getOrdersForPosition(nation.getType(), positionKey).contains(type)) {
+                MessageUtils.send(player, "<red>Your office is not authorized to issue this executive order.</red>");
+                return false;
+            }
+        }
+
+        // Cooldown — per order type, tracked per nation. Monarchy is exempt.
+        if (nation.getType() != GovernmentType.MONARCHY) {
+            long cooldownMillis = getOrderCooldownDays(type) * DAY_MILLIS;
+            long last = nation.getOrderCooldown(type.name());
+            if (System.currentTimeMillis() - last < cooldownMillis) {
+                long remaining = cooldownMillis - (System.currentTimeMillis() - last);
+                MessageUtils.send(player, "executive_orders.cooldown",
+                        "time", MessageUtils.formatTime(remaining));
+                return false;
+            }
+        }
+
+        if (isOrderActive(nation, type)) {
+            MessageUtils.send(player, "executive_orders.already_active");
+            return false;
+        }
+
+        double cost = getOrderCost(type);
+        if (!plugin.getTreasuryManager().canAfford(nation, cost)) {
+            MessageUtils.send(player, "executive_orders.insufficient_funds",
+                    "amount", plugin.getVaultHook().format(cost));
+            return false;
+        }
+
+        plugin.getTreasuryManager().withdraw(nation, TransactionType.EXECUTIVE_ORDER, cost,
+                "Executive Order: " + getOrderDisplay(type), player.getUniqueId());
 
         NationType nationType = switch (nation.getType()) {
             case REPUBLIC  -> NationType.REPUBLIC;
@@ -393,52 +645,23 @@ public class ExecutiveOrderManager {
             case CALIPHATE -> NationType.CALIPHATE;
         };
 
-        // Royal prerogative: the King may issue executive orders freely with
-        // no cooldown between orders. Republic and Communist nations still
-        // honour the configured cooldown.
-        if (nation.getType() != GovernmentType.MONARCHY) {
-            long cooldownDays = 7;
-            long cooldownMillis = cooldownDays * 24 * 60 * 60 * 1000;
-            if (System.currentTimeMillis() - nation.getLastExecutiveOrderTime() < cooldownMillis) {
-                long remaining = cooldownMillis - (System.currentTimeMillis() - nation.getLastExecutiveOrderTime());
-                MessageUtils.send(president, "executive_orders.cooldown",
-                        "time", MessageUtils.formatTime(remaining));
-                return false;
-            }
-        }
-
-        if (isOrderActive(nation, type)) {
-            MessageUtils.send(president, "executive_orders.already_active");
-            return false;
-        }
-
-        double cost = 1000000.0;
-        if (!plugin.getTreasuryManager().canAfford(nation, cost)) {
-            MessageUtils.send(president, "executive_orders.insufficient_funds",
-                    "amount", plugin.getVaultHook().format(cost));
-            return false;
-        }
-
-        plugin.getTreasuryManager().withdraw(nation, TransactionType.EXECUTIVE_ORDER, cost,
-                "Executive Order: " + type.getDisplayName(), president.getUniqueId());
-
-        ExecutiveOrder order = ExecutiveOrder.createForNation(nationType, type, president.getUniqueId(), type.getDefaultDuration());
+        ExecutiveOrder order = ExecutiveOrder.createForNation(nationType, type, player.getUniqueId(),
+                getOrderDurationMillis(type));
         nation.getActiveOrders().add(order);
+        nation.setOrderCooldown(type.name(), System.currentTimeMillis());
         nation.setLastExecutiveOrderTime(System.currentTimeMillis());
 
         if (nation.getType() == GovernmentType.COMMUNIST && nation.getCommunistGovernment() != null) {
-            nation.getCommunistGovernment().addOrderHistory(type.getDisplayName() + " (Leader)");
+            nation.getCommunistGovernment().addOrderHistory(
+                    getOrderDisplay(type) + " (" + prettyPosition(positionKey) + ")");
         }
 
         applyOrderEffects(nation, order);
 
-        String leaderTitle = nationType.getLeaderTitle();
-        MessageUtils.broadcastAnnouncement(leaderTitle + " Executive Order (" + nation.getName() + "): " + type.getDisplayName(),
-                "<italic><yellow>\"" + type.getFlavorText() + "\"</yellow></italic>\n\n" +
-                        "<gray>Effect: " + type.getEffectDescription() + "</gray>\n" +
-                        "<gray>Duration: " + MessageUtils.formatTimeShort(type.getDefaultDuration()) + "</gray>");
+        String issuerTitle = prettyPosition(positionKey);
+        broadcastOrder(issuerTitle + " Executive Order", nation, type);
 
-        president.getWorld().strikeLightningEffect(president.getLocation());
+        player.getWorld().strikeLightningEffect(player.getLocation());
         plugin.getDataManager().saveNations();
         return true;
     }

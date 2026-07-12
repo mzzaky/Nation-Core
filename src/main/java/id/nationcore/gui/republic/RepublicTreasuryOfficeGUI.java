@@ -70,14 +70,42 @@ public class RepublicTreasuryOfficeGUI extends NationMenuBase {
 
         // 3. EXECUTIVE ORDERS (TREASURY SECTOR)
         // Slots: 20, 22, 24, 30, 32
-        inv.setItem(20, buildDecisionItem(nation, CabinetDecision.DecisionType.TAX_HOLIDAY, player));
-        inv.setItem(22, buildDecisionItem(nation, CabinetDecision.DecisionType.ECONOMIC_STIMULUS, player));
-        inv.setItem(24, buildDecisionItem(nation, CabinetDecision.DecisionType.AUCTION_BOOST, player));
-        inv.setItem(30, buildDecisionItem(nation, CabinetDecision.DecisionType.TREASURY_BONUS, player));
-        inv.setItem(32, buildDecisionItem(nation, CabinetDecision.DecisionType.MARKET_CRASH, player));
+        org.bukkit.configuration.file.YamlConfiguration config = plugin.getNationConfig(nation.getType());
+        List<String> orderKeys = config != null ? config.getStringList("executive_order.minister_of_treasury") : new ArrayList<>();
+        int[] decisionSlots = {20, 22, 24, 30, 32};
+        int index = 0;
+        for (String key : orderKeys) {
+            if (index >= decisionSlots.length) break;
+            try {
+                CabinetDecision.DecisionType type = CabinetDecision.DecisionType.valueOf(key.trim().toUpperCase());
+                placeDecision(inv, decisionSlots[index], nation, type, player);
+                index++;
+            } catch (IllegalArgumentException e) {
+                // skip
+            }
+        }
+
+        // 4. EXECUTIVE ORDERS this office may issue (from executive_order.minister_of_treasury)
+        boolean isMinister = gov.getCabinetMember(Government.CabinetPosition.TREASURY) != null
+                && gov.getCabinetMember(Government.CabinetPosition.TREASURY).equals(player.getUniqueId());
+        boolean canIssue = isMinister || player.hasPermission("nation.admin");
+        int[] eoSlots = id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS;
+        List<id.nationcore.models.ExecutiveOrder.ExecutiveOrderType> orders =
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_treasury");
+        for (int i = 0; i < orders.size() && i < eoSlots.length; i++) {
+            inv.setItem(eoSlots[i], buildExecutiveOrderCard(nation, orders.get(i), canIssue, "Minister of Treasury", "&b"));
+        }
 
         player.openInventory(inv);
-    }
+     }
+
+     /** Only render a sector decision that is enabled in order.yaml and listed under this office. */
+     private void placeDecision(Inventory inv, int slot, Nation nation, CabinetDecision.DecisionType type, Player player) {
+         if (plugin.getExecutiveOrderManager().isSectorOrderVisible(
+                 nation.getType(), "minister_of_treasury", type.name().toLowerCase())) {
+             inv.setItem(slot, buildDecisionItem(nation, type, player));
+         }
+     }
 
     private ItemStack buildDecisionItem(Nation nation, CabinetDecision.DecisionType type, Player viewer) {
         Government gov = nation.getRepublicGovernment();
@@ -110,7 +138,10 @@ public class RepublicTreasuryOfficeGUI extends NationMenuBase {
         lore.add("&7Status: " + statusText);
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Description:");
-        lore.add("&f" + type.getDescription());
+        for (String descLine : plugin.getExecutiveOrderManager().getOrderLore(
+                type.name().toLowerCase(), java.util.List.of(type.getDescription()))) {
+            lore.add("&f" + descLine);
+        }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Treasury Cost: &6$" + MessageUtils.formatNumber(cost));
         lore.add("&7Duration: &f" + (type.getDurationMillis() == 0
@@ -148,7 +179,8 @@ public class RepublicTreasuryOfficeGUI extends NationMenuBase {
         }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
-        ItemStack item = buildIcon(material, "&e&l" + type.getDisplayName(), lore);
+        String display = plugin.getExecutiveOrderManager().getOrderDisplay(type.name().toLowerCase(), type.getDisplayName());
+        ItemStack item = buildIcon(material, "&e&l" + display, lore);
         if (active) {
             item = glowing(item);
         }

@@ -72,13 +72,32 @@ public class CommunistTreasuryOfficeGUI extends NationMenuBase {
 
         // 3. EXECUTIVE ORDERS (TREASURY SECTOR)
         // Slots: 20, 22, 24, 30, 32
-        inv.setItem(20, buildDecisionItem(nation, CommunistDecisionType.TRE_DISTRIBUTION_PROGRAM, player));
-        inv.setItem(22, buildDecisionItem(nation, CommunistDecisionType.TRE_ECONOMIC_STIMULUS, player));
-        inv.setItem(24, buildDecisionItem(nation, CommunistDecisionType.TRE_EDUCATION_PROGRAM, player));
-        inv.setItem(30, buildDecisionItem(nation, CommunistDecisionType.TRE_TAX_INTENSIFICATION, player));
-        inv.setItem(32, buildDecisionItem(nation, CommunistDecisionType.TRE_MARKET_EVENT, player));
+        placeDecision(inv, 20, nation, CommunistDecisionType.TRE_DISTRIBUTION_PROGRAM, player);
+        placeDecision(inv, 22, nation, CommunistDecisionType.TRE_ECONOMIC_STIMULUS, player);
+        placeDecision(inv, 24, nation, CommunistDecisionType.TRE_EDUCATION_PROGRAM, player);
+        placeDecision(inv, 30, nation, CommunistDecisionType.TRE_TAX_INTENSIFICATION, player);
+        placeDecision(inv, 32, nation, CommunistDecisionType.TRE_MARKET_EVENT, player);
+
+        // 4. EXECUTIVE ORDERS this office may issue (from executive_order.minister_of_treasury)
+        boolean isMinister = gov.getPolitburoMember(CommunistGovernment.PolitburoPosition.TREASURY) != null
+                && gov.getPolitburoMember(CommunistGovernment.PolitburoPosition.TREASURY).getUuid().equals(player.getUniqueId());
+        boolean canIssue = isMinister || player.hasPermission("nation.admin");
+        int[] eoSlots = id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS;
+        List<id.nationcore.models.ExecutiveOrder.ExecutiveOrderType> orders =
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_treasury");
+        for (int i = 0; i < orders.size() && i < eoSlots.length; i++) {
+            inv.setItem(eoSlots[i], buildExecutiveOrderCard(nation, orders.get(i), canIssue, "Minister of Treasury", "&c"));
+        }
 
         player.openInventory(inv);
+    }
+
+    /** Only render a sector decision that is enabled in order.yaml and listed under this office. */
+    private void placeDecision(Inventory inv, int slot, Nation nation, CommunistDecisionType type, Player player) {
+        if (plugin.getExecutiveOrderManager().isSectorOrderVisible(
+                nation.getType(), "minister_of_treasury", type.name().toLowerCase())) {
+            inv.setItem(slot, buildDecisionItem(nation, type, player));
+        }
     }
 
     private ItemStack buildDecisionItem(Nation nation, CommunistDecisionType type, Player viewer) {
@@ -92,7 +111,7 @@ public class CommunistTreasuryOfficeGUI extends NationMenuBase {
                 nation, ministerUUID != null ? ministerUUID : viewer.getUniqueId(), type);
         boolean onCooldown = cooldownRemaining > 0;
 
-        int cost = type.getCost();
+        int cost = plugin.getCommunistManager().getDecisionCost(type);
         boolean canAfford = plugin.getTreasuryManager().canAfford(nation, cost);
 
         Material material;
@@ -114,7 +133,10 @@ public class CommunistTreasuryOfficeGUI extends NationMenuBase {
         lore.add("&7Status: " + statusText);
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Description:");
-        lore.add("&f" + type.getDescription());
+        for (String descLine : plugin.getExecutiveOrderManager().getOrderLore(
+                type.name().toLowerCase(), java.util.List.of(type.getDescription()))) {
+            lore.add("&f" + descLine);
+        }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Treasury Cost: &6$" + MessageUtils.formatNumber(cost));
         lore.add("&7Duration: &f" + (type.isInstant()
@@ -159,7 +181,8 @@ public class CommunistTreasuryOfficeGUI extends NationMenuBase {
         }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
-        ItemStack item = buildIcon(material, "&e&l" + type.getDisplayName(), lore);
+        String display = plugin.getExecutiveOrderManager().getOrderDisplay(type.name().toLowerCase(), type.getDisplayName());
+        ItemStack item = buildIcon(material, "&e&l" + display, lore);
         if (active) {
             item = glowing(item);
         }

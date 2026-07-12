@@ -18,6 +18,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import id.nationcore.NationCore;
+import id.nationcore.models.ExecutiveOrder;
+import id.nationcore.models.GovernmentType;
+import id.nationcore.models.Nation;
+import id.nationcore.utils.MessageUtils;
 
 /**
  * Shared foundation for all per-nation main menus.
@@ -187,5 +191,94 @@ public abstract class NationMenuBase {
 
     protected List<String> wrap(String... lines) {
         return new ArrayList<>(Arrays.asList(lines));
+    }
+
+    // ===== Executive Order card (shared across all government menus) =====
+
+    /**
+     * Build a unified executive-order card. Every government's executive-order
+     * menu (and every minister office console) renders orders with this method
+     * so the layout is identical across Republic, Communist, Monarchy and
+     * Caliphate. All values (name, lore, cost, cooldown, duration) come from
+     * the order.yaml catalogue via the {@code ExecutiveOrderManager}.
+     *
+     * @param nation      the viewing player's nation (never null)
+     * @param type        the executive order to render
+     * @param canIssue    whether the viewer's office may issue this order
+     * @param issuerLabel display label for the authorized issuer (e.g. "President Steve")
+     * @param accent      colour code used for the title/effects header (e.g. "&b")
+     */
+    protected ItemStack buildExecutiveOrderCard(Nation nation, ExecutiveOrder.ExecutiveOrderType type,
+                                                boolean canIssue, String issuerLabel, String accent) {
+        var mgr = plugin.getExecutiveOrderManager();
+        boolean active = mgr.isOrderActive(nation, type);
+        boolean onCooldown = !active && mgr.isOrderOnCooldown(nation, type);
+        double cost = mgr.getOrderCost(type);
+        long cooldownRemaining = onCooldown ? mgr.getOrderCooldownRemaining(nation, type) : 0L;
+        boolean canAfford = plugin.getTreasuryManager().canAfford(nation, cost);
+        long duration = mgr.getOrderDurationMillis(type);
+        ExecutiveOrder activeOrder = active ? mgr.getActiveOrder(nation, type) : null;
+
+        Material material;
+        String status;
+        if (active) {
+            material = Material.ENCHANTED_BOOK;
+            status = "&a[ACTIVE]";
+        } else if (onCooldown) {
+            material = Material.BOOK;
+            status = "&c[COOLDOWN]";
+        } else if (!canIssue) {
+            material = Material.BOOK;
+            status = "&8[NO ACCESS]";
+        } else if (!canAfford) {
+            material = Material.BOOK;
+            status = "&8[INSUFFICIENT FUNDS]";
+        } else {
+            material = Material.WRITABLE_BOOK;
+            status = "&e[AVAILABLE]";
+        }
+
+        String bar = "&8" + "▬".repeat(28);
+        List<String> lore = new ArrayList<>();
+        lore.add(bar);
+        lore.add("&7\"" + type.getFlavorText() + "\"");
+        lore.add(bar);
+        lore.add("&7Issuer: &f" + issuerLabel);
+        lore.add("&7Cost: &6$" + MessageUtils.formatNumber((long) cost));
+        lore.add("&7Duration: &b" + (duration == 0 ? "Instant" : MessageUtils.formatTimeShort(duration)));
+        if (nation.getType() == GovernmentType.MONARCHY) {
+            lore.add("&7Cooldown: &bNone &8(royal prerogative)");
+        } else {
+            lore.add("&7Cooldown: &b" + mgr.getOrderCooldownDays(type) + " day(s)");
+        }
+        lore.add(bar);
+        lore.add(accent + "&lDECREE EFFECTS:");
+        for (String line : mgr.getOrderLore(type)) {
+            lore.add("&7" + line);
+        }
+        lore.add(bar);
+        if (active && activeOrder != null) {
+            lore.add("&a✔ &lORDER ACTIVE");
+            lore.add("&7Time Remaining: &a" + MessageUtils.formatTime(activeOrder.getRemainingTime()));
+        } else if (onCooldown) {
+            lore.add("&c⏳ &lON COOLDOWN");
+            lore.add("&7Available in: &c" + MessageUtils.formatTime(cooldownRemaining));
+        } else if (!canIssue) {
+            lore.add("&c✖ &lNO AUTHORIZATION");
+            lore.add("&7You are not authorized to issue this decree.");
+        } else if (!canAfford) {
+            lore.add("&c✖ &lINSUFFICIENT FUNDS");
+            lore.add("&7Treasury requires &6$" + MessageUtils.formatNumber((long) cost));
+        } else {
+            lore.add("&a⚡ &lREADY TO ISSUE");
+            lore.add("&eClick to authorize this decree.");
+        }
+        lore.add(bar);
+
+        ItemStack item = buildIcon(material, accent + "&l" + mgr.getOrderDisplay(type) + " " + status, lore);
+        if (active) {
+            item = glowing(item);
+        }
+        return item;
     }
 }

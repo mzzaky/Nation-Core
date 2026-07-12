@@ -152,6 +152,13 @@ public class Nation {
     private RecallPetition recallPetition;
     private ArenaSession arenaSession;
     private long lastExecutiveOrderTime;
+    /**
+     * Per-order cooldown tracking. Key = {@link ExecutiveOrder.ExecutiveOrderType}
+     * name, value = epoch millis of the last time that specific order was issued
+     * by this nation. Lazily initialized for backward compatibility with save
+     * files created before per-order cooldowns existed.
+     */
+    private Map<String, Long> orderCooldowns;
     private int gamesThisTerm;
 
     // === Diplomacy State ===
@@ -535,6 +542,20 @@ public class Nation {
 
     public void setLastExecutiveOrderTime(long lastExecutiveOrderTime) {
         this.lastExecutiveOrderTime = lastExecutiveOrderTime;
+    }
+
+    /**
+     * Epoch millis this nation last issued the given executive order type.
+     * Returns 0 (never issued) when there is no record.
+     */
+    public long getOrderCooldown(String orderTypeName) {
+        if (orderCooldowns == null) return 0L;
+        return orderCooldowns.getOrDefault(orderTypeName, 0L);
+    }
+
+    public void setOrderCooldown(String orderTypeName, long time) {
+        if (orderCooldowns == null) orderCooldowns = new HashMap<>();
+        orderCooldowns.put(orderTypeName, time);
     }
 
     public int getGamesThisTerm() {

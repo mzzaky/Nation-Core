@@ -73,6 +73,8 @@ public class NationCore extends JavaPlugin {
     private GUIListener guiListener;
     private YamlConfiguration languageConfig;
     private final Map<GovernmentType, YamlConfiguration> nationConfigs = new EnumMap<>(GovernmentType.class);
+    /** Central executive-order catalogue loaded from order.yaml. */
+    private YamlConfiguration orderConfig;
 
     @Override
     public void onEnable() {
@@ -453,7 +455,16 @@ public class NationCore extends JavaPlugin {
         }
         getLogger().info("Loaded " + loadedCount + " nation type configurations from the nations/ folder.");
 
-        // Merge Republic (democracy.yaml) specific president/games/approval settings into the main configuration instance
+        // Central executive-order catalogue (order.yaml in the data folder root).
+        File orderFile = new File(getDataFolder(), "order.yaml");
+        if (!orderFile.exists()) {
+            saveResource("order.yaml", false);
+        }
+        orderConfig = YamlConfiguration.loadConfiguration(orderFile);
+        getLogger().info("Loaded executive-order catalogue from order.yaml ("
+                + orderConfig.getKeys(false).size() + " orders).");
+
+        // Merge Republic (republic.yaml) specific president/games/approval settings into the main configuration instance
         YamlConfiguration republicConfig = nationConfigs.get(GovernmentType.REPUBLIC);
         if (republicConfig != null) {
             for (String key : new String[]{"president", "presidential-games", "approval"}) {
@@ -568,5 +579,13 @@ public class NationCore extends JavaPlugin {
 
     public YamlConfiguration getNationConfig(GovernmentType type) {
         return nationConfigs.get(type);
+    }
+
+    /**
+     * The central executive-order catalogue (order.yaml). Never null after
+     * {@link #reloadNationConfigs()} has run.
+     */
+    public YamlConfiguration getOrderConfig() {
+        return orderConfig;
     }
 }

@@ -66,3 +66,56 @@ communist:
   # nation members receive a money bonus equal to this value.
   market-event-bonus: 25
 
+# =====================================================================
+# Executive Orders available to each office of this government.
+# List the order ids (defined in order.yaml) that each position may issue.
+# The Secretary General may issue every order listed under
+# "secretary_general"; each minister may issue only the orders listed
+# under their own office. An order that is globally disabled in order.yaml
+# never appears regardless of this list.
+# =====================================================================
+executive_order:
+  secretary_general:
+  - golden_age
+  - war_economy
+  - economic_recovery
+  - environmental_protection
+  - education_advancement
+  - purge_protocol
+  - presidential_pardon
+  - tax_suspension
+  - tax_surge
+  minister_of_propaganda:
+  - golden_age
+  - education_advancement
+  - prop_global_broadcast
+  - prop_national_broadcast
+  - prop_leader_glorification
+  - prop_media_censorship
+  - prop_mobilization
+  minister_of_defence:
+  - war_economy
+  - purge_protocol
+  - def_declare_war
+  - def_military_draft
+  - def_defense_protocol
+  - def_offense_protocol
+  - def_military_emergency
+  minister_of_treasury:
+  - economic_recovery
+  - tax_suspension
+  - tax_surge
+  - tre_distribution_program
+  - tre_economic_stimulus
+  - tre_education_program
+  - tre_tax_intensification
+  - tre_market_event
+  minister_of_health:
+  - environmental_protection
+  - presidential_pardon
+  - hea_quarantine_protocol
+  - hea_field_medicine
+  - hea_vaccination_drive
+  - hea_emergency_rations
+  - hea_plague
+

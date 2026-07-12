@@ -151,7 +151,7 @@ public enum GovernmentType {
 
     public String getConfigFileName() {
         return switch (this) {
-            case REPUBLIC -> "democracy.yaml";
+            case REPUBLIC -> "republic.yaml";
             case COMMUNIST -> "comunist.yaml";
             case MONARCHY -> "monarcy.yaml";
             case CALIPHATE -> "caliphate.yaml";

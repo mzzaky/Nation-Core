@@ -72,13 +72,32 @@ public class CommunistHealthOfficeGUI extends NationMenuBase {
 
         // 3. EXECUTIVE ORDERS (HEALTH SECTOR)
         // Slots: 20, 22, 24, 30, 32
-        inv.setItem(20, buildDecisionItem(nation, CommunistDecisionType.HEA_QUARANTINE_PROTOCOL, player));
-        inv.setItem(22, buildDecisionItem(nation, CommunistDecisionType.HEA_FIELD_MEDICINE, player));
-        inv.setItem(24, buildDecisionItem(nation, CommunistDecisionType.HEA_VACCINATION_DRIVE, player));
-        inv.setItem(30, buildDecisionItem(nation, CommunistDecisionType.HEA_EMERGENCY_RATIONS, player));
-        inv.setItem(32, buildDecisionItem(nation, CommunistDecisionType.HEA_PLAGUE, player));
+        placeDecision(inv, 20, nation, CommunistDecisionType.HEA_QUARANTINE_PROTOCOL, player);
+        placeDecision(inv, 22, nation, CommunistDecisionType.HEA_FIELD_MEDICINE, player);
+        placeDecision(inv, 24, nation, CommunistDecisionType.HEA_VACCINATION_DRIVE, player);
+        placeDecision(inv, 30, nation, CommunistDecisionType.HEA_EMERGENCY_RATIONS, player);
+        placeDecision(inv, 32, nation, CommunistDecisionType.HEA_PLAGUE, player);
+
+        // 4. EXECUTIVE ORDERS this office may issue (from executive_order.minister_of_health)
+        boolean isMinister = gov.getPolitburoMember(CommunistGovernment.PolitburoPosition.HEALTH) != null
+                && gov.getPolitburoMember(CommunistGovernment.PolitburoPosition.HEALTH).getUuid().equals(player.getUniqueId());
+        boolean canIssue = isMinister || player.hasPermission("nation.admin");
+        int[] eoSlots = id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS;
+        List<id.nationcore.models.ExecutiveOrder.ExecutiveOrderType> orders =
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_health");
+        for (int i = 0; i < orders.size() && i < eoSlots.length; i++) {
+            inv.setItem(eoSlots[i], buildExecutiveOrderCard(nation, orders.get(i), canIssue, "Minister of Health", "&c"));
+        }
 
         player.openInventory(inv);
+    }
+
+    /** Only render a sector decision that is enabled in order.yaml and listed under this office. */
+    private void placeDecision(Inventory inv, int slot, Nation nation, CommunistDecisionType type, Player player) {
+        if (plugin.getExecutiveOrderManager().isSectorOrderVisible(
+                nation.getType(), "minister_of_health", type.name().toLowerCase())) {
+            inv.setItem(slot, buildDecisionItem(nation, type, player));
+        }
     }
 
     private ItemStack buildDecisionItem(Nation nation, CommunistDecisionType type, Player viewer) {
@@ -95,7 +114,7 @@ public class CommunistHealthOfficeGUI extends NationMenuBase {
                 nation, ministerUUID != null ? ministerUUID : viewer.getUniqueId(), type);
         boolean onCooldown = cooldownRemaining > 0;
 
-        int cost = type.getCost();
+        int cost = plugin.getCommunistManager().getDecisionCost(type);
         boolean canAfford = plugin.getTreasuryManager().canAfford(nation, cost);
 
         Material material;
@@ -117,7 +136,10 @@ public class CommunistHealthOfficeGUI extends NationMenuBase {
         lore.add("&7Status: " + statusText);
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Description:");
-        lore.add("&f" + type.getDescription());
+        for (String descLine : plugin.getExecutiveOrderManager().getOrderLore(
+                type.name().toLowerCase(), java.util.List.of(type.getDescription()))) {
+            lore.add("&f" + descLine);
+        }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         lore.add("&7Treasury Cost: &6$" + MessageUtils.formatNumber(cost));
         lore.add("&7Duration: &f" + (type.isInstant()
@@ -160,7 +182,8 @@ public class CommunistHealthOfficeGUI extends NationMenuBase {
         }
         lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
 
-        ItemStack item = buildIcon(material, "&e&l" + type.getDisplayName(), lore);
+        String display = plugin.getExecutiveOrderManager().getOrderDisplay(type.name().toLowerCase(), type.getDisplayName());
+        ItemStack item = buildIcon(material, "&e&l" + display, lore);
         if (active) {
             item = glowing(item);
         }

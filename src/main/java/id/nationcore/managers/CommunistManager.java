@@ -643,6 +643,25 @@ public class CommunistManager {
      * Validation: minister position matches, cooldown not ended, enough treasury.
      * Cooldown stored per-player in {@code cg.decisionCooldowns}.
      */
+    /** Decision cost from order.yaml (fallback to the enum default). */
+    public int getDecisionCost(CommunistDecisionType type) {
+        return (int) plugin.getExecutiveOrderManager().getOrderCost(type.name().toLowerCase(), type.getCost());
+    }
+
+    /** Decision cooldown (ms) from order.yaml days, with a per-position hour fallback. */
+    private long getDecisionCooldownMs(CommunistDecisionType type) {
+        String posName = type.getPosition() != null ? type.getPosition().name().toLowerCase() : "propaganda";
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
+        long fallbackHours = nationConfig != null ? nationConfig.getLong("politbiro." + posName + ".decision-cooldown-hours", 48) : 48;
+        long days = plugin.getExecutiveOrderManager().getOrderCooldownDays(type.name().toLowerCase(), -1);
+        if (days >= 0) return days * 24L * 3600000L;
+        return fallbackHours * 3600000L;
+    }
+
+    private boolean isDecisionEnabled(CommunistDecisionType type) {
+        return plugin.getExecutiveOrderManager().isOrderEnabled(type.name().toLowerCase());
+    }
+
     public boolean canExecuteDecision(Nation nation, Player player, CommunistDecisionType type) {
         CommunistGovernment cg = getGovernment(nation);
         if (cg == null) return false;
@@ -652,23 +671,21 @@ public class CommunistManager {
         PolitburoMember member = cg.getPolitburoMember(required);
         if (member == null || !member.getUuid().equals(uuid)) return false;
 
-        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
-        String posName = required != null ? required.name().toLowerCase() : "propaganda";
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("politbiro." + posName + ".decision-cooldown-hours", 48) : 48) * 3600000L;
+        if (!isDecisionEnabled(type)) return false;
+
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<String, Long> playerCooldowns = cg.getDecisionCooldowns()
                 .computeIfAbsent(uuid, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type.name());
         if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) return false;
 
-        return plugin.getTreasuryManager().canAfford(nation, type.getCost());
+        return plugin.getTreasuryManager().canAfford(nation, getDecisionCost(type));
     }
 
     public long getDecisionCooldownRemaining(Nation nation, UUID uuid, CommunistDecisionType type) {
         CommunistGovernment cg = getGovernment(nation);
         if (cg == null) return 0;
-        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.COMMUNIST);
-        String posName = type.getPosition() != null ? type.getPosition().name().toLowerCase() : "propaganda";
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("politbiro." + posName + ".decision-cooldown-hours", 48) : 48) * 3600000L;
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<String, Long> playerCooldowns = cg.getDecisionCooldowns().get(uuid);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type.name());
@@ -695,20 +712,25 @@ public class CommunistManager {
             }
         }
 
+        if (!isDecisionEnabled(type)) {
+            return Result.fail(type.getDisplayName() + " is currently disabled.");
+        }
+
         long remaining = getDecisionCooldownRemaining(nation, player.getUniqueId(), type);
         if (remaining > 0) {
             return Result.fail("Decision on cooldown — remaining " +
                     MessageUtils.formatTime(remaining));
         }
 
-        if (!plugin.getTreasuryManager().canAfford(nation, type.getCost())) {
+        int decisionCost = getDecisionCost(type);
+        if (!plugin.getTreasuryManager().canAfford(nation, decisionCost)) {
             return Result.fail("Treasury of " + nation.getName() + " not enough. Needs $" +
-                    MessageUtils.formatNumber(type.getCost()) + ".");
+                    MessageUtils.formatNumber(decisionCost) + ".");
         }
 
         // Tarik biaya
         plugin.getTreasuryManager().withdraw(nation, TransactionType.EXECUTIVE_ORDER,
-                type.getCost(), "Decision: " + type.getDisplayName(), player.getUniqueId());
+                decisionCost, "Decision: " + type.getDisplayName(), player.getUniqueId());
 
         // Set cooldown
         cg.getDecisionCooldowns().computeIfAbsent(player.getUniqueId(), k -> new HashMap<>())

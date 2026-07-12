@@ -32,6 +32,9 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
     public static final int SLOT_BACK = 43;
     public static final int SLOT_CLOSE = 53;
 
+    /** Config position key for the crown's nation-wide executive orders. */
+    public static final String POSITION_KEY = "king";
+
     private static final int[] FILLER_SLOTS = {
             0, 1, 2, 3, 5, 6, 7, 8, 9, 17, 18, 26, 27, 35, 36, 44, 45, 46, 52, 53
     };
@@ -105,20 +108,39 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
             if (DECISION_SLOTS[i] == slot) { index = i; break; }
         }
         if (index == -1) return null;
-        List<MonarchyDecisionType> decisions = getDecisionsForTab(tab);
+        Nation nation = NationCore.getInstance().getNationManager().getNationOf(player.getUniqueId());
+        List<MonarchyDecisionType> decisions = visibleDecisions(tab, nation);
         return index < decisions.size() ? decisions.get(index) : null;
+    }
+
+    /**
+     * The council decisions of a tab that are enabled in order.yaml and listed
+     * under that seat in the nation config. Used for both rendering and click
+     * resolution so slots and orders stay in sync.
+     */
+    private static List<MonarchyDecisionType> visibleDecisions(RoyalOrderTab tab, Nation nation) {
+        List<MonarchyDecisionType> all = getDecisionsForTab(tab);
+        if (nation == null || tab.getPosition() == null) return all;
+        String office = tab.getPosition().name().toLowerCase();
+        var mgr = NationCore.getInstance().getExecutiveOrderManager();
+        List<MonarchyDecisionType> result = new ArrayList<>();
+        for (MonarchyDecisionType d : all) {
+            if (mgr.isSectorOrderVisible(nation.getType(), office, d.name().toLowerCase())) {
+                result.add(d);
+            }
+        }
+        return result;
     }
 
     public static id.nationcore.models.ExecutiveOrder.ExecutiveOrderType getExecutiveOrderAtSlot(Player player, int slot) {
         RoyalOrderTab tab = activeTabs.getOrDefault(player.getUniqueId(), RoyalOrderTab.KING);
         if (tab != RoyalOrderTab.KING) return null;
-        int index = -1;
-        for (int i = 0; i < DECISION_SLOTS.length; i++) {
-            if (DECISION_SLOTS[i] == slot) { index = i; break; }
-        }
-        if (index == -1) return null;
-        var types = id.nationcore.models.ExecutiveOrder.ExecutiveOrderType.values();
-        return index < types.length ? types[index] : null;
+        NationCore plugin = NationCore.getInstance();
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) return null;
+        return id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), POSITION_KEY),
+                DECISION_SLOTS, slot);
     }
 
     private static List<MonarchyDecisionType> getDecisionsForTab(RoyalOrderTab tab) {
@@ -146,12 +168,16 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
         }
 
         if (activeTab == RoyalOrderTab.KING) {
-            var types = id.nationcore.models.ExecutiveOrder.ExecutiveOrderType.values();
-            for (int i = 0; i < types.length && i < DECISION_SLOTS.length; i++) {
-                inv.setItem(DECISION_SLOTS[i], buildExecutiveOrderCard(nation, mg, player, types[i]));
+            boolean isKing = mg != null && mg.hasKing() && mg.getKingUUID().equals(player.getUniqueId());
+            boolean canIssue = isKing || player.hasPermission("nation.admin");
+            String issuerLabel = "King " + kingName(mg);
+            List<id.nationcore.models.ExecutiveOrder.ExecutiveOrderType> orders = plugin.getExecutiveOrderManager()
+                    .getOrdersForPosition(nation.getType(), POSITION_KEY);
+            for (int i = 0; i < orders.size() && i < DECISION_SLOTS.length; i++) {
+                inv.setItem(DECISION_SLOTS[i], buildExecutiveOrderCard(nation, orders.get(i), canIssue, issuerLabel, "&6"));
             }
         } else {
-            List<MonarchyDecisionType> decisions = getDecisionsForTab(activeTab);
+            List<MonarchyDecisionType> decisions = visibleDecisions(activeTab, nation);
             for (int i = 0; i < decisions.size() && i < DECISION_SLOTS.length; i++) {
                 inv.setItem(DECISION_SLOTS[i], buildDecisionCard(nation, mg, player, decisions.get(i)));
             }
@@ -208,8 +234,11 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
         long cooldownRemaining = plugin.getMonarchyManager()
                 .getDecisionCooldownRemaining(nation, viewer.getUniqueId(), type);
         boolean onCooldown = cooldownRemaining > 0;
-        boolean canAfford = plugin.getTreasuryManager().canAfford(nation, type.getCost());
+        int cost = plugin.getMonarchyManager().getDecisionCost(type);
+        boolean canAfford = plugin.getTreasuryManager().canAfford(nation, cost);
         boolean active = mg != null && plugin.getMonarchyManager().isDecisionStateActive(mg, type);
+        var eom = plugin.getExecutiveOrderManager();
+        String orderId = type.name().toLowerCase();
 
         Material material;
         String status;
@@ -237,11 +266,13 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add("&7" + type.getDescription());
+        for (String descLine : eom.getOrderLore(orderId, java.util.List.of(type.getDescription()))) {
+            lore.add("&7" + descLine);
+        }
         lore.add("");
         lore.add("&7Council Seat: &f" + (type.getPosition() != null ? type.getPosition().getDisplayName() : "General"));
         lore.add("&7Holder: &f" + holderName);
-        lore.add("&7Cost: &6$" + MessageUtils.formatNumber(type.getCost()));
+        lore.add("&7Cost: &6$" + MessageUtils.formatNumber(cost));
         lore.add("&7Duration: &f" + (type.isInstant()
                 ? "instant"
                 : MessageUtils.formatTimeShort(type.getDurationMillis())));
@@ -260,72 +291,15 @@ public class MonarchyExecutiveOrdersMenu extends NationMenuBase {
             lore.add("&aClick &7→ Issue royal decision");
         }
 
-        return buildIcon(material, "&6&l" + type.getDisplayName() + " " + status, lore);
+        String display = eom.getOrderDisplay(orderId, type.getDisplayName());
+        return buildIcon(material, "&6&l" + display + " " + status, lore);
     }
 
-    private ItemStack buildExecutiveOrderCard(Nation nation, MonarchyGovernment mg, Player viewer,
-                                              id.nationcore.models.ExecutiveOrder.ExecutiveOrderType type) {
-        boolean isKing = mg != null && mg.hasKing() && mg.getKingUUID().equals(viewer.getUniqueId());
-        boolean isAdmin = viewer.hasPermission("nation.admin");
-        boolean canIssue = isKing || isAdmin;
-
-        boolean active = plugin.getExecutiveOrderManager().isOrderActive(nation, type);
-        // Absolute power: the King ignores the per-order cooldown.
-        boolean onCooldown = false;
-        long cost = plugin.getConfig().getLong("executive-orders.cost", 1_000_000);
-        boolean canAfford = plugin.getTreasuryManager().canAfford(nation, cost);
-        id.nationcore.models.ExecutiveOrder activeOrder = active
-                ? plugin.getExecutiveOrderManager().getActiveOrder(nation, type) : null;
-
-        Material material;
-        String status;
-        if (active) {
-            material = Material.LIME_CONCRETE;
-            status = "&a[ACTIVE]";
-        } else if (onCooldown) {
-            material = Material.RED_CONCRETE;
-            status = "&c[COOLDOWN]";
-        } else if (!canIssue) {
-            material = Material.LIGHT_BLUE_CONCRETE;
-            status = "&8[NO ACCESS]";
-        } else if (!canAfford) {
-            material = Material.GRAY_CONCRETE;
-            status = "&8[INSUFFICIENT FUNDS]";
-        } else {
-            material = Material.YELLOW_CONCRETE;
-            status = "&e[AVAILABLE]";
-        }
-
-        String kingName = "Vacant throne";
+    private String kingName(MonarchyGovernment mg) {
         if (mg != null && mg.hasKing()) {
             org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(mg.getKingUUID());
-            if (op.getName() != null) kingName = op.getName();
+            if (op.getName() != null) return op.getName();
         }
-
-        List<String> lore = new ArrayList<>();
-        lore.add("&7" + type.getFlavorText());
-        lore.add("");
-        lore.add("&7King: &f" + kingName);
-        lore.add("&6&lEffects:");
-        lore.add("&7" + type.getEffectDescription());
-        lore.add("");
-        lore.add("&7Duration: &f" + (type.getDefaultDuration() == 0
-                ? "instant"
-                : MessageUtils.formatTimeShort(type.getDefaultDuration())));
-        lore.add("&7Cost: &6$" + MessageUtils.formatNumber(cost));
-        lore.add("&8Royal prerogative: no cooldown applies.");
-        lore.add("");
-
-        if (active && activeOrder != null) {
-            lore.add("&aRemaining time: &f" + MessageUtils.formatTime(activeOrder.getRemainingTime()));
-        } else if (!canIssue) {
-            lore.add("&8Only the King can issue executive orders.");
-        } else if (!canAfford) {
-            lore.add("&cInsufficient funds to issue.");
-        } else {
-            lore.add("&aClick &7→ Issue executive order");
-        }
-
-        return buildIcon(material, "&6&l" + type.getDisplayName() + " " + status, lore);
+        return "Vacant throne";
     }
 }

@@ -272,7 +272,7 @@ public class MonarchyGUIHandler {
             if (eoType == null)
                 return;
 
-            if (clicked.getType() != Material.YELLOW_CONCRETE) {
+            if (clicked.getType() != Material.WRITABLE_BOOK) {
                 MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
                 return;
             }

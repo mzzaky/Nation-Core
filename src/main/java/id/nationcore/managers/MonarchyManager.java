@@ -197,12 +197,29 @@ public class MonarchyManager {
      * Cooldown lookup for council members. The King is exempt — they may
      * execute every decision freely under absolute power.
      */
+    /** Decision cost from order.yaml (fallback to the enum default). */
+    public int getDecisionCost(MonarchyDecisionType type) {
+        return (int) plugin.getExecutiveOrderManager().getOrderCost(type.name().toLowerCase(), type.getCost());
+    }
+
+    /** Decision cooldown (ms) from order.yaml days, with a per-position hour fallback. */
+    private long getDecisionCooldownMs(MonarchyDecisionType type) {
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.MONARCHY);
+        long fallbackHours = nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48;
+        long days = plugin.getExecutiveOrderManager().getOrderCooldownDays(type.name().toLowerCase(), -1);
+        if (days >= 0) return days * 24L * 3600000L;
+        return fallbackHours * 3600000L;
+    }
+
+    private boolean isDecisionEnabled(MonarchyDecisionType type) {
+        return plugin.getExecutiveOrderManager().isOrderEnabled(type.name().toLowerCase());
+    }
+
     public long getDecisionCooldownRemaining(Nation nation, UUID uuid, MonarchyDecisionType type) {
         MonarchyGovernment mg = getGovernment(nation);
         if (mg == null) return 0;
         if (mg.hasKing() && mg.getKingUUID().equals(uuid)) return 0;
-        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.MONARCHY);
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<String, Long> playerCooldowns = mg.getDecisionCooldowns().get(uuid);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type.name());
@@ -233,18 +250,23 @@ public class MonarchyManager {
             }
         }
 
+        if (!isDecisionEnabled(type)) {
+            return Result.fail(type.getDisplayName() + " is currently disabled.");
+        }
+
         long remaining = getDecisionCooldownRemaining(nation, player.getUniqueId(), type);
         if (remaining > 0) {
             return Result.fail("Decision on cooldown — remaining " + MessageUtils.formatTime(remaining));
         }
 
-        if (!plugin.getTreasuryManager().canAfford(nation, type.getCost())) {
+        int decisionCost = getDecisionCost(type);
+        if (!plugin.getTreasuryManager().canAfford(nation, decisionCost)) {
             return Result.fail("Royal Treasury of " + nation.getName() + " cannot afford this. Needs $" +
-                    MessageUtils.formatNumber(type.getCost()) + ".");
+                    MessageUtils.formatNumber(decisionCost) + ".");
         }
 
         plugin.getTreasuryManager().withdraw(nation, TransactionType.EXECUTIVE_ORDER,
-                type.getCost(), "Royal decision: " + type.getDisplayName(), player.getUniqueId());
+                decisionCost, "Royal decision: " + type.getDisplayName(), player.getUniqueId());
 
         // The King is exempt from cooldown tracking
         if (!isKing) {

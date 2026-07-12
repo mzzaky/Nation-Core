@@ -1,0 +1,23 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#35
+====================================================
+Rename democracy.yaml to republic.yaml and implement Config-driven Minister GUIs.
+
+[CONFIG & CODE REFACTOR - DEMOCRACY TO REPUBLIC]
+- Renamed the configuration file nations/democracy.yaml to nations/republic.yaml to reflect the Republic government type name.
+- GovernmentType.java:
+  → Updated getConfigFileName() for GovernmentType.REPUBLIC to return "republic.yaml" instead of "democracy.yaml".
+- NationCore.java & RepublicExecutiveOrdersMenu.java:
+  → Updated comment references to nations/republic.yaml.
+
+[CONFIG-DRIVEN MINISTER OFFICE CONSOLES]
+- Updated the three Republic minister office menus to load their sector decisions dynamically from the configuration instead of using hardcoded lists:
+  → RepublicDefenseOfficeGUI.java: Loads decisions from the executive_order.minister_of_defence list in republic.yaml.
+  → RepublicTreasuryOfficeGUI.java: Loads decisions from the executive_order.minister_of_treasury list in republic.yaml.
+  → RepublicHealthOfficeGUI.java: Loads decisions from the executive_order.minister_of_health list in republic.yaml.
+  → These decisions are dynamically placed into the slots 20, 22, 24, 30, 32 in the order they are configured.
+
+[DYNAMIC GUI CLICK HANDLING]
+- RepublicGUIHandler.java:
+  → Rewrote handleDefenseOfficeGUI(), handleTreasuryOfficeGUI(), and handleHealthOfficeGUI() to resolve clicked slots 20, 22, 24, 30, 32 dynamically based on the configured lists in republic.yaml instead of using hardcoded switch-case structures.
+  → Fixed compilation issues and type mismatch errors by importing java.util.List and java.util.ArrayList, and ensuring correct generic instantiation.

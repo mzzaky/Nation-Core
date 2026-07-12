@@ -57,15 +57,17 @@ public class CabinetManager {
             return false;
         }
         
+        // Disabled in order.yaml → cannot execute
+        if (!isDecisionEnabled(type)) return false;
+
         // Check cooldown
-        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<CabinetDecision.DecisionType, Long> playerCooldowns = decisionCooldowns.computeIfAbsent(ministerId, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type);
         if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) {
             return false;
         }
-        
+
         // Check treasury cost
         int cost = getDecisionCost(type);
         Treasury treasury = plugin.getDataManager().getTreasury();
@@ -73,8 +75,7 @@ public class CabinetManager {
     }
     
     public long getRemainingCooldown(UUID ministerId, CabinetDecision.DecisionType type) {
-        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<CabinetDecision.DecisionType, Long> playerCooldowns = decisionCooldowns.get(ministerId);
         if (playerCooldowns == null) return 0;
         Long lastUse = playerCooldowns.get(type);
@@ -438,8 +439,25 @@ public class CabinetManager {
     }
     
     public int getDecisionCost(CabinetDecision.DecisionType type) {
-        String path = "cabinet.decisions." + getRequiredPosition(type).name().toLowerCase() + ".cost";
-        return plugin.getConfig().getInt(path, 100000);
+        // Central management: prefer the cost defined in order.yaml; fall back to
+        // the legacy per-position config path if the order id is not present.
+        String legacyPath = "cabinet.decisions." + getRequiredPosition(type).name().toLowerCase() + ".cost";
+        int fallback = plugin.getConfig().getInt(legacyPath, 100000);
+        return (int) plugin.getExecutiveOrderManager().getOrderCost(type.name().toLowerCase(), fallback);
+    }
+
+    /** Cooldown for a cabinet decision, sourced from order.yaml (days) with a per-position fallback (hours). */
+    private long getDecisionCooldownMs(CabinetDecision.DecisionType type) {
+        YamlConfiguration nationConfig = plugin.getNationConfig(GovernmentType.REPUBLIC);
+        long fallbackHours = nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48;
+        long days = plugin.getExecutiveOrderManager().getOrderCooldownDays(type.name().toLowerCase(), -1);
+        if (days >= 0) return days * 24L * 3600000L;
+        return fallbackHours * 3600000L;
+    }
+
+    /** Whether this cabinet decision is enabled in order.yaml. */
+    private boolean isDecisionEnabled(CabinetDecision.DecisionType type) {
+        return plugin.getExecutiveOrderManager().isOrderEnabled(type.name().toLowerCase());
     }
     
     public long getDecisionDuration(CabinetDecision.DecisionType type) {
@@ -555,8 +573,10 @@ public class CabinetManager {
         UUID currentMinister = gov.getCabinetMember(required);
         if (currentMinister == null || !currentMinister.equals(ministerId)) return false;
 
-        YamlConfiguration nationConfig = plugin.getNationConfig(nation.getType());
-        long cooldownMs = (nationConfig != null ? nationConfig.getLong("cabinet.decision-cooldown-hours", 48) : 48) * 3600000L;
+        // Disabled in order.yaml → cannot execute
+        if (!isDecisionEnabled(type)) return false;
+
+        long cooldownMs = getDecisionCooldownMs(type);
         Map<CabinetDecision.DecisionType, Long> playerCooldowns =
                 decisionCooldowns.computeIfAbsent(ministerId, k -> new HashMap<>());
         Long lastUse = playerCooldowns.get(type);

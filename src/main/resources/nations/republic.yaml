@@ -131,4 +131,42 @@ approval:
   high-approval-threshold: 4.0
   low-approval-threshold: 2.0
 
+# =====================================================================
+# Executive Orders available to each office of this government.
+# List the order ids (defined in order.yaml) that each position may issue.
+# The President may issue every order listed under "president"; each
+# minister may issue only the orders listed under their own office.
+# Removing an id revokes that office's access to the order. An order that
+# is globally disabled in order.yaml never appears regardless of this list.
+# =====================================================================
+executive_order:
+  president:
+  - golden_age
+  - war_economy
+  - economic_recovery
+  - environmental_protection
+  - education_advancement
+  - purge_protocol
+  - presidential_pardon
+  - tax_suspension
+  - tax_surge
+  minister_of_defence:
+  - declare_war
+  - military_draft
+  - defense_protocol
+  - armory_discount
+  - border_patrol
+  minister_of_treasury:
+  - tax_holiday
+  - economic_stimulus
+  - auction_boost
+  - treasury_bonus
+  - market_crash
+  minister_of_health:
+  - quarantine_protocol
+  - field_medicine
+  - vaccination_drive
+  - emergency_rations
+  - plague
+
 

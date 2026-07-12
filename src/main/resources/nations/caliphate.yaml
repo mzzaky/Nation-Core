@@ -7,3 +7,21 @@ creation:
   # Percentage of starting capital that goes directly into the new nation's treasury (0-100).
   # Calculated as a percentage of the cost value. Example: 50 = 50% of the cost.
   starting-treasury-percent: 80
+
+# =====================================================================
+# Executive Orders available in this caliphate.
+# The Caliphate has no ministers — only the Caliph may issue executive
+# orders. List under "caliph" the order ids (defined in order.yaml) the
+# Caliph may authorize. The standard per-order cooldown applies.
+# =====================================================================
+executive_order:
+  caliph:
+  - golden_age
+  - war_economy
+  - economic_recovery
+  - environmental_protection
+  - education_advancement
+  - purge_protocol
+  - presidential_pardon
+  - tax_suspension
+  - tax_surge

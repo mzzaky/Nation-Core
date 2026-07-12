@@ -263,12 +263,18 @@ public class CaliphateGUIHandler {
             return;
         }
 
-        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType = CaliphateExecutiveOrdersMenu
-                .getExecutiveOrderAtSlot(slot);
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null)
+            return;
+
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), CaliphateExecutiveOrdersMenu.POSITION_KEY),
+                        CaliphateExecutiveOrdersMenu.ORDER_SLOTS, slot);
         if (eoType == null)
             return;
 
-        if (clicked.getType() != Material.LIME_CONCRETE_POWDER) {
+        if (clicked.getType() != Material.WRITABLE_BOOK) {
             MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
             return;
         }

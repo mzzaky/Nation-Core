@@ -169,7 +169,11 @@ public abstract class ExecutiveOrder {
     }
 
     public boolean isExpired() {
-        if (type.getDefaultDuration() == 0)
+        // An order with no positive duration (expiration == issue time) is an
+        // instant/one-shot order and is considered immediately expired. This is
+        // derived from the stored timestamps so config-driven durations (from
+        // order.yaml) are honoured for both new and previously saved orders.
+        if (expirationTime <= issuedTime)
             return true;
         return System.currentTimeMillis() > expirationTime;
     }

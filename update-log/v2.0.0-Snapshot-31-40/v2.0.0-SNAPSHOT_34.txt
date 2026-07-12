@@ -1,0 +1,64 @@
+====================================================
+  NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#34
+====================================================
+Executive Order System Overhaul: Central order.yaml Catalogue, Per-Nation Per-Office Configuration, and Unified Menus.
+
+[CENTRAL EXECUTIVE ORDER CATALOGUE (order.yaml)]
+- Added a new src/main/resources/order.yaml as the single source of truth for every executive order registered in the plugin.
+  → One entry per order id (golden_age, war_economy, economic_recovery, environmental_protection, education_advancement, purge_protocol, presidential_pardon, tax_suspension, tax_surge).
+  → Each entry exposes: status (master enable/disable switch), display (menu/broadcast name), lore (descriptive card lines), cooldown (per-order cooldown in days), cost (treasury price), and an optional attribute block (duration in hours, damage combat multiplier, vault economy value).
+  → Setting status: false completely hides an order from every menu and blocks issuance.
+- NationCore.java:
+  → reloadNationConfigs() now also copies the default order.yaml into the data folder (if missing) and loads it into a cached YamlConfiguration.
+  → Added getOrderConfig() accessor. The catalogue reloads together with the nation configs on /reload.
+
+[PER-NATION, PER-OFFICE EXECUTIVE ORDER LISTS]
+- Added an executive_order: section to every government configuration, mapping each office to the list of order ids it may issue (format modelled on plan_nations.yaml):
+  → nations/democracy.yaml   : president (all 9), minister_of_defence, minister_of_treasury, minister_of_health.
+  → nations/comunist.yaml    : secretary_general (all 9), minister_of_propaganda, minister_of_defence, minister_of_treasury, minister_of_health.
+  → nations/monarcy.yaml     : king (all 9). High Council seats keep their separate Royal Decisions.
+  → nations/caliphate.yaml   : caliph (all 9). No ministers.
+- The head of state may issue every order in its own list; each minister may issue only the orders configured under its office. Removing an id from a list revokes that office's access. A globally disabled order never appears regardless of the per-office lists.
+
+[EXECUTIVE ORDER BACKEND REFACTOR]
+- ExecutiveOrderManager.java (rewritten around order.yaml):
+  → Added catalogue accessors: isOrderEnabled, getOrderDisplay, getOrderLore, getOrderCost, getOrderCooldownDays, getOrderDurationMillis, getOrderAttribute — all reading from order.yaml with safe fallbacks to the previous hardcoded defaults.
+  → Added getOrdersForPosition(GovernmentType, positionKey) to read the enabled order list for an office from the nation config, and resolvePositionKey(Nation, uuid) to map a player to the office they hold (president/secretary_general/king/caliph or a minister position).
+  → Added prettyPosition() for issuer labels and a static orderAtSlot() helper plus the shared OFFICE_ORDER_SLOTS layout for minister consoles.
+  → issueOrderForNation() now enforces per-office authorization (admins bypass), pulls cost/cooldown/duration from the catalogue, and blocks disabled orders. Broadcasts credit the issuing office.
+  → Cost (was hardcoded 1,000,000) and cooldown (was hardcoded 7 days) are now fully config-driven; the Monarchy remains exempt from cooldowns (royal prerogative).
+  → Effect getters made attribute-tunable: Golden Age vault multiplier (attribute.vault), War Economy PvP damage (attribute.damage), and Economic Recovery stimulus payout (attribute.vault) now read from order.yaml.
+- Nation.java:
+  → Added a per-order cooldown map (orderCooldowns) with getOrderCooldown/setOrderCooldown, lazily initialized for backward compatibility. Executive-order cooldowns are now tracked per order type per nation instead of a single shared timer.
+- ExecutiveOrder.java:
+  → isExpired() now derives instant/timed status from the stored issue/expiration timestamps instead of the hardcoded enum duration, so config-driven durations are honoured for both new and previously saved orders.
+
+[GUI & MENU UPDATES]
+- NationMenuBase.java:
+  → Added a shared buildExecutiveOrderCard(...) used by every government menu and minister console, so all executive-order cards render identically (name, flavor, cost, duration, cooldown, effects, and live status) straight from the catalogue.
+- Republic & Communist leader consoles:
+  → RepublicExecutiveOrdersMenu (President) and CommunistLeaderOrdersMenu (Secretary General) now build their catalogue dynamically from executive_order.president / executive_order.secretary_general instead of iterating every hardcoded order type.
+- Republic & Communist minister offices:
+  → RepublicHealthOfficeGUI, RepublicDefenseOfficeGUI, RepublicTreasuryOfficeGUI and CommunistHealthOfficeGUI, CommunistDefenseOfficeGUI, CommunistTreasuryOfficeGUI, CommunistPropagandaOfficeGUI gained an Executive Orders row (top interior slots) listing the orders their office may issue. Existing sector Decisions are untouched.
+  → RepublicGUIHandler and CommunistGUIHandler now route clicks on the office executive-order slots and the leader consoles through issueOrderForNation with per-office authorization.
+- Monarchy & Caliphate:
+  → CaliphateExecutiveOrdersMenu rebuilt onto the same flat card layout used by the Republic/Communist consoles, driven by executive_order.caliph.
+  → MonarchyExecutiveOrdersMenu's King tab now renders the unified executive-order cards from executive_order.king; the High Council tabs continue to host the separate Royal Decisions system.
+  → CaliphateGUIHandler and MonarchyGUIHandler updated to resolve orders from the config-driven lists.
+
+[MINISTER / COUNCIL ORDERS REGISTERED AS EXECUTIVE ORDERS]
+- Every sector order in the plugin is now part of the executive_order system and centrally managed through order.yaml:
+  → order.yaml gained grouped sections registering all Republic Cabinet decisions (15), Communist Politburo decisions (20), and Monarchy High-Council decisions (20) — each with status, display, lore, cooldown (days) and cost.
+- Per-office lists extended in the nation configs:
+  → democracy.yaml / comunist.yaml: each minister office now lists its own sector-order ids alongside the nation-wide orders.
+  → comunist.yaml: minister_of_propaganda added to the office lists.
+  → monarcy.yaml: added herald, marshal, chancellor and saint office lists for the High Council's decisions.
+- Decision engines now honor order.yaml (effects unchanged):
+  → CabinetManager, CommunistManager, MonarchyManager: decision cost and per-order cooldown are read from order.yaml (with the previous per-position config as a fallback), and a disabled order (status: false) can no longer be executed.
+  → Added getDecisionCost(...) to CommunistManager and MonarchyManager so the cost shown equals the cost charged.
+- GUIs render each office's orders from the configuration:
+  → The 7 minister office consoles (Republic/Communist) and the Monarchy High-Council tabs now only display a sector order that is enabled in order.yaml AND listed under that office in the nation config; card name, lore and cost are pulled from order.yaml.
+- Removed the reference template files src/main/resources/plan_order.yaml and src/main/resources/plan_nations.yaml.
+
+[BUILD]
+- pom.xml: bumped snapshot build suffix to .SNAPSHOT-34.

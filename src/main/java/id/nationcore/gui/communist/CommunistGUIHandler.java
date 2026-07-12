@@ -354,7 +354,17 @@ public class CommunistGUIHandler {
             return;
         }
 
-        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType = CommunistLeaderOrdersMenu.getExecutiveOrderAtSlot(player, slot);
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null) {
+            MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
+            player.closeInventory();
+            return;
+        }
+
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), CommunistLeaderOrdersMenu.POSITION_KEY),
+                        CommunistLeaderOrdersMenu.ORDER_SLOTS, slot);
         if (eoType == null)
             return;
 
@@ -363,25 +373,13 @@ public class CommunistGUIHandler {
             return;
         }
 
-        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
-        if (nation == null) {
-            MessageUtils.send(player, "<red>You are not a member of any nation.</red>");
-            player.closeInventory();
-            return;
-        }
+        handleOfficeExecutiveOrder(player, eoType);
+    }
 
-        // Security check
-        CommunistGovernment cg = nation.getCommunistGovernment();
-        boolean isSekjen = cg != null && cg.hasSecretaryGeneral()
-                && cg.getSecretaryGeneralUUID().equals(player.getUniqueId());
-        boolean isAdmin = player.hasPermission("nation.admin");
-        if (!isSekjen && !isAdmin) {
-            MessageUtils.send(player, "<red>Only the Secretary General can issue decrees.</red>");
-            player.closeInventory();
-            return;
-        }
-
-        gui.confirmActionGUI.open(player, "Issue Decree: " + eoType.getDisplayName(), () -> {
+    /** Confirm + issue an executive order clicked from a leader/office console. */
+    private void handleOfficeExecutiveOrder(Player player, id.nationcore.models.ExecutiveOrder.ExecutiveOrderType eoType) {
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+        gui.confirmActionGUI.open(player, "Issue Decree: " + plugin.getExecutiveOrderManager().getOrderDisplay(eoType), () -> {
             plugin.getExecutiveOrderManager().issueOrderForNation(player, eoType);
         });
     }
@@ -659,6 +657,15 @@ public class CommunistGUIHandler {
             return;
         }
 
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType heaOrder =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_health"),
+                        id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (heaOrder != null) {
+            handleOfficeExecutiveOrder(player, heaOrder);
+            return;
+        }
+
         id.nationcore.models.CommunistDecisionType type = switch (slot) {
             case 20 -> id.nationcore.models.CommunistDecisionType.HEA_QUARANTINE_PROTOCOL;
             case 22 -> id.nationcore.models.CommunistDecisionType.HEA_FIELD_MEDICINE;
@@ -684,6 +691,15 @@ public class CommunistGUIHandler {
         if (slot == 49) {
             MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
             gui.communistGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType defOrder =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_defence"),
+                        id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (defOrder != null) {
+            handleOfficeExecutiveOrder(player, defOrder);
             return;
         }
 
@@ -715,6 +731,15 @@ public class CommunistGUIHandler {
             return;
         }
 
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType treOrder =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_treasury"),
+                        id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (treOrder != null) {
+            handleOfficeExecutiveOrder(player, treOrder);
+            return;
+        }
+
         id.nationcore.models.CommunistDecisionType type = switch (slot) {
             case 20 -> id.nationcore.models.CommunistDecisionType.TRE_DISTRIBUTION_PROGRAM;
             case 22 -> id.nationcore.models.CommunistDecisionType.TRE_ECONOMIC_STIMULUS;
@@ -740,6 +765,15 @@ public class CommunistGUIHandler {
         if (slot == 49) {
             MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
             gui.communistGovernmentGUI.open(player, nation);
+            return;
+        }
+
+        id.nationcore.models.ExecutiveOrder.ExecutiveOrderType propOrder =
+                id.nationcore.managers.ExecutiveOrderManager.orderAtSlot(
+                        plugin.getExecutiveOrderManager().getOrdersForPosition(nation.getType(), "minister_of_propaganda"),
+                        id.nationcore.managers.ExecutiveOrderManager.OFFICE_ORDER_SLOTS, slot);
+        if (propOrder != null) {
+            handleOfficeExecutiveOrder(player, propOrder);
             return;
         }
 
