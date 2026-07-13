@@ -1,4 +1,13 @@
 creation:
+  display: "&cCommunist"
+  description:
+    - "&7Single-party system: power centralized in Politburo,"
+    - ""
+    - "&7• Leader: &fSecretary General (party elected)"
+    - "&7• Ministers: &fPropaganda, Defense, Production"
+    - "&7• Buff: &fDaily free money & EXP for all members"
+    - "&7• Treasury: &fProgressive tax, automatic subsidies"
+    - "&7• Order: &fNationalization, Media Censorship, Gulag"
   # Cost of founding a nation (withdrawn from the founder's Vault balance).
   cost: 500000
   # Minimum playtime hours before a player can found a nation.
@@ -13,30 +22,18 @@ politbiro:
   daily-salary: 20000
   propaganda:
     prefix: "&d[Propaganda]"
-    damage-multiplier: 1.0
-    defense-multiplier: 1.0
-    vault-multiplier: 1.0
-    extra-hearts: 0.0
     daily-vault: 25000
     decision-cooldown-hours: 48
   defense:
     prefix: "&4[Defense]"
-    damage-multiplier: 1.12
-    defense-multiplier: 1.10
-    vault-multiplier: 1.15
-    extra-hearts: 1.5
     daily-vault: 30000
     decision-cooldown-hours: 48
   treasury:
     prefix: "&6[Treasury]"
-    vault-multiplier: 1.25
-    sell-bonus: 1.10
-    buy-discount: 0.90
     daily-vault: 50000
     decision-cooldown-hours: 48
   health:
     prefix: "&a[Health]"
-    extra-hearts: 1.0
     daily-vault: 25000
     decision-cooldown-hours: 48
 
@@ -86,33 +83,24 @@ executive_order:
   - tax_suspension
   - tax_surge
   minister_of_propaganda:
-  - golden_age
-  - education_advancement
   - prop_global_broadcast
   - prop_national_broadcast
   - prop_leader_glorification
   - prop_media_censorship
   - prop_mobilization
   minister_of_defence:
-  - war_economy
-  - purge_protocol
   - def_declare_war
   - def_military_draft
   - def_defense_protocol
   - def_offense_protocol
   - def_military_emergency
   minister_of_treasury:
-  - economic_recovery
-  - tax_suspension
-  - tax_surge
   - tre_distribution_program
   - tre_economic_stimulus
   - tre_education_program
   - tre_tax_intensification
   - tre_market_event
   minister_of_health:
-  - environmental_protection
-  - presidential_pardon
   - hea_quarantine_protocol
   - hea_field_medicine
   - hea_vaccination_drive

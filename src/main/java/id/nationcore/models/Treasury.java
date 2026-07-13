@@ -64,6 +64,7 @@ public class Treasury {
         STIMULUS("Economic Stimulus"),
         MISC_EXPENSE("Miscellaneous"),
         DEPOSIT_REFUND("Candidate Deposit Refund"),
+        REGISTRATION_FEE("Candidate Registration Fee"),
         PRESIDENT_SALARY("President Salary"),
         GLOBAL_TAX_INCOME("Global Tax Income"),
         TAX_PENALTY_INCOME("Tax Penalty Income");

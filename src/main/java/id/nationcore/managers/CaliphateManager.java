@@ -79,10 +79,7 @@ public class CaliphateManager {
         CaliphateGovernment cg = getGovernment(nation);
         if (cg == null) return;
 
-        if (cg.hasCaliph()) {
-            Player ex = Bukkit.getPlayer(cg.getCaliphUUID());
-            if (ex != null) plugin.getBuffManager().removePresidentBuffs(ex);
-        }
+
 
         cg.setCaliphUUID(uuid);
         cg.setCaliphName(name);
@@ -94,8 +91,7 @@ public class CaliphateManager {
         broadcastToNation(nation, "<dark_green>" + name + " has ascended as the Caliph of " +
                 nation.getName() + " — may justice prevail!</dark_green>");
 
-        Player caliph = Bukkit.getPlayer(uuid);
-        if (caliph != null) plugin.getBuffManager().applyPresidentBuffs(caliph);
+
 
         plugin.getDataManager().saveNations();
     }

@@ -1,7 +1,7 @@
 ====================================================
   NATION CORE - UPDATE LOG v2.0.0-SNAPSHOT#35
 ====================================================
-Rename democracy.yaml to republic.yaml and implement Config-driven Minister GUIs.
+Rename democracy.yaml to republic.yaml, implement Config-driven Minister GUIs, and completely remove passive buffs for presidents and cabinet/politburo ministers.
 
 [CONFIG & CODE REFACTOR - DEMOCRACY TO REPUBLIC]
 - Renamed the configuration file nations/democracy.yaml to nations/republic.yaml to reflect the Republic government type name.
@@ -21,3 +21,136 @@ Rename democracy.yaml to republic.yaml and implement Config-driven Minister GUIs
 - RepublicGUIHandler.java:
   → Rewrote handleDefenseOfficeGUI(), handleTreasuryOfficeGUI(), and handleHealthOfficeGUI() to resolve clicked slots 20, 22, 24, 30, 32 dynamically based on the configured lists in republic.yaml instead of using hardcoded switch-case structures.
   → Fixed compilation issues and type mismatch errors by importing java.util.List and java.util.ArrayList, and ensuring correct generic instantiation.
+
+[GUI CUSTOMIZATION & REFACTOR]
+- Added customizable display name configuration for all government types:
+  → Added `display: "<text>"` under the `creation:` section in: monarcy.yaml, comunist.yaml, republic.yaml, and caliphate.yaml.
+  → Implemented `getNationCreationDisplayName(GovernmentType)` in NationCore.java.
+  → Integrated custom display name in CreateNationGUI.java.
+- Added customizable lore/description configuration for all government types:
+  → Added `description:` string list under the `creation:` section in the government config files (monarcy.yaml, comunist.yaml, republic.yaml, caliphate.yaml).
+  → Implemented `getNationCreationDescription(GovernmentType)` in NationCore.java.
+  → Updated CreateNationGUI.java to render the customized descriptions dynamically.
+- Resolved deprecation warnings in CreateNationGUI.java:
+  → Migrated legacy inventory titles, item display names, and lores from String/ChatColor to Kyori Adventure Component APIs.
+
+[NEW FEATURE - PRESIDENTIAL REGISTRATION MENU (REPUBLIC ONLY)]
+- Added a brand-new candidacy registration menu ("Presidential Registration") reachable during the
+  REGISTRATION phase of a Republic election. It gathers six candidacy documents (berkas) from an
+  aspiring candidate and files their candidacy when every document is in order.
+- New file: gui/republic/RepublicElectionRegistrationGUI.java (follows the "Republic" naming prefix).
+  → 54-slot menu. Title: "§8§lPresidential Registration".
+  → Filler (LIGHT_BLUE_STAINED_GLASS_PANE) on the specified border slots
+    0,1,2,3,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,50,51,52,53. Every remaining empty interior
+    slot is ALSO filled so no items can ever be inserted (security).
+  → Slot 4  — Information (GLOW_ITEM_FRAME): live registration-phase info (phase, time left,
+    candidates X/2, how-to).
+  → Slot 21 — Document · Playtime (BOOK → ENCHANTED_BOOK when met): realtime playtime requirement.
+  → Slot 22 — Document · Experience Level (BOOK → ENCHANTED_BOOK when met): realtime level requirement.
+  → Slot 23 — Document · Registration Fee (BOOK → ENCHANTED_BOOK when met): realtime Vault balance vs. fee.
+  → Slot 30 — Document · Clean Record (BOOK → ENCHANTED_BOOK when met): realtime "no recent punishment" check.
+  → Slot 31 — Document · Campaign Message (BOOK → ENCHANTED_BOOK when met): click to enter chat-input mode
+    and write a campaign speech. The message is saved to PlayerData and reused as the candidate's campaign
+    message in the following campaign phase; the button lore updates to preview the saved text. Character
+    bounds are enforced (default 10-256 characters, configurable; the 256 max matches Minecraft's chat
+    input cap so the whole message fits in one chat line).
+  → Slot 32 — Document · Candidacy Agreement (BOOK → ENCHANTED_BOOK when accepted): a toggle (click to
+    agree, click again to withdraw). Lore expands the three-point Presidential Candidate's Oath
+    (win → fee to state treasury; lose → fee not refunded, still to state treasury; vow to uphold the law
+    and serve honorably).
+  → Slot 49 — Submit Candidacy (NETHER_STAR): only files the candidacy when all six documents are satisfied
+    (all icons are ENCHANTED_BOOK / the agreement accepted); otherwise it reports the missing documents.
+    Glows when ready.
+  → Slot 43 — Back (SPECTRAL_ARROW): returns to the Republic Council main menu.
+
+[MAIN MENU INTEGRATION]
+- RepublicMainMenu.java:
+  → Rewrote buildElectionCard(...) (President Election, slot 32) to be phase-aware. It now shows the live
+    election status and updates its lore when the registration phase is open and running (Registration OPEN
+    + time left + candidates X/2), as well as Campaign / Voting / Inauguration / no-election states. The icon
+    glows during REGISTRATION and VOTING.
+- RepublicGUIHandler.java:
+  → The "President Election" button now routes by phase: REGISTRATION opens the new registration menu,
+    other active phases open the existing voting menu, and no active election shows an informative message.
+  → Added handleRegistrationGUI(...) handling the campaign-message input, agreement toggle, submit, and back
+    actions, each re-verifying (Republic + membership + registration phase) as defence in depth.
+
+[BACKEND - ELECTION MANAGER]
+- ElectionManager.java:
+  → Added submitCandidacy(Player, Nation, boolean agreementAccepted): the authoritative, Republic-only
+    registration path. Re-validates every document server-side (playtime, level, clean record, campaign
+    message word count, agreement, and finally the fee immediately before withdrawal), withdraws the
+    registration fee, registers the candidate with their saved campaign message, and increments
+    timesRanForPresident.
+  → REQUIREMENT: once REGISTRATION_CANDIDATE_CAP (= 2) members have filed, registration auto-closes and the
+    election advances straight to the CAMPAIGN phase.
+  → Added realtime per-document helpers (meetsPlaytimeRequirement / meetsLevelRequirement /
+    meetsFeeRequirement / meetsCleanRecordRequirement / hasValidCampaignMessage / meetsAllRegistrationDocuments)
+    and config-driven character-bound getters (getCampaignMessageMinChars / getCampaignMessageMaxChars).
+  → REMOVED the consecutive-term-limit / cooldown rule from the registration path (both the new flow and the
+    legacy registerCandidate(Player, slogan)). The six documents are now the sole eligibility criteria.
+
+[BACKEND - PERSISTENCE & CHAT INPUT]
+- PlayerData.java:
+  → Added persistent field presidentCampaignMessage (+ getter/setter/hasPresidentCampaignMessage) so a
+    drafted campaign speech survives relogs and is reused in the next campaign phase.
+- ChatListener.java:
+  → Added pendingCampaignMessages input flow. Validates the character length, sanitizes the text (strips section
+    signs and neutralizes '<'/'>' to prevent colour-code / MiniMessage injection into lore and broadcasts),
+    saves it to PlayerData, then reopens the registration menu so the player immediately sees the updated
+    document status.
+- GUIListener.java:
+  → Registered the new menu (instance + click routing + drag-cancel) and added a transient, per-session
+    registrationAgreementAccepted set backing the agreement toggle (never persisted).
+
+[SECURITY MECHANISMS]
+- Every empty slot in the registration menu is filled and all clicks/drags are cancelled → items cannot be
+  inserted or lost.
+- All submission requirements are re-validated server-side in submitCandidacy (the GUI state is never trusted).
+- Every registration click re-checks Republic type + nation membership + REGISTRATION phase, so a menu left
+  open after the phase changes cannot be exploited.
+- Double-registration, full-candidate-slot, and campaign-message word bounds are all enforced authoritatively.
+- Campaign-message text is sanitized against formatting/tag injection.
+
+[REPUBLIC-ONLY REFACTOR]
+- The registration/candidacy flow (menu open, click handling, and submitCandidacy) is strictly gated to
+  GovernmentType.REPUBLIC, and the President Election button rejects non-Republic contexts. This keeps the
+  presidential election phase exclusive to Republic nations.
+
+[FEE MECHANISM - NON-REFUNDABLE, FORFEIT TO STATE TREASURY]
+- Reworked the registration fee to match the candidacy agreement: the fee is now NON-REFUNDABLE and, when
+  the election concludes, every candidate's fee is forfeit into the nation's state treasury (win, lose, or
+  inconclusive). The OLD deposit-refund mechanism (winner/loser refund rates paid back to the candidate's
+  Vault) has been removed.
+  → ElectionManager.concludeVoting(Nation): removed the refund loop; added collectRegistrationFees(...) which
+    deposits each candidate's fee into nation.getTreasury() before the winner is resolved, and notifies the
+    nation of the total collected.
+  → ElectionManager.concludeVoting() (legacy global): refund loop replaced with a deposit into the global
+    treasury.
+  → Treasury.TransactionType: added REGISTRATION_FEE ("Candidate Registration Fee") for these treasury entries.
+  → nations/republic.yaml: removed election.registration-refund-winner / registration-refund-loser.
+
+[CONFIG]
+- nations/republic.yaml:
+  → Replaced the campaign-message word bounds with CHARACTER bounds:
+    election.campaign-message.min-chars (10) and election.campaign-message.max-chars (256). The 256 default
+    matches Minecraft's chat input cap so a candidate's whole campaign message fits in a single chat line.
+
+[REMOVAL OF PASSIVE PRESIDENT AND CABINET/POLITBURO BUFFS]
+- Completely removed passive buffs for presidents, monarchs, caliphs, cabinet ministers, and politburo members across all government types:
+  → nations/republic.yaml: Deleted the `president.buffs` configuration section and passive buff keys (`damage-multiplier`, `defense-multiplier`, `vault-multiplier`, `extra-hearts`, `sell-bonus`, `buy-discount`) from all cabinet offices.
+  → nations/monarcy.yaml: Deleted passive buff keys from all cabinet offices.
+  → nations/comunist.yaml: Deleted passive buff keys from all politbiro offices (`propaganda`, `defense`, `treasury`, `health`).
+- Refactored BuffManager.java:
+  → Deleted tracking maps `presidentBuffsApplied`, `cabinetBuffsApplied`, and `politburoBuffsApplied`.
+  → Deleted key constants `PRESIDENT_DAMAGE_KEY`, `PRESIDENT_DEFENSE_KEY`, `PRESIDENT_HEALTH_KEY`, `CABINET_DAMAGE_KEY`, `CABINET_DEFENSE_KEY`, and `CABINET_HEALTH_KEY`.
+  → Made all buff application, removal, and refresh methods (`applyPresidentBuffs`, `removePresidentBuffs`, `applyPresidentPotionEffects`, `applyCabinetBuffs`, `removeCabinetBuffs`, `applyPolitburoBuffs`, `refreshAllBuffs`, `handlePlayerJoin`, `handlePlayerQuit`, `removeAllBuffs`) empty no-ops to preserve compatibility.
+  → Stubbed out check methods (`hasPresidentBuffs`, `hasCabinetBuffs`, `hasPolitburoBuffs`, `getPolitburoPosition`, `getCabinetPosition`, `getPresidentBuffDescription`, `getCabinetBuffDescription`) to return default empty values.
+- Cleaned up leader and minister lifecycles:
+  → MonarchyManager.java, GovernmentManager.java, CommunistManager.java, and CaliphateManager.java: Removed all invocations of `applyPresidentBuffs` and `removePresidentBuffs`.
+- Cleaned up game event listeners:
+  → DamageListener.java: Removed leader defense bonus and cabinet defense minister extra protection checks.
+  → EconomyListener.java: Removed leader Vault and XP multipliers.
+- Cleaned up assets and other configuration files:
+  → language.yml: Removed unused `president_applied` localization key.
+  → web/index.html: Removed the mockup text indicating `Buffs` for the President item slot.

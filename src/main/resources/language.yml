@@ -340,7 +340,6 @@ managers:
     treasure_map: "<gold>You received a treasure map!"
     infrastructure_grant: "<green>You received ${amount} infrastructure grant!"
   buff:
-    president_applied: "<gold>🎖 Presidential buffs applied!"
     cabinet_applied: "<gold>🎖 Cabinet buffs applied!"
 
 # Listeners

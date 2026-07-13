@@ -100,17 +100,8 @@ public class DamageListener implements Listener {
             }
         }
 
-        // Leader defense bonus (additional on top of attribute modifiers)
-        if (nation != null && nation.getLeaderUUID().equals(player.getUniqueId())) {
-            // Additional 5% damage reduction beyond attribute modifiers
-            double reduction = plugin.getConfig().getDouble("president.buffs.defense-multiplier", 1.12) - 1.0;
-            event.setDamage(event.getDamage() * (1.0 - (reduction * 0.5))); // Half of the bonus as additional reduction
-        }
 
-        // Cabinet defense minister gets extra protection
-        Government.CabinetPosition position = plugin.getBuffManager().getCabinetPosition(player.getUniqueId());
-        if (position == Government.CabinetPosition.DEFENSE) {
-            event.setDamage(event.getDamage() * 0.92); // 8% additional reduction
-        }
+
+
     }
 }

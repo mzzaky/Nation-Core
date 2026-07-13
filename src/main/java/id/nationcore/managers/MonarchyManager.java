@@ -163,8 +163,6 @@ public class MonarchyManager {
         if (mg == null) return;
 
         if (mg.hasKing()) {
-            Player ex = Bukkit.getPlayer(mg.getKingUUID());
-            if (ex != null) plugin.getBuffManager().removePresidentBuffs(ex);
             for (HighCouncilMember m : mg.getHighCouncil().values()) {
                 Player p = Bukkit.getPlayer(m.getUuid());
                 if (p != null) plugin.getBuffManager().removeCabinetBuffs(p);
@@ -182,9 +180,6 @@ public class MonarchyManager {
 
         broadcastToNation(nation, "<gold>" + name + " has ascended the throne of " +
                 nation.getName() + " — Long live the King!</gold>");
-
-        Player king = Bukkit.getPlayer(uuid);
-        if (king != null) plugin.getBuffManager().applyPresidentBuffs(king);
 
         plugin.getDataManager().saveNations();
     }

@@ -174,21 +174,16 @@ public class ElectionManager {
 
         MessageUtils.broadcastAnnouncement("ELECTION RESULTS", results.toString());
 
-        // Refund deposits
-        YamlConfiguration config = getElectionConfig();
+        // Registration fees are non-refundable — forfeit into the state treasury
+        // (replaces the old deposit-refund mechanism).
         for (Candidate candidate : election.getCandidates().values()) {
-            double refundRate = candidate.getUuid().equals(winner.getUuid())
-                    ? (config != null ? config.getDouble("election.registration-refund-winner", 1.0) : 1.0)
-                    : (config != null ? config.getDouble("election.registration-refund-loser", 0.5) : 0.5);
-
-            double refund = candidate.getDepositPaid() * refundRate;
-            if (refund > 0) {
-                plugin.getVaultHook().deposit(candidate.getUuid(), refund);
-                Player player = Bukkit.getPlayer(candidate.getUuid());
-                if (player != null) {
-                    MessageUtils.send(player, "managers.election.refund", "amount",
-                            plugin.getVaultHook().format(refund));
-                }
+            double fee = candidate.getDepositPaid();
+            if (fee > 0) {
+                plugin.getDataManager().getTreasury().deposit(
+                        id.nationcore.models.Treasury.TransactionType.REGISTRATION_FEE,
+                        fee,
+                        "Registration fee — " + candidate.getName(),
+                        candidate.getUuid());
             }
         }
 
@@ -280,19 +275,9 @@ public class ElectionManager {
             return false;
         }
 
-        // Check consecutive terms and cooldown
-        if (!plugin.getGovernmentManager().canRunForPresident(uuid)) {
-            int remainingCooldown = plugin.getGovernmentManager().getRemainingCooldownTerms(uuid);
-            if (remainingCooldown > 0) {
-                MessageUtils.send(player,
-                        "<red>You must wait " + remainingCooldown
-                                + " more term(s) before running for president again.</red>");
-            } else {
-                MessageUtils.send(player,
-                        "<red>You have reached the maximum consecutive terms. Wait one term before running again.</red>");
-            }
-            return false;
-        }
+        // Note: consecutive-term / cooldown limits are intentionally NOT enforced
+        // during registration. The candidacy documents (berkas) are the sole
+        // eligibility criteria for running for president.
 
         // Check fee
         YamlConfiguration config2 = getElectionConfig();
@@ -726,12 +711,19 @@ public class ElectionManager {
 
     private void concludeVoting(Nation nation) {
         Election election = nation.getElection();
+
+        // Registration fees are non-refundable — they are forfeit into the state
+        // treasury regardless of the result (win, lose, or inconclusive), exactly
+        // as sworn in the candidacy agreement.
+        collectRegistrationFees(nation, election);
+
         Candidate winner = election.getWinner();
 
         if (winner == null) {
             MessageUtils.broadcast("<red>Tidak ada suara sah di pemilu " + nation.getName() +
                     ". Hasil tidak konklusif.</red>");
             election.endElection();
+            plugin.getDataManager().saveNations();
             return;
         }
 
@@ -753,18 +745,6 @@ public class ElectionManager {
         }
         MessageUtils.broadcastAnnouncement("HASIL PEMILU — " + nation.getName(), results.toString());
 
-        // Refund deposits
-        YamlConfiguration config = getElectionConfig();
-        for (Candidate candidate : election.getCandidates().values()) {
-            double rate = candidate.getUuid().equals(winner.getUuid())
-                    ? (config != null ? config.getDouble("election.registration-refund-winner", 1.0) : 1.0)
-                    : (config != null ? config.getDouble("election.registration-refund-loser", 0.5) : 0.5);
-            double refund = candidate.getDepositPaid() * rate;
-            if (refund > 0) {
-                plugin.getVaultHook().deposit(candidate.getUuid(), refund);
-            }
-        }
-
         // Voter rewards (per-nation, hanya untuk member nation)
         giveVoterRewards(nation, election);
 
@@ -777,6 +757,32 @@ public class ElectionManager {
             plugin.getGovernmentManager().setPresident(nation, winner.getUuid(), winner.getName(), true);
             plugin.getDataManager().saveNations();
         }, 20L * 5);
+    }
+
+    /**
+     * Forfeit every candidate's registration fee into the nation's state
+     * treasury. Non-refundable by design — replaces the old deposit-refund
+     * mechanism. Safe to call once per concluded election.
+     */
+    private void collectRegistrationFees(Nation nation, Election election) {
+        if (nation == null || election == null) return;
+        double total = 0;
+        for (Candidate candidate : election.getCandidates().values()) {
+            double fee = candidate.getDepositPaid();
+            if (fee > 0) {
+                nation.getTreasury().deposit(
+                        id.nationcore.models.Treasury.TransactionType.REGISTRATION_FEE,
+                        fee,
+                        "Registration fee — " + candidate.getName(),
+                        candidate.getUuid());
+                total += fee;
+            }
+        }
+        if (total > 0) {
+            MessageUtils.sendToNation(nation, "<gray>Registration fees totaling <gold>$"
+                    + plugin.getVaultHook().format(total)
+                    + "</gold> were forfeit into the state treasury.</gray>");
+        }
     }
 
     private void giveVoterRewards(Nation nation, Election election) {
@@ -845,6 +851,209 @@ public class ElectionManager {
         MessageUtils.broadcast("<yellow><gold>" + player.getName() +
                 "</gold> mendaftar sebagai kandidat presiden " + nation.getName() + "!</yellow>");
         plugin.getDataManager().saveNations();
+        return true;
+    }
+
+    // ==========================================================
+    // Presidential Registration ("berkas") — Republic only
+    // ----------------------------------------------------------
+    // The registration menu gathers six documents (berkas) from an aspiring
+    // candidate. Everything below is authoritative and re-validated server-side
+    // so a tampered/desynced GUI can never file an ineligible candidacy.
+    // ==========================================================
+
+    /** Default minimum characters for a valid campaign message document. */
+    public static final int CAMPAIGN_MESSAGE_MIN_CHARS = 10;
+    /**
+     * Default maximum characters for a campaign message document. Matches
+     * Minecraft's chat input cap (256) so the whole message fits in one line.
+     */
+    public static final int CAMPAIGN_MESSAGE_MAX_CHARS = 256;
+    /**
+     * Registration auto-closes and advances straight to the CAMPAIGN phase once
+     * this many candidates have filed their documents (requirement: 2 members).
+     */
+    public static final int REGISTRATION_CANDIDATE_CAP = 2;
+
+    public int getRequiredLevel() {
+        return plugin.getConfig().getInt("president.requirements.min-level", 100);
+    }
+
+    public double getRequiredPlaytimeHours() {
+        return plugin.getConfig().getDouble("president.requirements.min-playtime-hours", 100);
+    }
+
+    public int getNoPunishmentDays() {
+        return plugin.getConfig().getInt("president.requirements.no-punishment-days", 30);
+    }
+
+    public double getRegistrationFee() {
+        YamlConfiguration config = getElectionConfig();
+        return config != null ? config.getDouble("election.registration-fee", 500_000) : 500_000;
+    }
+
+    public int getCampaignMessageMinChars() {
+        YamlConfiguration config = getElectionConfig();
+        return config != null
+                ? config.getInt("election.campaign-message.min-chars", CAMPAIGN_MESSAGE_MIN_CHARS)
+                : CAMPAIGN_MESSAGE_MIN_CHARS;
+    }
+
+    public int getCampaignMessageMaxChars() {
+        YamlConfiguration config = getElectionConfig();
+        return config != null
+                ? config.getInt("election.campaign-message.max-chars", CAMPAIGN_MESSAGE_MAX_CHARS)
+                : CAMPAIGN_MESSAGE_MAX_CHARS;
+    }
+
+    /** Trimmed character length of a message. Null → 0. */
+    public static int messageLength(String text) {
+        return text == null ? 0 : text.trim().length();
+    }
+
+    public boolean isCampaignMessageValid(String text) {
+        int len = messageLength(text);
+        return len >= getCampaignMessageMinChars() && len <= getCampaignMessageMaxChars();
+    }
+
+    // ---- Per-document (berkas) realtime checks used by the GUI & submission ----
+
+    public boolean meetsPlaytimeRequirement(Player player) {
+        PlayerData data = plugin.getDataManager().getOrCreatePlayerData(player.getUniqueId(), player.getName());
+        return data.getPlaytimeHours() >= getRequiredPlaytimeHours();
+    }
+
+    public boolean meetsLevelRequirement(Player player) {
+        return player.getLevel() >= getRequiredLevel();
+    }
+
+    public boolean meetsFeeRequirement(Player player) {
+        return plugin.getVaultHook().has(player.getUniqueId(), getRegistrationFee());
+    }
+
+    public boolean meetsCleanRecordRequirement(Player player) {
+        PlayerData data = plugin.getDataManager().getOrCreatePlayerData(player.getUniqueId(), player.getName());
+        return !data.hasRecentPunishment(getNoPunishmentDays());
+    }
+
+    public boolean hasValidCampaignMessage(Player player) {
+        PlayerData data = plugin.getDataManager().getOrCreatePlayerData(player.getUniqueId(), player.getName());
+        return isCampaignMessageValid(data.getPresidentCampaignMessage());
+    }
+
+    /**
+     * True when every objective document is in order. The agreement toggle is a
+     * transient GUI-side document and therefore validated at submit time.
+     */
+    public boolean meetsAllRegistrationDocuments(Player player) {
+        return meetsPlaytimeRequirement(player)
+                && meetsLevelRequirement(player)
+                && meetsFeeRequirement(player)
+                && meetsCleanRecordRequirement(player)
+                && hasValidCampaignMessage(player);
+    }
+
+    /**
+     * File a presidential candidacy from the registration menu. Re-validates
+     * every requirement server-side, withdraws the registration fee, registers
+     * the candidate with their saved campaign message, and auto-advances to the
+     * campaign phase once {@link #REGISTRATION_CANDIDATE_CAP} candidates have
+     * filed. Consecutive-term limits are intentionally NOT checked here — the six
+     * documents are the sole eligibility criteria.
+     *
+     * @param agreementAccepted whether the player toggled the agreement document
+     * @return true if the candidacy was accepted
+     */
+    public boolean submitCandidacy(Player player, Nation nation, boolean agreementAccepted) {
+        // --- Security: election is a Republic-only mechanism ---
+        if (nation == null || nation.getType() != GovernmentType.REPUBLIC) {
+            MessageUtils.send(player, "<red>Presidential elections are exclusive to Republic nations.</red>");
+            return false;
+        }
+        if (!nation.isMember(player.getUniqueId())) {
+            MessageUtils.send(player, "<red>You are not a member of this nation.</red>");
+            return false;
+        }
+
+        Election election = nation.getElection();
+        if (election == null || election.getCurrentPhase() != ElectionPhase.REGISTRATION) {
+            MessageUtils.send(player, "<red>The registration phase is not currently open.</red>");
+            return false;
+        }
+
+        UUID uuid = player.getUniqueId();
+
+        if (election.getCandidates().containsKey(uuid)) {
+            MessageUtils.send(player, "<red>You have already filed your candidacy documents.</red>");
+            return false;
+        }
+        if (election.getCandidates().size() >= REGISTRATION_CANDIDATE_CAP) {
+            MessageUtils.send(player, "<red>Registration is full — the candidate slots have been filled.</red>");
+            return false;
+        }
+
+        // --- Berkas re-validation (never trust the GUI) ---
+        if (!meetsPlaytimeRequirement(player)) {
+            MessageUtils.send(player, "<red>Document rejected: playtime requirement not met (need "
+                    + (int) getRequiredPlaytimeHours() + "h).</red>");
+            return false;
+        }
+        if (!meetsLevelRequirement(player)) {
+            MessageUtils.send(player, "<red>Document rejected: level requirement not met (need level "
+                    + getRequiredLevel() + ").</red>");
+            return false;
+        }
+        if (!meetsCleanRecordRequirement(player)) {
+            MessageUtils.send(player, "<red>Document rejected: you have a punishment record within the last "
+                    + getNoPunishmentDays() + " days.</red>");
+            return false;
+        }
+
+        PlayerData data = plugin.getDataManager().getOrCreatePlayerData(uuid, player.getName());
+        String message = data.getPresidentCampaignMessage();
+        if (!isCampaignMessageValid(message)) {
+            MessageUtils.send(player, "<red>Document rejected: your campaign message must be between "
+                    + getCampaignMessageMinChars() + " and " + getCampaignMessageMaxChars() + " characters.</red>");
+            return false;
+        }
+        if (!agreementAccepted) {
+            MessageUtils.send(player, "<red>Document rejected: you must accept the candidacy agreement first.</red>");
+            return false;
+        }
+
+        // --- Fee: checked last, immediately before the withdrawal ---
+        double fee = getRegistrationFee();
+        if (!plugin.getVaultHook().has(uuid, fee)) {
+            MessageUtils.send(player, "<red>Document rejected: you need <gold>"
+                    + plugin.getVaultHook().format(fee) + "</gold> for the registration fee.</red>");
+            return false;
+        }
+        plugin.getVaultHook().withdraw(uuid, fee);
+
+        // --- Register the candidate ---
+        // Keep the full text as the campaign message; store a short slogan so
+        // placeholders/labels stay compact.
+        String slogan = message.length() > 60 ? message.substring(0, 57).trim() + "..." : message;
+        Candidate candidate = new Candidate(uuid, player.getName(), slogan, fee);
+        candidate.setCampaignMessage(message);
+        election.registerCandidate(candidate);
+        data.setTimesRanForPresident(data.getTimesRanForPresident() + 1);
+
+        MessageUtils.send(player, "<green>✔ Your candidacy documents were submitted successfully!</green>");
+        MessageUtils.playSound(player, Sound.UI_TOAST_CHALLENGE_COMPLETE);
+        MessageUtils.sendToNation(nation, "<yellow><gold>" + player.getName()
+                + "</gold> has filed their candidacy for President of " + nation.getName() + "!</yellow>");
+
+        // --- Auto-close registration once the candidate cap is reached ---
+        if (election.getCandidates().size() >= REGISTRATION_CANDIDATE_CAP) {
+            MessageUtils.sendToNation(nation, "<gold>Registration for " + nation.getName()
+                    + " is now closed with " + REGISTRATION_CANDIDATE_CAP
+                    + " candidates. The campaign phase begins!</gold>");
+            advancePhase(nation); // REGISTRATION → CAMPAIGN (persists nations itself)
+        }
+
+        plugin.getDataManager().saveNations();
+        plugin.getDataManager().savePlayerData();
         return true;
     }
 

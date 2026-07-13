@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -13,6 +12,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import id.nationcore.NationCore;
 import id.nationcore.models.GovernmentType;
+import id.nationcore.utils.MessageUtils;
+import net.kyori.adventure.text.Component;
 
 /**
  * Government type selector during the creation of a new nation.
@@ -22,8 +23,7 @@ import id.nationcore.models.GovernmentType;
  */
 public class CreateNationGUI {
 
-    public static final String CREATE_TITLE = ChatColor.translateAlternateColorCodes('&',
-            "&8Choose Government Type");
+    public static final Component CREATE_TITLE = MessageUtils.parse("&8Choose Government Type");
 
     public static final int SLOT_REPUBLIC = 10;
     public static final int SLOT_COMMUNIST = 12;
@@ -58,32 +58,29 @@ public class CreateNationGUI {
         ItemStack item = new ItemStack(type.getIconMaterial());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&',
-                    type.getColorCode() + "&l" + type.getDisplayName().toUpperCase()));
+            String displayName = plugin.getNationCreationDisplayName(type);
+            meta.displayName(MessageUtils.parse(displayName));
 
-            List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.translateAlternateColorCodes('&', "&7" + type.getShortDescription()));
-            lore.add("");
-            for (String line : type.getHighlights()) {
-                lore.add(ChatColor.translateAlternateColorCodes('&', line));
+            List<Component> lore = new ArrayList<>();
+            for (String descLine : plugin.getNationCreationDescription(type)) {
+                lore.add(MessageUtils.parse(descLine));
             }
-            lore.add("");
-            lore.add(ChatColor.translateAlternateColorCodes('&', "&eRequirements & Cost:"));
+            lore.add(Component.empty());
+            lore.add(MessageUtils.parse("&eRequirements & Cost:"));
             double cost = plugin.getNationCreationCost(type);
             double minHours = plugin.getNationCreationMinPlaytime(type);
             double startingTreasury = plugin.getNationCreationStartingTreasuryPercent(type);
             
-            lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Creation Cost: &6$" + String.format("%,.0f", cost)));
+            lore.add(MessageUtils.parse(" &8• &7Creation Cost: &6$" + String.format("%,.0f", cost)));
             if (minHours > 0) {
-                lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Min Playtime: &6" + minHours + " hours"));
+                lore.add(MessageUtils.parse(" &8• &7Min Playtime: &6" + minHours + " hours"));
             }
             if (startingTreasury > 0) {
-                lore.add(ChatColor.translateAlternateColorCodes('&', " &8• &7Starting Treasury: &6" + String.format("%.0f", startingTreasury) + "%"));
+                lore.add(MessageUtils.parse(" &8• &7Starting Treasury: &6" + String.format("%.0f", startingTreasury) + "%"));
             }
-            lore.add("");
-            lore.add(ChatColor.translateAlternateColorCodes('&',
-                    "&eClick to choose " + type.getDisplayName() + "."));
-            meta.setLore(lore);
+            lore.add(Component.empty());
+            lore.add(MessageUtils.parse("&eClick to choose " + type.getDisplayName() + "."));
+            meta.lore(lore);
             item.setItemMeta(meta);
         }
         return item;
@@ -93,9 +90,9 @@ public class CreateNationGUI {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', "&c&lCancel"));
-            meta.setLore(List.of(
-                    ChatColor.translateAlternateColorCodes('&', "&7Back to Hub without creating a nation.")));
+            meta.displayName(MessageUtils.parse("&c&lCancel"));
+            meta.lore(List.of(
+                    MessageUtils.parse("&7Back to Hub without creating a nation.")));
             item.setItemMeta(meta);
         }
         return item;
@@ -105,7 +102,7 @@ public class CreateNationGUI {
         ItemStack pane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = pane.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(" ");
+            meta.displayName(Component.empty());
             pane.setItemMeta(meta);
         }
         return pane;

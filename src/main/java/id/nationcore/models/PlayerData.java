@@ -31,6 +31,12 @@ public class PlayerData {
     // running again)
     private int presidentCooldownTerms;
 
+    // Presidential registration draft (Republic election). The campaign speech a
+    // player writes while filing their candidacy documents during the
+    // registration phase. Persisted so it survives relogs and is reused as the
+    // candidate's campaign message once the campaign phase begins.
+    private String presidentCampaignMessage;
+
     // Nation membership (multi-nation system, sejak v1.5)
     // nationId == null artinya pemain belum tergabung di nation manapun.
     private String nationId;
@@ -341,6 +347,18 @@ public class PlayerData {
         if (this.presidentCooldownTerms > 0) {
             this.presidentCooldownTerms--;
         }
+    }
+
+    public String getPresidentCampaignMessage() {
+        return presidentCampaignMessage;
+    }
+
+    public void setPresidentCampaignMessage(String presidentCampaignMessage) {
+        this.presidentCampaignMessage = presidentCampaignMessage;
+    }
+
+    public boolean hasPresidentCampaignMessage() {
+        return presidentCampaignMessage != null && !presidentCampaignMessage.isBlank();
     }
 
     // === Nation membership (v1.5+) ===

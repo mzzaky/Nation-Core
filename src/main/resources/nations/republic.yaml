@@ -1,4 +1,13 @@
 creation:
+  display: "&bRepublic"
+  description:
+    - "&7Democratic system: regular elections, transparent cabinet,"
+    - ""
+    - "&7• Leader: &fPresident (elected)"
+    - "&7• Ministers: &fEconomy, Defense, Social"
+    - "&7• Buff: &fEXP/Money bonus from citizen approval"
+    - "&7• Treasury: &fTransparent, public logs, anti-corruption"
+    - "&7• Recall: &fActive — citizens can overthrow president"
   # Cost of founding a nation (withdrawn from the founder's Vault balance).
   cost: 500000
   # Minimum playtime hours before a player can found a nation.
@@ -28,22 +37,14 @@ cabinet:
   daily-salary: 20000
   defense:
     prefix: "&4[MoD]"
-    damage-multiplier: 1.12
-    defense-multiplier: 1.10
-    vault-multiplier: 1.15
-    extra-hearts: 1.5
     daily-vault: 30000
     decision-cooldown-hours: 48
   treasury:
     prefix: "&2[MoT]"
-    vault-multiplier: 1.25
-    sell-bonus: 1.10
-    buy-discount: 0.90
     daily-vault: 50000
     decision-cooldown-hours: 48
   health:
     prefix: "&d[MoH]"
-    extra-hearts: 1.0
     daily-vault: 25000
     decision-cooldown-hours: 48
 
@@ -56,9 +57,18 @@ election:
   inauguration-days: 1
   
   registration-fee: 500000
-  registration-refund-winner: 1.0 # 100%
-  registration-refund-loser: 0.5 # 50%
-  
+  # Registration fees are NON-REFUNDABLE. When the election concludes, every
+  # candidate's fee is forfeit into the nation's state treasury (win or lose),
+  # as sworn in the candidacy agreement. (The old winner/loser refund rates
+  # have been removed.)
+
+  # Campaign message document (presidential registration menu).
+  # Character bounds for a candidate's campaign speech. max-chars defaults to
+  # 256 to match Minecraft's chat input cap so the whole message fits one line.
+  campaign-message:
+    min-chars: 10
+    max-chars: 256
+
   campaign:
     broadcast-cooldown-hours: 6
     broadcast-cost: 10000
@@ -92,16 +102,6 @@ president:
     min-vault-balance: 500000
     min-endorsements: 10
     no-punishment-days: 30
-  
-  # Buffs Fixed
-  buffs:
-    damage-multiplier: 1.15 # +15%
-    defense-multiplier: 1.12 # +12%
-    vault-multiplier: 1.20 # +20%
-    xp-multiplier: 1.10 # +10%
-    extra-hearts: 2
-    hunger-immunity: true
-    night-vision: true
   
   # Daily Rewards Fixed
   daily-rewards:

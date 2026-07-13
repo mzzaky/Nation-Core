@@ -222,7 +222,6 @@ public class CommunistManager {
         // Cleanup former Secretary General & Politburo
         if (cg.hasSecretaryGeneral()) {
             Player ex = Bukkit.getPlayer(cg.getSecretaryGeneralUUID());
-            if (ex != null) plugin.getBuffManager().removePresidentBuffs(ex);
             for (PolitburoMember m : cg.getPolitburo().values()) {
                 Player p = Bukkit.getPlayer(m.getUuid());
                 if (p != null) plugin.getBuffManager().removeCabinetBuffs(p);
@@ -255,8 +254,7 @@ public class CommunistManager {
         broadcastToNation(nation, "<gold>" + name + " now serves as the " +
                 "Secretary General of " + nation.getName() + "!</gold>");
 
-        Player sekjen = Bukkit.getPlayer(uuid);
-        if (sekjen != null) plugin.getBuffManager().applyPresidentBuffs(sekjen);
+
 
         plugin.getDataManager().saveNations();
     }
@@ -266,7 +264,6 @@ public class CommunistManager {
         if (cg == null || !cg.hasSecretaryGeneral()) return;
 
         Player ex = Bukkit.getPlayer(cg.getSecretaryGeneralUUID());
-        if (ex != null) plugin.getBuffManager().removePresidentBuffs(ex);
         for (PolitburoMember m : cg.getPolitburo().values()) {
             Player p = Bukkit.getPlayer(m.getUuid());
             if (p != null) plugin.getBuffManager().removeCabinetBuffs(p);

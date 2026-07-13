@@ -82,7 +82,7 @@ public class RepublicMainMenu extends NationMenuBase {
         inv.setItem(SLOT_ANNOUNCEMENT, buildAnnouncementCard(nation));
         inv.setItem(SLOT_RECALL, buildRecallCard(nation));
         inv.setItem(SLOT_TAX, buildTaxCard(player));
-        inv.setItem(SLOT_ELECTION, buildElectionCard(election, player));
+        inv.setItem(SLOT_ELECTION, buildElectionCard(nation, election, player));
         inv.setItem(SLOT_ARENA, buildArenaCard());
 
         inv.setItem(SLOT_HELP, buildHelpCard());
@@ -335,10 +335,65 @@ public class RepublicMainMenu extends NationMenuBase {
                 "&eClick &7→ Open Tax Office");
     }
 
-    private ItemStack buildElectionCard(Election election, Player player) {
-        return buildIcon(Material.ENDER_EYE,
-                "&e&lPresident Election",
-                "&7Coming Soon!");
+    private ItemStack buildElectionCard(Nation nation, Election election, Player player) {
+        Election.ElectionPhase phase = election != null ? election.getCurrentPhase() : Election.ElectionPhase.NONE;
+        long remaining = plugin.getElectionManager().getPhaseRemainingTime(nation);
+        int candidates = election != null ? election.getCandidates().size() : 0;
+        boolean filed = election != null && election.getCandidates().containsKey(player.getUniqueId());
+
+        List<String> lore = new ArrayList<>();
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        switch (phase) {
+            case REGISTRATION -> {
+                lore.add("&7Status: &a&lREGISTRATION OPEN");
+                lore.add("&7Time Left: &f" + formatRemaining(remaining));
+                lore.add("&7Candidates: &f" + candidates + " &8/ &f"
+                        + id.nationcore.managers.ElectionManager.REGISTRATION_CANDIDATE_CAP);
+                lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                if (filed) {
+                    lore.add("&a✔ You have filed your candidacy.");
+                    lore.add("&7Await the campaign phase.");
+                } else {
+                    lore.add("&7Run for president by filing your");
+                    lore.add("&7candidacy documents (berkas).");
+                }
+                lore.add("&eClick &7→ Open Registration");
+            }
+            case CAMPAIGN -> {
+                lore.add("&7Status: &6&lCAMPAIGN PHASE");
+                lore.add("&7Time Left: &f" + formatRemaining(remaining));
+                lore.add("&7Candidates: &f" + candidates);
+                lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                lore.add("&7Candidates rally citizens for votes.");
+                lore.add("&eClick &7→ View Candidates");
+            }
+            case VOTING -> {
+                lore.add("&7Status: &b&lVOTING OPEN");
+                lore.add("&7Time Left: &f" + formatRemaining(remaining));
+                lore.add("&7Candidates: &f" + candidates);
+                lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                lore.add("&7Cast your ballot for the next president.");
+                lore.add("&eClick &7→ Vote Now");
+            }
+            case INAUGURATION -> {
+                lore.add("&7Status: &d&lINAUGURATION");
+                lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                lore.add("&7The winner is taking the oath of office.");
+            }
+            default -> {
+                lore.add("&7Status: &8No active election");
+                lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                lore.add("&7A presidential election opens near");
+                lore.add("&7the end of the current term.");
+            }
+        }
+        lore.add("&8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+
+        ItemStack item = buildIcon(Material.ENDER_EYE, "&e&l🗳 President Election", lore);
+        if (phase == Election.ElectionPhase.REGISTRATION || phase == Election.ElectionPhase.VOTING) {
+            item = glowing(item);
+        }
+        return item;
     }
 
     private ItemStack buildArenaCard() {

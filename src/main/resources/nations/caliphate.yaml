@@ -1,4 +1,13 @@
 creation:
+  display: "&2Caliphate"
+  description:
+    - "&7Theocratic caliphate: the Caliph leads for life with no cabinet,"
+    - ""
+    - "&7• Leader: &fCaliph (rules for life, no elections)"
+    - "&7• Advisory: &fShura Council (3), State Scholars (5)"
+    - "&7• Cabinet: &fNone — no ministers, no minister orders"
+    - "&7• Treasury: &fBayt al-Mal funded by Jizya tax"
+    - "&7• Order: &fOnly the Caliph's executive orders apply"
   # Cost of founding a nation (withdrawn from the founder's Vault balance).
   cost: 500000
   # Minimum playtime hours before a player can found a nation.

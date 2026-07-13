@@ -493,6 +493,28 @@ public class NationCore extends JavaPlugin {
         return config.getDouble("creation.starting-treasury-percent", 80.0);
     }
 
+    public String getNationCreationDisplayName(GovernmentType type) {
+        YamlConfiguration config = nationConfigs.get(type);
+        if (config == null || !config.contains("creation.display")) {
+            return type.getColorCode() + "&l" + type.getDisplayName().toUpperCase();
+        }
+        return config.getString("creation.display");
+    }
+
+    public java.util.List<String> getNationCreationDescription(GovernmentType type) {
+        YamlConfiguration config = nationConfigs.get(type);
+        if (config == null || !config.contains("creation.description")) {
+            java.util.List<String> defaultLore = new java.util.ArrayList<>();
+            defaultLore.add("&7" + type.getShortDescription());
+            defaultLore.add("");
+            for (String line : type.getHighlights()) {
+                defaultLore.add(line);
+            }
+            return defaultLore;
+        }
+        return config.getStringList("creation.description");
+    }
+
     public long getRecallCooldownDays() {
         YamlConfiguration config = nationConfigs.get(GovernmentType.REPUBLIC);
         if (config == null) return 15;

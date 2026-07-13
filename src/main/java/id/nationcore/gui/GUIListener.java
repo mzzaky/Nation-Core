@@ -17,6 +17,7 @@ import id.nationcore.gui.monarchy.MonarchyGovernmentGUI;
 import id.nationcore.gui.monarchy.MonarchyGUIHandler;
 import id.nationcore.gui.monarchy.MonarchyMainMenu;
 import id.nationcore.gui.monarchy.MonarchyTreasuryMenu;
+import id.nationcore.gui.republic.RepublicElectionRegistrationGUI;
 import id.nationcore.gui.republic.RepublicExecutiveOrdersMenu;
 import id.nationcore.gui.republic.RepublicGovernmentGUI;
 import id.nationcore.gui.republic.RepublicGUIHandler;
@@ -105,6 +106,7 @@ public class GUIListener implements Listener {
     public final PlayerStatsGUI playerStatsGUI;
     public final HelpGUI helpGUI;
     public final RepublicRecallGUI recallGUI;
+    public final RepublicElectionRegistrationGUI republicElectionRegistrationGUI;
     public final RepublicTaxMenu republicTaxMenu;
     public final CommunistTaxMenu communistTaxMenu;
     public final MonarchyTaxMenu monarchyTaxMenu;
@@ -160,6 +162,12 @@ public class GUIListener implements Listener {
      * lastTeleportTimestamp
      */
     public final Map<UUID, Long> capitalTeleportCooldowns = new HashMap<>();
+    /**
+     * Transient set of players who have toggled the candidacy-agreement document
+     * ON in the presidential registration menu. Cleared on successful submission
+     * (it is a per-session consent, never persisted).
+     */
+    public final java.util.Set<UUID> registrationAgreementAccepted = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     // Per-nation and common handlers.
     private final RepublicGUIHandler republic;
@@ -188,6 +196,7 @@ public class GUIListener implements Listener {
         this.playerStatsGUI = new PlayerStatsGUI(plugin);
         this.helpGUI = new HelpGUI(plugin);
         this.recallGUI = new RepublicRecallGUI(plugin);
+        this.republicElectionRegistrationGUI = new RepublicElectionRegistrationGUI(plugin);
         this.republicTaxMenu = new RepublicTaxMenu(plugin);
         this.communistTaxMenu = new CommunistTaxMenu(plugin);
         this.monarchyTaxMenu = new MonarchyTaxMenu(plugin);
@@ -329,6 +338,14 @@ public class GUIListener implements Listener {
         } else if (title.startsWith(RepublicMemberManagementGUI.ACTION_TITLE_PREFIX)) {
             event.setCancelled(true);
             republic.handleMemberActionGUI(player, clicked, event.getSlot(), title);
+        } else if (title.equals(RepublicElectionRegistrationGUI.TITLE)) {
+            event.setCancelled(true);
+            // Only act on top-inventory clicks; a click in the player's own
+            // inventory returns an overlapping getSlot() that could otherwise
+            // collide with an action slot (e.g. 31 = campaign message).
+            if (event.getClickedInventory() == event.getView().getTopInventory()) {
+                republic.handleRegistrationGUI(player, clicked, event.getSlot());
+            }
 
             // ── Communist GUIs ──────────────────────────────────────────────
         } else if (title.equals(CommunistMainMenu.TITLE)) {
@@ -622,6 +639,7 @@ public class GUIListener implements Listener {
                 title.equals(RepublicRecallGUI.RECALL_MENU_TITLE) ||
                 title.equals(RepublicRecallGUI.RECALL_CONFIRM_TITLE) ||
                 title.equals(RepublicRecallGUI.RECALL_VOTE_TITLE) ||
+                title.equals(RepublicElectionRegistrationGUI.TITLE) ||
                 title.equals(RepublicTaxMenu.TITLE) ||
                 title.equals(CommunistTaxMenu.TITLE) ||
                 title.equals(MonarchyTaxMenu.TITLE) ||

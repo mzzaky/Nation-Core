@@ -50,6 +50,12 @@ public class ChatListener implements Listener {
 
     public static final java.util.Map<UUID, Nation> pendingAnnouncementMessages = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * Aspiring presidential candidates writing their campaign message document
+     * during the Republic registration phase: playerUUID → target Nation.
+     */
+    public static final java.util.Map<UUID, Nation> pendingCampaignMessages = new java.util.concurrent.ConcurrentHashMap<>();
+
     public ChatListener(NationCore plugin) {
         this.plugin = plugin;
     }
@@ -434,6 +440,63 @@ public class ChatListener implements Listener {
                 plugin.getDataManager().saveNations();
                 MessageUtils.send(player, "<green>Announcement message updated successfully.</green>");
                 player.sendMessage(MessageUtils.parseLegacy("&7Preview: &f" + input));
+            });
+            return;
+        }
+
+        // Capture a presidential campaign message during the registration phase.
+        if (pendingCampaignMessages.containsKey(uuid)) {
+            event.setCancelled(true);
+            Nation regNation = pendingCampaignMessages.remove(uuid);
+            String input = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(event.message()).trim();
+
+            if (input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("batal")) {
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> MessageUtils.send(player, "<yellow>Campaign message input cancelled.</yellow>"));
+                return;
+            }
+
+            // Security: strip formatting so a message can never inject legacy
+            // colour codes or MiniMessage tags into the lore or campaign broadcast.
+            String sanitized = input
+                    .replace("§", "")
+                    .replace('<', '(')
+                    .replace('>', ')')
+                    .replaceAll("\\s+", " ")
+                    .trim();
+
+            int minChars = plugin.getElectionManager().getCampaignMessageMinChars();
+            int maxChars = plugin.getElectionManager().getCampaignMessageMaxChars();
+            int length = sanitized.length();
+            if (length < minChars || length > maxChars) {
+                pendingCampaignMessages.put(uuid, regNation); // re-queue for another attempt
+                final int finalLength = length;
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> MessageUtils.send(player,
+                        "<red>Your campaign message must be between <white>" + minChars
+                                + "</white> and <white>" + maxChars
+                                + "</white> characters. You wrote <white>" + finalLength
+                                + "</white>. Try again or type 'cancel'.</red>"));
+                return;
+            }
+
+            final String finalMessage = sanitized;
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                id.nationcore.models.PlayerData data = plugin.getDataManager()
+                        .getOrCreatePlayerData(uuid, player.getName());
+                data.setPresidentCampaignMessage(finalMessage);
+                plugin.getDataManager().savePlayerData();
+
+                MessageUtils.send(player, "<green>✔ Campaign message saved (<white>" + finalMessage.length()
+                        + " characters</white>). This document is now complete.</green>");
+                MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP);
+
+                // Reopen the registration menu so the player sees the updated status.
+                Nation current = plugin.getNationManager().getNationOf(uuid);
+                if (current != null && current.getType() == GovernmentType.REPUBLIC
+                        && plugin.getGUIListener() != null) {
+                    plugin.getGUIListener().republicElectionRegistrationGUI.open(player, current);
+                }
             });
             return;
         }

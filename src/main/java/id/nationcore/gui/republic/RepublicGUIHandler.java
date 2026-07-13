@@ -15,7 +15,9 @@ import id.nationcore.NationCore;
 import id.nationcore.models.FakeMember;
 import id.nationcore.models.ExecutiveOrder;
 import id.nationcore.models.CabinetDecision;
+import id.nationcore.models.Election;
 import id.nationcore.models.Government;
+import id.nationcore.models.GovernmentType;
 import id.nationcore.models.Nation;
 import id.nationcore.utils.MessageUtils;
 
@@ -55,7 +57,20 @@ public class RepublicGUIHandler {
             return;
         }
         if (slot == RepublicMainMenu.getSlot("ELECTION")) {
-            gui.votingGUI.openVotingMenu(player);
+            Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+            if (nation == null || nation.getType() != GovernmentType.REPUBLIC) {
+                MessageUtils.send(player, "<red>Presidential elections are exclusive to Republic nations.</red>");
+                return;
+            }
+            Election election = nation.getElection();
+            if (election != null && election.getCurrentPhase() == Election.ElectionPhase.REGISTRATION) {
+                gui.republicElectionRegistrationGUI.open(player, nation);
+            } else if (election != null && election.isActive()) {
+                // Campaign / Voting / Inauguration → candidate & voting menu.
+                gui.votingGUI.openVotingMenu(player);
+            } else {
+                MessageUtils.send(player, "<yellow>There is no active presidential election right now.</yellow>");
+            }
             return;
         }
         if (slot == RepublicMainMenu.getSlot("EXEC_ORDER")) {
@@ -189,6 +204,116 @@ public class RepublicGUIHandler {
             player.closeInventory();
             plugin.getElectionManager().endorseCandidate(player, candidateUUID);
         }
+    }
+
+    /**
+     * Handle clicks in the presidential registration menu. Every branch
+     * re-verifies (republic + membership + registration phase) as defence in
+     * depth, so a menu left open after the phase changes can never be exploited.
+     */
+    public void handleRegistrationGUI(Player player, ItemStack clicked, int slot) {
+        if (clicked == null || clicked.getType() == Material.AIR)
+            return;
+        if (clicked.getType() == Material.LIGHT_BLUE_STAINED_GLASS_PANE)
+            return; // border / filler
+
+        Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
+        if (nation == null || nation.getType() != GovernmentType.REPUBLIC) {
+            MessageUtils.send(player, "<red>Presidential registration is exclusive to Republic nations.</red>");
+            player.closeInventory();
+            return;
+        }
+        if (!nation.isMember(player.getUniqueId())) {
+            player.closeInventory();
+            return;
+        }
+
+        Election election = nation.getElection();
+        if (election == null || election.getCurrentPhase() != Election.ElectionPhase.REGISTRATION) {
+            MessageUtils.send(player, "<red>The registration phase has closed.</red>");
+            player.closeInventory();
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+
+        // Back → main menu
+        if (slot == RepublicElectionRegistrationGUI.SLOT_BACK) {
+            MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+            gui.mainMenuRouter.openFor(player);
+            return;
+        }
+
+        boolean alreadyFiled = election.getCandidates().containsKey(uuid);
+
+        // Campaign Message document → enter chat input mode
+        if (slot == RepublicElectionRegistrationGUI.SLOT_MESSAGE) {
+            if (alreadyFiled) {
+                MessageUtils.send(player, "<red>You have already filed your candidacy.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                return;
+            }
+            player.closeInventory();
+            id.nationcore.listeners.ChatListener.pendingCampaignMessages.put(uuid, nation);
+            MessageUtils.send(player, "");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━ [CAMPAIGN MESSAGE] ━━━━━━━━━━</gold>");
+            MessageUtils.send(player, "<yellow>Type your campaign message in chat.</yellow>");
+            MessageUtils.send(player, "<gray>It must be between <white>"
+                    + plugin.getElectionManager().getCampaignMessageMinChars() + "</white> and <white>"
+                    + plugin.getElectionManager().getCampaignMessageMaxChars()
+                    + "</white> characters. Type <white>cancel</white> to abort.</gray>");
+            MessageUtils.send(player, "<gold>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</gold>");
+            MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
+            return;
+        }
+
+        // Candidacy Agreement document → toggle (accept / withdraw)
+        if (slot == RepublicElectionRegistrationGUI.SLOT_AGREEMENT) {
+            if (alreadyFiled) {
+                MessageUtils.send(player, "<red>You have already filed your candidacy.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                return;
+            }
+            if (gui.registrationAgreementAccepted.contains(uuid)) {
+                gui.registrationAgreementAccepted.remove(uuid);
+                MessageUtils.send(player, "<yellow>You withdrew your consent to the candidacy oath.</yellow>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+            } else {
+                gui.registrationAgreementAccepted.add(uuid);
+                MessageUtils.send(player, "<green>You swore the candidacy oath and accepted the agreement.</green>");
+                MessageUtils.playSound(player, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP);
+            }
+            gui.republicElectionRegistrationGUI.open(player, nation); // refresh
+            return;
+        }
+
+        // Submit Candidacy
+        if (slot == RepublicElectionRegistrationGUI.SLOT_SUBMIT) {
+            if (alreadyFiled) {
+                MessageUtils.send(player, "<red>You have already filed your candidacy.</red>");
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                return;
+            }
+            boolean agreement = gui.registrationAgreementAccepted.contains(uuid);
+            boolean success = plugin.getElectionManager().submitCandidacy(player, nation, agreement);
+            if (success) {
+                gui.registrationAgreementAccepted.remove(uuid);
+                player.closeInventory();
+            } else {
+                MessageUtils.playSound(player, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS);
+                // Refresh so the player sees which documents are still missing.
+                if (nation.getElection() != null
+                        && nation.getElection().getCurrentPhase() == Election.ElectionPhase.REGISTRATION) {
+                    gui.republicElectionRegistrationGUI.open(player, nation);
+                } else {
+                    player.closeInventory();
+                }
+            }
+            return;
+        }
+
+        // Playtime / Level / Fee / Clean-record documents are display-only.
+        MessageUtils.playSound(player, org.bukkit.Sound.UI_BUTTON_CLICK);
     }
 
     public void handleGovernmentGUI(Player player, ItemStack clicked, int slot) {

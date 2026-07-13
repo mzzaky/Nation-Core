@@ -154,11 +154,7 @@ public class GovernmentManager {
                 "<yellow>" + name + "</yellow>", 20, 100, 20);
         MessageUtils.broadcastSound(Sound.UI_TOAST_CHALLENGE_COMPLETE);
 
-        // Apply buffs to president if online
-        Player president = Bukkit.getPlayer(uuid);
-        if (president != null) {
-            plugin.getBuffManager().applyPresidentBuffs(president);
-        }
+
     }
 
     public void endPresidency(String reason) {
@@ -179,11 +175,7 @@ public class GovernmentManager {
             }
         }
 
-        // Remove buffs from president if online
-        Player president = Bukkit.getPlayer(gov.getPresidentUUID());
-        if (president != null) {
-            plugin.getBuffManager().removePresidentBuffs(president);
-        }
+
 
         // Remove buffs from cabinet
         for (CabinetMember member : gov.getCabinet().values()) {
@@ -598,8 +590,7 @@ public class GovernmentManager {
         Government gov = nation.getRepublicGovernment();
         if (gov == null || !gov.hasPresident()) return;
 
-        Player president = Bukkit.getPlayer(gov.getPresidentUUID());
-        if (president != null) plugin.getBuffManager().removePresidentBuffs(president);
+
 
         for (CabinetMember member : gov.getCabinet().values()) {
             Player cabinetPlayer = Bukkit.getPlayer(member.getUuid());
@@ -647,7 +638,6 @@ public class GovernmentManager {
         // Cleanup mantan presiden bila ada
         if (gov.hasPresident()) {
             Player exPresident = Bukkit.getPlayer(gov.getPresidentUUID());
-            if (exPresident != null) plugin.getBuffManager().removePresidentBuffs(exPresident);
             for (CabinetMember member : gov.getCabinet().values()) {
                 Player cabinetPlayer = Bukkit.getPlayer(member.getUuid());
                 if (cabinetPlayer != null) plugin.getBuffManager().removeCabinetBuffs(cabinetPlayer);
@@ -685,8 +675,7 @@ public class GovernmentManager {
         broadcastToNation(nation, "<gold>" + name + " has been inaugurated as the new President of " +
                 nation.getName() + "!</gold>");
 
-        Player president = Bukkit.getPlayer(uuid);
-        if (president != null) plugin.getBuffManager().applyPresidentBuffs(president);
+
     }
 
 

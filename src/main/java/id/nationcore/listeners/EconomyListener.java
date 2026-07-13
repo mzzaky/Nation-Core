@@ -38,10 +38,7 @@ public class EconomyListener implements Listener {
         double bonus = 0;
 
         if (nation != null) {
-            // Leader vault bonus
-            if (nation.getLeaderUUID().equals(player.getUniqueId())) {
-                bonus += (plugin.getConfig().getDouble("president.buffs.vault-multiplier", 1.20) - 1.0);
-            }
+
 
             // Politburo/Cabinet bonuses could be added here if needed
 
@@ -126,10 +123,7 @@ public class EconomyListener implements Listener {
 
         Nation nation = plugin.getNationManager().getNationOf(player.getUniqueId());
         if (nation != null) {
-            // Leader XP bonus
-            if (nation.getLeaderUUID().equals(player.getUniqueId())) {
-                multiplier += (plugin.getConfig().getDouble("president.buffs.xp-multiplier", 1.10) - 1.0);
-            }
+
 
             // Golden Age order
             if (plugin.getExecutiveOrderManager().isOrderActive(nation, ExecutiveOrder.ExecutiveOrderType.GOLDEN_AGE)) {
